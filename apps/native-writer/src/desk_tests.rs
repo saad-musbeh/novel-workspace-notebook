@@ -186,6 +186,30 @@ fn new_novel_workflow(binaries:&Path){
     let old=a.current_widget();answer_new_novel(&"x".repeat(501),gtk::ResponseType::Accept);a.new_project();wait(||!a.loading.get());assert!(a.window.is_sensitive());assert_eq!(a.current_widget(),old);assert_eq!(rpc(&a.client,"list_projects",json!({})).as_array().unwrap().len(),3);assert!(a.status.text().contains("1–500"));
     a.close();wait(||windows()==0);
 }
+fn review_translation_workflows(binaries:&Path){
+    let fixture=tempfile::tempdir().unwrap();let data=fixture.path().join("review-data");let cache=fixture.path().join("review-cache");std::fs::create_dir_all(&data).unwrap();std::fs::create_dir_all(&cache).unwrap();
+    let worker=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(worker),&data,true).unwrap();
+    let created=rpc(&client,"create_novel",json!({"title":"Synthetic review and translations"}));let pid=created["project"]["id"].as_str().unwrap();let sid=created["scene"]["id"].as_str().unwrap();
+    let rich=json!({"schemaVersion":1,"title":"Saved source مِ 中文","document":{"type":"doc","content":[{"type":"paragraph","attrs":{"dir":"rtl","lang":"ar"},"content":[{"type":"text","text":"مِ e\u{301} 中文 𠀀 👩🏽‍🚀","marks":[{"type":"bold"},{"type":"underline"}]}]}]}});
+    rpc(&client,"save_scene",json!({"sceneId":sid,"scene":rich,"parent":created["scene"]["revisionId"],"requestId":"review-lifecycle-source"}));
+    let a=Workspace::build(client,&cache,binaries,false,false).unwrap();wait(||a.active.borrow().as_ref().is_some_and(|p|p.open.get()&&p.pending.get()==0));
+    // Register an actual translation draft so Ctrl+S and tab close use Desk's
+    // shared save decision instead of calling the page's save method directly.
+    let source_history=rpc(&a.client,"history",json!({"sceneId":sid}));
+    let p=TranslationPreviewPage::new(pid.into(),sid.into(),a.client.clone());a.translation_preview_pages.borrow_mut().push(p.clone());a.install(&p.widget,"Translation lifecycle",false);p.load(&a);wait(||p.loaded.get());
+    find_button(&p.widget,"Add translation myself").unwrap().clicked();wait(||p.dirty.get());p.text.buffer().unwrap().set_text("Manual lifecycle translation مِ 中文 𠀀");
+    select(&a,SaveChoice::Cancel);a.close_tab(p.widget.upcast_ref());assert!(a.pages.page_num(&p.widget).is_some());assert!(p.dirty.get());assert!(a.translation_preview_pages.borrow().iter().any(|v|Rc::ptr_eq(v,&p)));
+    select(&a,SaveChoice::Save);a.close_tab(p.widget.upcast_ref());wait(||a.pages.page_num(&p.widget).is_none());assert!(!p.dirty.get());assert!(!a.translation_preview_pages.borrow().iter().any(|v|Rc::ptr_eq(v,&p)));
+    let data=rpc(&a.client,"load_project_data_unambiguous",json!({"projectId":pid,"kind":"sceneTranslations"}));assert!(data["payload"]["drafts"].as_array().unwrap().iter().any(|d|d["text"]=="Manual lifecycle translation مِ 中文 𠀀"));assert_eq!(rpc(&a.client,"history",json!({"sceneId":sid})),source_history);
+    // A detached dirty translation keeps the same form and saves using its new
+    // owner after the source window closes; the manuscript stays untouched.
+    let moved=TranslationPreviewPage::new(pid.into(),sid.into(),a.client.clone());a.translation_preview_pages.borrow_mut().push(moved.clone());a.install(&moved.widget,"Detached translation lifecycle",false);moved.load(&a);wait(||moved.loaded.get());moved.text.buffer().unwrap().set_text("Detached lifecycle draft 中文 مِ 𠀀");assert!(moved.dirty.get());
+    a.detach_current();let child=workspace_for_widget(moved.widget.upcast_ref()).unwrap();assert!(!a.translation_preview_pages.borrow().iter().any(|v|Rc::ptr_eq(v,&moved)));assert!(child.translation_preview_pages.borrow().iter().any(|v|Rc::ptr_eq(v,&moved)));a.close();wait(||a.desk.is_closed());
+    let saved=Rc::new(RefCell::new(None));let out=saved.clone();child.save_current(move|r|*out.borrow_mut()=Some(r));wait(||saved.borrow().is_some());saved.borrow_mut().take().unwrap().unwrap();assert!(!moved.dirty.get());let data=rpc(&child.client,"load_project_data_unambiguous",json!({"projectId":pid,"kind":"sceneTranslations"}));assert!(data["payload"]["drafts"].as_array().unwrap().iter().any(|d|d["text"]=="Detached lifecycle draft 中文 مِ 𠀀"));assert_eq!(rpc(&child.client,"history",json!({"sceneId":sid})),source_history);
+    // Source loading for optional generation never makes a translation a saving
+    // draft. Accepted release cancels its token before settings/provider launch.
+    find_button(&moved.widget,"Generate translation").unwrap().clicked();assert!(!moved.saving.get());assert!(!child.draft(moved.widget.upcast_ref()).unwrap().busy());child.close_tab(moved.widget.upcast_ref());wait(||child.pages.page_num(&moved.widget).is_none());assert!(moved.status.text().contains("generation cancelled"));assert!(!child.translation_preview_pages.borrow().iter().any(|v|Rc::ptr_eq(v,&moved)));child.close();wait(||windows()==0);
+}
 #[test]
 #[ignore="Requires a graphical desktop; creates only synthetic temporary stores and does not take focus."]
 fn notebook_navigation_manual_save_and_multi_window() {
@@ -206,6 +230,8 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "knowledge"=>knowledge_forms::run(&binaries),
             "peek"=>peek_forms::run(&binaries),
             "scene-recovery"=>super::super::scene_conflicts::tests::run(&binaries),
+            "review-decisions"|"translations"|"review-translations"=>review_translation_workflows(&binaries),
+            "review-host"=>super::super::review_host::tests::run(&binaries),
             _=>panic!("Unknown native test section: {section}"),
         }
         assert_eq!(windows(),0); return;
@@ -228,6 +254,8 @@ fn notebook_navigation_manual_save_and_multi_window() {
     knowledge_forms::run(&binaries);
     peek_forms::run(&binaries);
     super::super::scene_conflicts::tests::run(&binaries);
+    review_translation_workflows(&binaries);
+    super::super::review_host::tests::run(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));
     let first=rpc(&client,"create_scene",json!({"chapterId":chapter["id"],"scene":{"schemaVersion":1,"title":"The first morning","document":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The room was quiet. مِ 中文 👩🏽‍🚀"}]}]}}}));

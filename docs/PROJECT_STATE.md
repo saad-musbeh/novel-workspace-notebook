@@ -1,3 +1,13 @@
+# Unreleased review decisions and translation preview — October 14, 2026
+
+Review decisions now retains local-provider proposals and explicit author choices. Apply validates every ordered saved source atomically, checks exact Unicode evidence/scalar boundaries and replaces only the captured paragraph as one unsaved undoable edit. Decision records use checked metadata/source dependencies; failure after Apply visibly retains the draft/Undo and states that the decision was not accepted. Proposals never become manuscript or canon automatically. Existing Local review and New translation draft routes use the dedicated controls.
+
+Translation preview captures immutable exact saved sources, supports literal manual draft editing and optional explicitly requested local generation, and preserves old source revisions. Optional review/translation work does not count as saving or block normal editing/draft confirmation. Accepted release cancels it; cancelled departures preserve it, and detached pages receive callbacks through their current owner after origin closure. Choice dialogs now hide/destroy after a response and honor the parent focus policy; testing reproduced lingering old dialogs before this fix.
+
+Observed: **85 native pure tests passed** with the desktop test ignored; the complete real GTK workflow passed **1 test / 45.23 s** and final targeted review host passed **1 test / 3.97 s** with fatal criticals and disposable synthetic stores. The host uses test-only delayed provider replies and actual stdio/editor workers; this qualifies cancellation/context/author decisions, not an installed model or provider accuracy. No service, model, dependency or personal writing was accessed. These remain unreleased source changes.
+
+---
+
 # Unreleased checked local asset read — October 13, 2026
 
 The private stdio companion now exposes `get_asset {projectId, assetId}` through the existing bounded checksum-verifying single-asset storage read. It returns one project-scoped asset or null without writing history. This supplies the missing read bridge for forthcoming private font staging; alphabet/font UI integration remains separately qualified. The focused companion regression passed **1 test**, covering exact bytes, foreign/missing scope, missing arguments and unchanged revision cursor. Generated contracts/check and whitespace pass. No new dependency, listener or asset is added to Git.
@@ -50,7 +60,7 @@ Desktop testing found and fixed a double-allocation resize loop and a missed ini
 
 Observed: locked offline workspace excluding the retained Tauri member passed **296 tests, 0 failures, 2 opt-in tests ignored**; the complete real GTK/worker workflow passed **1 test**, with fatal criticals and disposable synthetic stores. Storage alone passed **150 tests**. Forty cached Rust serde wire shapes, generated contract drift and whitespace checks passed. Actual bounded RTL writing and labelled multilingual board captures were inspected. The SHA-256 library is an additional direct native dependency on the same already pinned/cached version used by the workers; no dependency was installed. No migration, model download, persistent service, personal-store access or external private listener activation occurred.
 
-These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Review/translation decisions, formatting sequences and local alphabet/font/pack controls remain the next integration slices; their delegated pure tests do not qualify the running notebook.
+These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Formatting sequences and local alphabet/font/pack controls remain the next integration slices; their delegated pure tests do not qualify the running notebook.
 
 ---
 

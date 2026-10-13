@@ -9,12 +9,12 @@ thread_local! {
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(super) enum SaveChoice { Save, Discard, Cancel }
 #[derive(Clone)]
-enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>), Chapter(Rc<ChapterPage>), Alternatives(Rc<AlternativesPage>), Arrangement(Rc<SceneArrangementPage>), Shortcuts(Rc<ShortcutsPage>), Preferences(Rc<DesktopPreferencesPage>), Ripple(Rc<RipplePage>), Knowledge(Rc<KnowledgePage>) }
+enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>), Chapter(Rc<ChapterPage>), Alternatives(Rc<AlternativesPage>), Arrangement(Rc<SceneArrangementPage>), Shortcuts(Rc<ShortcutsPage>), Preferences(Rc<DesktopPreferencesPage>), Ripple(Rc<RipplePage>), Knowledge(Rc<KnowledgePage>), ReviewDecisions(Rc<ReviewDecisionsPage>), Translation(Rc<TranslationPreviewPage>) }
 impl Draft {
-    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get(), Self::Chapter(p)=>p.dirty.get(), Self::Alternatives(p)=>p.dirty.get(), Self::Arrangement(p)=>p.dirty.get(), Self::Shortcuts(p)=>p.dirty.get(), Self::Preferences(p)=>p.dirty.get(), Self::Ripple(p)=>p.dirty.get(), Self::Knowledge(p)=>p.dirty.get() } }
-    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get(), Self::Chapter(p)=>p.saving.get(), Self::Alternatives(p)=>p.saving.get(), Self::Arrangement(p)=>p.saving.get(), Self::Shortcuts(p)=>p.saving.get(), Self::Preferences(p)=>p.saving.get(), Self::Ripple(p)=>p.saving.get(), Self::Knowledge(p)=>p.saving.get() } }
-    fn composing(&self)->bool { match self { Self::Scene(p)=>p.composing.get(), Self::Chapter(p)=>p.composing.get(), Self::Alternatives(p)=>p.composing.get(), Self::Arrangement(p)=>p.composing.get(), Self::Shortcuts(p)=>p.composing.get(), Self::Preferences(p)=>p.composing.get(), Self::Ripple(p)=>p.composing.get(), Self::Knowledge(p)=>p.composing.get(), Self::Form(_)=>false } }
-    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into(), Self::Chapter(_)=>"Edit chapter".into(), Self::Alternatives(_)=>"Paragraph alternatives".into(), Self::Arrangement(_)=>"Arrange scene".into(), Self::Shortcuts(_)=>"Keyboard shortcuts".into(), Self::Preferences(_)=>"Writing view".into(), Self::Ripple(_)=>"Preview story change".into(), Self::Knowledge(p)=>p.kind.title().into() } }
+    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get(), Self::Chapter(p)=>p.dirty.get(), Self::Alternatives(p)=>p.dirty.get(), Self::Arrangement(p)=>p.dirty.get(), Self::Shortcuts(p)=>p.dirty.get(), Self::Preferences(p)=>p.dirty.get(), Self::Ripple(p)=>p.dirty.get(), Self::Knowledge(p)=>p.dirty.get(), Self::ReviewDecisions(p)=>p.dirty.get(), Self::Translation(p)=>p.dirty.get() } }
+    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get(), Self::Chapter(p)=>p.saving.get(), Self::Alternatives(p)=>p.saving.get(), Self::Arrangement(p)=>p.saving.get(), Self::Shortcuts(p)=>p.saving.get(), Self::Preferences(p)=>p.saving.get(), Self::Ripple(p)=>p.saving.get(), Self::Knowledge(p)=>p.saving.get(), Self::ReviewDecisions(p)=>p.saving.get(), Self::Translation(p)=>p.saving.get() } }
+    fn composing(&self)->bool { match self { Self::Scene(p)=>p.composing.get(), Self::Chapter(p)=>p.composing.get(), Self::Alternatives(p)=>p.composing.get(), Self::Arrangement(p)=>p.composing.get(), Self::Shortcuts(p)=>p.composing.get(), Self::Preferences(p)=>p.composing.get(), Self::Ripple(p)=>p.composing.get(), Self::Knowledge(p)=>p.composing.get(), Self::ReviewDecisions(p)=>p.composing.get(), Self::Translation(p)=>p.composing.get(), Self::Form(_)=>false } }
+    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into(), Self::Chapter(_)=>"Edit chapter".into(), Self::Alternatives(_)=>"Paragraph alternatives".into(), Self::Arrangement(_)=>"Arrange scene".into(), Self::Shortcuts(_)=>"Keyboard shortcuts".into(), Self::Preferences(_)=>"Writing view".into(), Self::Ripple(_)=>"Preview story change".into(), Self::Knowledge(p)=>p.kind.title().into(), Self::ReviewDecisions(_)=>"Review decisions".into(), Self::Translation(_)=>"Translation preview".into() } }
 }
 pub(super) struct Desk {
     pub sidebar:gtk::Box,
@@ -234,6 +234,7 @@ impl Workspace {
         self.link(&checks,"Read like a stranger",|a|a.reader());
         self.link(&checks,"Passages to revisit",|a|a.attention());
         self.link(&checks,"Dictionary and synonyms",|a|a.dictionary());
+        self.link(&checks,"Review decisions",|a|a.review_decisions());self.link(&checks,"Translation preview",|a|a.translation_preview());
         self.link(&checks,"Local review",|a|a.review());self.link(&checks,"Review settings",|a|a.open_data("settings","Review settings"));
         let versions=self.menu(&review,"Saved versions",false);self.link(&versions,"Scene history",|a|a.history());self.link_routes(&versions,"Scene conflicts",Rc::new(|a|a.conflicts()),Rc::new(|a|a.open_conflicts_window()));
         self.control(&versions,"Create scene snapshot",Self::snapshot);
@@ -299,6 +300,8 @@ impl Workspace {
     pub(super) fn current_widget(&self)->Option<gtk::Widget> { self.pages.current_page().and_then(|i|self.pages.nth_page(Some(i))) }
     pub(super) fn shortcut_composing(&self)->bool {self.current_widget().and_then(|w|self.draft(&w)).is_some_and(|d|d.composing())}
     fn draft(&self,widget:&gtk::Widget)->Option<Draft> {
+        if let Some(p)=self.review_decision_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::ReviewDecisions(p));}
+        if let Some(p)=self.translation_preview_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Translation(p));}
         if let Some(p)=self.knowledge_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Knowledge(p));}
         if let Some(p)=self.ripple_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Ripple(p));}
         if let Some(p)=self.shortcut_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Shortcuts(p));}
@@ -317,7 +320,7 @@ impl Workspace {
         let label=gtk::Label::new(Some(&format!("Save changes to “{title}” before leaving?")));label.set_line_wrap(true);label.set_margin_start(20);label.set_margin_end(20);label.set_margin_top(18);label.set_margin_bottom(18);dialog.content_area().pack_start(&label,false,false,0);
         dialog.show_all();let response=dialog.run();dialog.close();match response{gtk::ResponseType::Accept=>SaveChoice::Save,gtk::ResponseType::Reject=>SaveChoice::Discard,_=>SaveChoice::Cancel}
     }
-    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>{let owner=self.clone();let settings=p.kind=="settings";p.save(move|result|{if settings&&result.is_ok(){let windows=WINDOWS.with(|windows|windows.borrow().iter().filter(|a|*a.pid.borrow()==*owner.pid.borrow()&&!a.desk.is_closed()).cloned().collect::<Vec<_>>());for window in windows{window.reload_shortcuts();window.reload_desktop_preferences();}}callback(result);});},Draft::Chapter(p)=>p.save(self,callback),Draft::Alternatives(p)=>p.save(self,callback),Draft::Arrangement(p)=>p.save(self,callback),Draft::Shortcuts(p)=>p.save(self,callback),Draft::Preferences(p)=>p.save(self,callback),Draft::Ripple(p)=>p.save(self,callback),Draft::Knowledge(p)=>p.save(self,callback)} }
+    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>{let owner=self.clone();let settings=p.kind=="settings";p.save(move|result|{if settings&&result.is_ok(){let windows=WINDOWS.with(|windows|windows.borrow().iter().filter(|a|*a.pid.borrow()==*owner.pid.borrow()&&!a.desk.is_closed()).cloned().collect::<Vec<_>>());for window in windows{window.reload_shortcuts();window.reload_desktop_preferences();}}callback(result);});},Draft::Chapter(p)=>p.save(self,callback),Draft::Alternatives(p)=>p.save(self,callback),Draft::Arrangement(p)=>p.save(self,callback),Draft::Shortcuts(p)=>p.save(self,callback),Draft::Preferences(p)=>p.save(self,callback),Draft::Ripple(p)=>p.save(self,callback),Draft::Knowledge(p)=>p.save(self,callback),Draft::ReviewDecisions(p)=>p.save(self,callback),Draft::Translation(p)=>p.save(self,callback)} }
     fn confirm(self:&Rc<Self>,draft:Draft,started:std::time::Instant,callback:Box<dyn FnOnce(bool)>) {
         if draft.composing(){self.error("Finish the current input composition before leaving.");callback(false);return;}
         if draft.busy(){
@@ -338,6 +341,8 @@ impl Workspace {
                 Draft::Preferences(p)=>{p.discard();callback(true);}
                 Draft::Ripple(p)=>{p.discard();callback(true);}
                 Draft::Knowledge(p)=>{p.discard();callback(true);}
+                Draft::ReviewDecisions(p)=>{p.discard();callback(true);}
+                Draft::Translation(p)=>{p.discard();callback(true);}
             }
         }
     }
@@ -365,6 +370,8 @@ impl Workspace {
         drafts.extend(self.desktop_preference_pages.borrow().iter().cloned().map(Draft::Preferences));
         drafts.extend(self.ripple_pages.borrow().iter().cloned().map(Draft::Ripple));
         drafts.extend(self.knowledge_pages.borrow().iter().cloned().map(Draft::Knowledge));
+        drafts.extend(self.review_decision_pages.borrow().iter().cloned().map(Draft::ReviewDecisions));
+        drafts.extend(self.translation_preview_pages.borrow().iter().cloned().map(Draft::Translation));
         let a=self.clone();let owner=self.clone();
         let done:Box<dyn FnOnce(bool)>=Box::new(move|ok|{owner.window.set_sensitive(true);owner.desk.busy.set(false);callback(ok);});
         self.confirm_next(drafts,0,Box::new(move|ok|{
@@ -390,6 +397,7 @@ impl Workspace {
     }
     pub(super) fn clear_tabs(&self) {
         self.cancel_peek();
+        for p in self.translation_preview_pages.borrow().iter(){p.cancel_generation();}
         self.desk.suppress.set(true);while self.pages.n_pages()!=0{self.pages.remove_page(Some(0));}*self.desk.selected.borrow_mut()=None;self.desk.bindings.borrow_mut().clear();self.desk.titles.borrow_mut().clear();self.desk.board_views.borrow_mut().clear();for w in self.desk.board_controls.children(){self.desk.board_controls.remove(&w);}self.desk.suppress.set(false);
     }
     pub(super) fn install(self:&Rc<Self>,widget:&impl IsA<gtk::Widget>,title:&str,replace:bool) {
@@ -435,7 +443,7 @@ impl Workspace {
         self.window.set_sensitive(false);let a=self.clone();let widget=widget.clone();let draft=self.draft(&widget);
         let done=move|accepted:bool|{
             a.desk.busy.set(false);a.window.set_sensitive(true);
-            if accepted{a.desk.suppress.set(true);a.pages.remove_page(a.pages.page_num(&widget));a.desk.suppress.set(false);
+            if accepted{a.release_review_page(&widget);a.desk.suppress.set(true);a.pages.remove_page(a.pages.page_num(&widget));a.desk.suppress.set(false);
                 if let Some(draft)=a.draft(&widget){match draft{
                     Draft::Scene(p)=>{a.panes.borrow_mut().remove(&p.scene_id);p.process.stop();},
                     Draft::Form(p)=>{a.data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));a.extra_data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
@@ -446,6 +454,8 @@ impl Workspace {
                     Draft::Preferences(p)=>{a.desktop_preference_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                     Draft::Ripple(p)=>{a.ripple_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                     Draft::Knowledge(p)=>{a.knowledge_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::ReviewDecisions(p)=>{a.review_decision_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::Translation(p)=>{p.cancel_generation();a.translation_preview_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                 }}a.release_view(&widget);
                 *a.desk.selected.borrow_mut()=a.current_widget();if let Some(w)=a.current_widget(){a.activate_widget(&w);}else{*a.active.borrow_mut()=None;a.new_tab();}
             }
@@ -479,6 +489,10 @@ impl Workspace {
     }
     fn release_view(&self,widget:&gtk::Widget){
         self.cancel_peek();
+        self.release_review_page(widget);
+        for p in self.translation_preview_pages.borrow().iter().filter(|p|p.widget.upcast_ref::<gtk::Widget>()==widget){p.cancel_generation();}
+        self.translation_preview_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
+        self.review_decision_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.ripple_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.knowledge_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.scene_arrangement_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
@@ -556,6 +570,8 @@ impl Workspace {
             Draft::Preferences(p)=>{self.desktop_preference_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.desktop_preference_pages.borrow_mut().push(p);},
             Draft::Ripple(p)=>{self.ripple_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.ripple_pages.borrow_mut().push(p);},
             Draft::Knowledge(p)=>{self.knowledge_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.knowledge_pages.borrow_mut().push(p);},
+            Draft::ReviewDecisions(p)=>{self.review_decision_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.review_decision_pages.borrow_mut().push(p);},
+            Draft::Translation(p)=>{self.translation_preview_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.translation_preview_pages.borrow_mut().push(p);},
             Draft::Chapter(p)=>{self.chapter_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.chapter_pages.borrow_mut().push(p);},
             Draft::Alternatives(p)=>{self.alternative_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.alternative_pages.borrow_mut().push(p);},
             Draft::Arrangement(p)=>{self.scene_arrangement_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.scene_arrangement_pages.borrow_mut().push(p);},
@@ -583,6 +599,8 @@ impl Workspace {
     }
     pub(super) fn finish_close(self:&Rc<Self>) {
         self.cancel_peek();
+        self.cancel_review_generations();
+        for p in self.translation_preview_pages.borrow().iter(){p.cancel_generation();}
         self.desk.closed.set(true);self.desk.generation.set(self.desk.generation.get()+1);
         for p in self.panes.borrow().values(){p.process.stop();}self.panes.borrow_mut().clear();self.window.hide();unsafe{self.window.destroy();}
         let last=WINDOWS.with(|windows|{windows.borrow_mut().retain(|a|!Rc::ptr_eq(a,self));windows.borrow().is_empty()});

@@ -38,6 +38,14 @@ mod navigation;
 #[path="ripple.rs"]
 mod ripple;
 use ripple::RipplePage;
+#[path="review_host.rs"]
+mod review_host;
+#[path="review_decisions.rs"]
+mod review_decisions;
+use review_decisions::ReviewDecisionsPage;
+#[path="translation_preview.rs"]
+mod translation_preview;
+use translation_preview::TranslationPreviewPage;
 #[path="knowledge.rs"]
 mod knowledge;
 use knowledge::KnowledgePage;
@@ -90,6 +98,8 @@ pub struct Workspace {
     desktop_preference_pages:RefCell<Vec<Rc<DesktopPreferencesPage>>>,
     ripple_pages:RefCell<Vec<Rc<RipplePage>>>,
     knowledge_pages:RefCell<Vec<Rc<KnowledgePage>>>,
+    review_decision_pages:RefCell<Vec<Rc<ReviewDecisionsPage>>>,
+    translation_preview_pages:RefCell<Vec<Rc<TranslationPreviewPage>>>,
     peek:peek::PeekRuntime,
     changing:Cell<bool>,
     closing:Cell<bool>,
@@ -134,8 +144,9 @@ fn prompt_with_action(parent:&gtk::Window,title:&str,current:&str,action:&str)->
 }
 fn choose_option(parent:&gtk::Window,title:&str,options:&[(&str,&str)],current:&str)->Option<String>{
     let dialog=gtk::Dialog::with_buttons(Some(title),Some(parent),gtk::DialogFlags::MODAL,&[("Cancel",gtk::ResponseType::Cancel),("Continue",gtk::ResponseType::Accept)]);
+    dialog.set_accept_focus(parent.accepts_focus());dialog.set_focus_on_map(parent.accepts_focus());if !parent.accepts_focus(){dialog.set_keep_below(true);}
     let combo=gtk::ComboBoxText::new();for (id,label) in options{combo.append(Some(id),label);}combo.set_active_id(Some(current));combo.set_margin_start(18);combo.set_margin_end(18);combo.set_margin_top(18);combo.set_margin_bottom(18);dialog.content_area().pack_start(&combo,false,false,0);dialog.show_all();
-    let result=if dialog.run()==gtk::ResponseType::Accept{combo.active_id().map(|id|id.to_string())}else{None};dialog.close();result
+    let result=if dialog.run()==gtk::ResponseType::Accept{combo.active_id().map(|id|id.to_string())}else{None};dialog.hide();unsafe{dialog.destroy();}result
 }
 const LANGUAGES:&[(&str,&str)]=&[("en","English"),("ar","Arabic"),("zh-Hans","Chinese (simplified)"),("zh-Hant","Chinese (traditional)")];
 fn text_dialog(parent:&gtk::Window,title:&str,text:&str)->Rc<Panel>{
@@ -233,7 +244,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -312,9 +323,10 @@ impl Workspace {
             if !accepted{
                 a.changing.set(true);a.projects.set_active_id(Some(&previous));a.changing.set(false);return;
             }
+            a.cancel_review_generations();
             a.clear_tabs();
             for pane in a.panes.borrow().values(){pane.process.stop();}
-            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();
+            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();a.review_decision_pages.borrow_mut().clear();a.translation_preview_pages.borrow_mut().clear();
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
             *a.index.borrow_mut()=Value::Null;a.populate_outline();a.populate_book();
             a.pages.set_group_name(Some(a.group_name()));
@@ -1131,70 +1143,7 @@ impl Workspace {
             });
         }
     }
-    fn review(self:&Rc<Self>){
-        let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.review();return;}
-        let Some(p)=self.context_pane()else{
-            return;
-        };
-        let settings=self.page("settings");
-        if !settings.loaded.get(){let a=self.clone();self.when_loaded(settings,move||a.review());return;}
-        let Some(provider)=choose_option(&self.window,"Review with",&[("languagetool","Local grammar checker"),("llm","Local writing model")],"languagetool")else{
-            return;
-        };
-        if !["languagetool","llm"].contains(&provider.as_str()){
-            self.error("Choose languagetool or llm.");
-            return;
-        }let config=self.page("settings").value.borrow()["assistance"]["providers"].as_array().and_then(|v|v.iter().find(|p|p["kind"]==provider)).cloned().unwrap_or(json!({
-            "endpoint":if provider=="llm"{
-                "http://127.0.0.1:8080"
-            }else{
-                "http://127.0.0.1:8081"
-            }
-        }));
-        let Some(language)=choose_option(&self.window,"Review language",LANGUAGES,"en")else{
-            return;
-        };
-        let a=self.clone();
-        self.drain(move|r|{
-            if let Err(e)=r{
-                a.error(&e);
-                return;
-            }let a_=a.clone();
-            a.client.rpc("load_scene",json!({
-                "sceneId":p.scene_id
-            }),move|r|{
-                let saved=match r{
-                    Ok(v)=>v,Err(e)=>{
-                        a_.error(&e);
-                        return;
-                    }
-                };
-                let text=novel_storage::plain_text(&saved["scene"]["document"]);
-                let a=desk::effective(&a_);
-                let text_=text.clone();
-                a_.client.rpc("text_hash",json!({
-                    "text":text
-                }),move|r|match r{
-                    Ok(hash)=>{
-                        let id=uuid::Uuid::new_v4().to_string();
-                        let request=json!({
-                            "schemaVersion":1,"id":id,"idempotencyKey":uuid::Uuid::new_v4().to_string(),"projectId":a.pid.borrow().clone(),"provider":provider,"operation":if provider=="llm"{
-                                "wording"
-                            }else{
-                                "grammar"
-                            },"language":language,"sources":[{
-                                "sceneId":p.scene_id,"revisionId":saved["revisionId"],"hash":hash,"language":language,"text":text_,"kind":"scene"
-                            }],"contextBudget":4096,"timeoutMs":120000,"createdAt":glib::DateTime::now_utc().unwrap().format("%Y-%m-%dT%H:%M:%SZ").unwrap().as_str()
-                        });
-                        a.status.set_text("Reviewing saved text with the configured local provider…");
-                        a.simple_rpc("provider_run",json!({
-                            "request":request,"runToken":format!("{id}:1"),"endpoint":config["endpoint"],"model":config["model"]
-                        }),"Local review · author decisions required");
-                    },Err(e)=>a.error(&e)
-                });
-            });
-        });
-    }
+    fn review(self:&Rc<Self>){self.run_local_review();}
     fn details(self:&Rc<Self>){
         let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.details();return;}
         let Some(p)=self.context_pane()else{self.error("Open a scene to edit its details.");return;};
@@ -1211,39 +1160,7 @@ impl Workspace {
             });
         });
     }
-    fn new_translation(self:&Rc<Self>){
-        let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.new_translation();return;}
-        let Some(p)=self.context_pane()else{
-            return;
-        };
-        let Some(source)=choose_option(&self.window,"Original language",LANGUAGES,"en")else{
-            return;
-        };
-        let Some(target)=choose_option(&self.window,"Translation language",LANGUAGES,"ar")else{
-            return;
-        };
-        let a=self.clone();
-        self.drain(move|r|{
-            if let Err(e)=r{
-                a.error(&e);
-                return;
-            }let a_=a.clone();
-            a.client.rpc("load_scene",json!({
-                "sceneId":p.scene_id
-            }),move|r|match r{
-                Ok(saved)=>{
-                    let page=a_.data_for_view("sceneTranslations");let app=a_.clone();
-                    a_.when_loaded(page.clone(),move||{
-                        let a=app.clone();app.navigate(move||{
-                            let mut value=page.value.borrow().clone();
-                            value["drafts"].as_array_mut().unwrap().push(json!({"id":uuid::Uuid::new_v4().to_string(),"sceneId":p.scene_id,"sceneRevisionId":saved["revisionId"],"sourceLanguage":source,"targetLanguage":target,"sourceText":novel_storage::plain_text(&saved["scene"]["document"]),"text":""}));
-                            page.update(value);a.install(&page.widget,"Translations",true);
-                        });
-                    });
-                },Err(e)=>a_.error(&e)
-            });
-        });
-    }
+    fn new_translation(self:&Rc<Self>){self.translation_preview();}
     fn library(self:&Rc<Self>){
         let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.library();return;}
         let a=self.clone();

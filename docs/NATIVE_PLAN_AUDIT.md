@@ -50,7 +50,7 @@ Historical “Done” rows in `PROJECT_STATE.md`, and implemented workflows in t
 2. Add scene-reference panels with stale knowledge/fact scope labels. Pair this with dedicated valid knowledge authoring and backend planning validation rather than exposing raw snapshot editing as the normal action.
 3. Add authored ripple preview and reader-learns chronology. These depend on well-validated canonical IDs/time/link semantics.
 4. Display board edge labels and provide selected-card connection controls; then add exact Back/Forward captures and saved-paragraph comparison.
-5. Add licensed installed dictionary lookup, alphabet/font workflow and preference/shortcut controls. Review decisions need exact source revision/quote checks plus Undo.
+5. Add licensed installed dictionary lookup, alphabet/font workflow and preference/shortcut controls. Dedicated review decisions now pass exact all-source revision/hash/quote checks, unsaved one-step Apply/Undo and metadata failure retention; translation previews pass historical-source/manual-draft/cancellation ownership checks.
 6. Complete private peer controls in a local synthetic workflow before requesting any real listener/network/credential changes. Packaging and physical IME/accessibility/clean-host/private transport release gates remain separately recorded and cannot be asserted from source tests.
 
 ## Recoverable backend planning-validation proposal
@@ -66,3 +66,6 @@ Keep schema 1 and immutable revision history. Separate compatibility validation 
 Isolated pure-model extraction of rehearsal/character-cut/reference code passed **16 tests** on October 13 using the existing compiled `serde_json` library. This qualifies those projection functions only; full crate/GTK integration and release qualification remain the integrating agent's checks.
 
 `cargo test -p novel-storage --test planning_validation --locked --offline` passed **8 pure compatibility/author-transition tests** before adding the dependent transaction regression. The added storage transaction/archive test is pending integration of the validator into commit paths; it was filtered from the subsequent pure run rather than claimed passing. Full validation does not yet qualify every historical planning-core variant.
+
+
+October 14 continuation: dedicated review decisions, provider-launch host and editable historical-source translation previews are integrated and pass native pure/GTK workflows. Optional generation remains separate from saving; published packages and model/provider quality are not qualified by delayed synthetic replies. Formatting sequences and licensed alphabet/resource controls remain the next integrations.

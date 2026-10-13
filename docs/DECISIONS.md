@@ -294,3 +294,8 @@ Validate only new or changed present event-time values at the author transition,
 ## October 13 — Project-scoped private asset read
 
 Expose the existing bounded/checksummed single-asset storage read through inherited private stdio for local font staging. Require explicit project and asset identities, return null for absent scope, and keep it read-only. Do not list/read every project BLOB or introduce a listener to obtain one font.
+
+
+## October 14 — Revision-bound review and translation decisions
+
+Keep explicit provider proposals separate from author acceptance. Before Apply, atomically verify the ordered complete saved-source manifest, then exact paragraph anchors; record acceptance only with final checked metadata/source CAS. If the record write fails after editor mutation, retain the unsaved draft and Undo and say acceptance failed. Translation sources stay immutable historical captures; optional generation is a cancellable page activity rather than a saving barrier. Resolve callbacks through current widget ownership, cancel only accepted actual release, and preserve generation through transfer. Use weak widget callbacks to avoid retaining closed controls. Choice dialogs hide/destroy after response and follow the parent focus policy.

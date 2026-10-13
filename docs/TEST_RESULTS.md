@@ -1,3 +1,13 @@
+# Native review and translation author decisions — October 14, 2026
+
+Locked offline native units passed **85 tests, 0 failures, 1 ignored**, including 19 review/translation/host pure checks. The complete opt-in GTK workflow passed **1 test / 45.23 s**. Final host GTK passed **1 test / 3.97 s**, and the separate lifecycle/module section previously passed **1 test / 1.81 s**. Fatal criticals were enabled; actual rebuilt workers used disposable synthetic stores. Host generation uses delayed test-only replies without launching providers or network requests.
+
+Cases cover all-source atomic refusal before mutation, exact UTF-16/scalar/quotation anchors, one-step unsaved Apply/Undo, changed supporting source and post-Apply metadata CAS failure retaining the draft and pending decision, historical translation sources, source/metadata drift and failed Save retention. Registered pages test manual Save/Discard/Cancel, cancelled close, optional-generation immediate accepted close, detached current ownership after origin close and saving through normal notebook controls. Provider launch choices, cancelled manual drain, pending generation during drain, receive/cancel and late callback ownership are exercised. Testing found lingering choice dialogs; explicit hide/destroy fixed them. The full fixture waits for the acknowledged pending reflow before opening the next guarded page.
+
+Logs: `/tmp/novel-native-review-host-unit.log`, `/tmp/novel-native-review-host-gui.log`, `/tmp/novel-native-review-translations-gui.log`, `/tmp/novel-native-review-complete-gui.log`. No model quality, installed provider, physical IME, release package or real private transport qualification is claimed.
+
+---
+
 # Private companion asset-read bridge — October 13, 2026
 
 The locked offline focused companion test passed **1 test** for `get_asset`: exact synthetic bytes/metadata, foreign-project and missing-asset null results, required argument refusal and unchanged revision cursor. It delegates to the existing bounded/checksummed `load_asset` storage operation. Generated contract drift/check and whitespace passed; no font files or dependencies were added. Log: `/tmp/novel-asset-read-rpc.log`. Font staging/rendering and native resource controls remain separate tests.
