@@ -4,7 +4,7 @@ import {homedir,tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {afterEach,describe,expect,expectTypeOf,it,vi} from 'vitest';
 import {storageRpcCoverage,workspaceWireSchema} from '../apps/writer/src/generated/workspace-contract';
-import type {StorageRpcContract,Snapshot,ProjectIndex,SceneRecord,UniverseNovelCreated,NovelCreated,Project} from '../apps/writer/src/generated/workspace-contract';
+import type {StorageRpcContract,Snapshot,ProjectIndex,SceneRecord,SceneArrangementSnapshot,MetadataResolutionSnapshot,UniverseNovelCreated,NovelCreated,Project} from '../apps/writer/src/generated/workspace-contract';
 import type {Scene} from '../apps/writer/src/document';
 const {invoke}=vi.hoisted(()=>({invoke:vi.fn()}));
 vi.mock('@tauri-apps/api/core',()=>({invoke}));
@@ -17,7 +17,7 @@ const source='crates/storage/src/workspace.rs';
 const temporary:string[]=[];
 function temp(){const path=mkdtempSync(join(tmpdir(),'novel-contract-'));temporary.push(path);return path;}
 function run(args:string[]=[]){return spawnSync('python3',[script,...args],{encoding:'utf8',timeout:10000});}
-function fixtureRoot(){const path=temp();for(const file of ['crates/storage/src/lib.rs',source,'crates/storage/src/export_profile.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/companion/src/main.rs',output]){mkdirSync(join(path,file,'..'),{recursive:true});copyFileSync(join(root,file),join(path,file));}return path;}
+function fixtureRoot(){const path=temp();for(const file of ['crates/storage/src/lib.rs',source,'crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/export_profile.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/companion/src/main.rs',output]){mkdirSync(join(path,file,'..'),{recursive:true});copyFileSync(join(root,file),join(path,file));}return path;}
 afterEach(()=>{for(const path of temporary.splice(0))rmSync(path,{recursive:true,force:true});vi.unstubAllGlobals();invoke.mockReset();});
 
 describe('generated storage wire contract',()=>{
@@ -33,7 +33,7 @@ describe('generated storage wire contract',()=>{
   const drift=run(['--root',path,'--check']);expect(drift.status).toBe(1);expect(drift.stderr).toContain('contract drift');expect(readFileSync(join(path,output),'utf8')).toBe(before);
   expect(run(['--root',path]).status).toBe(0);expect(run(['--root',path,'--check']).status).toBe(0);expect(readFileSync(join(path,output),'utf8')).toContain('subtitle: string;');
  });
- it.each(['pub unsupported: Box<String>,','#[serde(skip)] pub unsupported: String,','pub unsupported: std::collections::HashMap<String,String>,'])('refuses unsupported fields: %s',(field)=>{
+ it.each(['pub unsupported: &SceneArrangementSnapshot,','pub unsupported: Box<String>,','#[serde(skip)] pub unsupported: String,','pub unsupported: std::collections::HashMap<String,String>,'])('refuses unsupported fields: %s',(field)=>{
   const path=fixtureRoot();const before=readFileSync(join(path,output),'utf8');writeFileSync(join(path,source),readFileSync(join(path,source),'utf8').replace('pub struct Project {',`pub struct Project {\n${field}`));
   const result=run(['--root',path]);expect(result.status).toBe(2);expect(result.stderr).toContain('refused');expect(readFileSync(join(path,output),'utf8')).toBe(before);
  });
@@ -53,6 +53,9 @@ describe('generated storage wire contract',()=>{
   expectTypeOf<StorageRpcContract['rename_project']['result']>().toEqualTypeOf<null>();
   expectTypeOf<StorageRpcContract['open_project_index']['result']>().toEqualTypeOf<ProjectIndex>();
   expectTypeOf<StorageRpcContract['edit_chapter']['args']>().toEqualTypeOf<{chapterId:string;expectedChapterHead:string|null;expectedProjectHead:string|null;expectedOrder:string[];numberingParent:string|null;title:string;number:number}>();
+  expectTypeOf<StorageRpcContract['arrange_scene']['args']>().toEqualTypeOf<{snapshot:SceneArrangementSnapshot;targetChapterId:string;position:number}>();
+  expectTypeOf<StorageRpcContract['metadata_resolution_snapshot']['result']>().toEqualTypeOf<MetadataResolutionSnapshot>();
+  expectTypeOf<StorageRpcContract['resolve_metadata_checked']['args']>().toEqualTypeOf<{snapshot:MetadataResolutionSnapshot;payload:unknown}>();
   expectTypeOf<StorageRpcContract['edit_chapter']['result']>().toEqualTypeOf<ProjectIndex>();
   expectTypeOf<StorageRpcContract<Scene>['load_project_scene']['result']>().toEqualTypeOf<SceneRecord<Scene>>();
  });

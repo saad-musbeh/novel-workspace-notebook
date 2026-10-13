@@ -253,3 +253,10 @@ Integrate alternative forms with the shared manual draft and detached ownership 
 ## October 13 — Explicit project-data conflict choices
 
 Expose checked retained full-version previews and a whole-version author decision against every captured head. Resolve only after all windows for the project complete their manual draft decisions. Route detached actions to the owning window and preserve all revision history. Keep backend immutable retention checks; refuse choices that require a combined candidate rather than silently manufacturing a merge. Branch lineage remains inspection-only.
+
+
+## October 13 — Checked arrangement, explicit deferred-order recovery and native author validation
+
+Bind scene moves/reorders to one read transaction including content head, placements, chapter orders and metadata boundaries. Apply replicated projections in recorded sequence; preserve unresolved placement histories and defer dependent chapter orders. Recovery binds each decision to a complete snapshot. A retained single-head order can be explicitly replayed or replaced by the exact reviewed current-membership projection, never arbitrary unseen edits. Resolving placement never silently reapplies chapter ordering.
+
+Move retained knowledge/reveal authoring checks into storage without making historical compatibility depend on current canon. Live author transitions check new/modified claims; imports/read/recovery preserve unchanged historical snapshots. Combined resolution may retain claims only from checksum-verified acknowledged heads, and newly authored claims obey current rules. Strict native shortcut/view settings are optional additive fields. No migration or dependency download is needed.

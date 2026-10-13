@@ -981,6 +981,9 @@ impl Storage {
             let old:String=sqlx::query_scalar("SELECT payload FROM revision_envelope WHERE id=?").bind(head).fetch_one(&mut *tx).await.map_err(err)?;
             let old:Value=serde_json::from_str(&old).map_err(|_|"Invalid saved project data.")?;
             validate_data_transition(kind,&old,&payload)?;
+            if kind=="planning"{crate::planning_validation::validate_transition(Some(&old),&payload)?;}
+        }else if kind=="planning"{
+            crate::planning_validation::validate_transition(None,&payload)?;
         }
         if kind=="sceneTranslations"{crate::translations::validate_sources(&mut tx,pid,&payload).await?;}
         if ["planning","writingSystems","sceneMetadata","paragraphAlternatives","notebookTools"].contains(&kind){
@@ -1178,11 +1181,11 @@ async fn chapter_numbering_state(tx:&mut Transaction<'_,Sqlite>,pid:&str)->Resul
     }else{1};
     Ok((start,head,conflicted))
 }
-async fn metadata_parent(tx:&mut Transaction<'_,Sqlite>,eid:&str,kind:&str)->Result<Vec<String>,String>{
+pub(crate) async fn metadata_parent(tx:&mut Transaction<'_,Sqlite>,eid:&str,kind:&str)->Result<Vec<String>,String>{
     let heads:Vec<String>=sqlx::query_scalar("SELECT r.id FROM revision_envelope r WHERE r.entity_id=? AND r.entity_type=? AND NOT EXISTS(SELECT 1 FROM revision_envelope c,json_each(c.parents) p WHERE c.entity_id=r.entity_id AND c.entity_type=r.entity_type AND p.value=r.id)").bind(eid).bind(kind).fetch_all(&mut **tx).await.map_err(err)?;
     if heads.len()>1{return Err("Conflict: resolve competing metadata revisions before changing this object.".into())}Ok(heads)
 }
-async fn metadata_snapshot(tx:&mut Transaction<'_,Sqlite>,eid:&str,kind:&str)->Result<Value,String>{
+pub(crate) async fn metadata_snapshot(tx:&mut Transaction<'_,Sqlite>,eid:&str,kind:&str)->Result<Value,String>{
     let title_query=if kind=="project"{"SELECT title FROM project WHERE id=?"}else{"SELECT title FROM chapter WHERE id=?"};
     let order_query=if kind=="project"{"SELECT id FROM chapter WHERE project_id=? ORDER BY position,id"}else{"SELECT id FROM manuscript_scene WHERE chapter_id=? ORDER BY position,id"};
     let title:String=sqlx::query_scalar(title_query).bind(eid).fetch_one(&mut **tx).await.map_err(err)?;
@@ -1310,8 +1313,11 @@ String>{
             for field in ["fields","records","facts","boards","lanes","events","constraints","issues","plotPoints"]{
                 bounded_array(field,20_000,false)?;
             }
+            crate::planning_validation::validate_compatibility(payload)?;
         },
         "settings"=>{
+            crate::native_shortcuts::NativeShortcutSettings::from_project_settings(payload)?;
+            crate::native_desk::NativeDeskPreferences::from_project_settings(payload)?;
             if let Some(assistance)=payload.get("assistance"){
                 if assistance.get("schemaVersion").and_then(Value::as_u64)!=Some(1){
                     return Err("Unsupported assistance settings version.".into())

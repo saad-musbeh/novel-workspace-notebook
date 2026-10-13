@@ -1,3 +1,13 @@
+# Unreleased checked organization and native data validation — October 13, 2026
+
+Storage now exposes a transaction-captured scene arrangement snapshot and a checked move/reorder operation. It compares scene/content, chapter memberships/orders and metadata heads before writing; saved scene text and revisions remain unchanged. Replication applies related placement/order projections in recorded sequence, deferring chapter orders with unresolved placement conflicts. New metadata recovery snapshots capture all heads and ordering dependencies. Explicit resolution can replay a retained chapter order or acknowledge the exact captured current membership; it never silently chooses placement or replays an order after another decision.
+
+Native settings validate bounded shortcut bindings and interface direction/writing width. New or changed authored knowledge/reveal entries are checked against retained characters, facts, scopes and exact fact snapshots; approved knowledge requires approved canon. Compatibility reads/imports preserve unchanged stale and partial historical entries. Conflict candidates can reuse only verified acknowledged-head claims; a new merged claim must satisfy authoring rules. No database migration, dependency installation or external service was added.
+
+Observed: all **131 storage tests passed** offline and locked, including six checked scene arrangement tests, three metadata recovery tests, native settings tests and planning transaction/archive/conflict regressions. All **69 companion tests passed**, with the opt-in OS-keyring test ignored. Generated contract drift, synthetic RPC drift/borrowed-field refusal and cached Rust serde fixtures passed. Native interfaces for these backend capabilities are being qualified separately; these checks do not qualify release packages or physical input.
+
+---
+
 # Unreleased project-data conflict page — October 13, 2026
 
 Project → History & recovery → Project data conflicts shows retained heads and checked full-version previews for all supported project-data kinds. The author explicitly chooses a saved payload against the complete captured head set. Resolution checks unsaved pages across the novel's windows first; stale previews refuse the decision. Every earlier revision remains in history, and detached pages route to their current window.

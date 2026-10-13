@@ -4,7 +4,7 @@ mod patch;
 mod sync_service;
 mod recovery;
 mod peer_client;
-use novel_storage::{Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
+use novel_storage::{MetadataResolutionSnapshot, SceneArrangementSnapshot, Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use std::{fs::OpenOptions, io::{BufRead, Read, Write}, path::PathBuf, sync::Arc};
@@ -56,6 +56,8 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "load_project_scene" => encode(storage.load_project_scene(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"sceneId")?).await?),
         "rename_project" => encode(storage.rename_project(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"title")?).await?),
         "create_chapter" => encode(storage.create_chapter(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"title")?).await?),
+        "scene_arrangement_snapshot" => encode(storage.scene_arrangement_snapshot(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"sceneId")?).await?),
+        "arrange_scene" => encode(storage.arrange_scene(&argument::<SceneArrangementSnapshot>(&args,"snapshot")?,&argument::<String>(&args,"targetChapterId")?,argument::<usize>(&args,"position")?).await?),
         "chapter_edit_snapshot" => encode(storage.chapter_edit_snapshot(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"chapterId")?).await?),
         "edit_chapter" => encode(storage.edit_chapter(&argument::<String>(&args,"chapterId")?,argument::<Option<String>>(&args,"expectedChapterHead")?,argument::<Option<String>>(&args,"expectedProjectHead")?,argument::<Vec<String>>(&args,"expectedOrder")?,argument::<Option<String>>(&args,"numberingParent")?,&argument::<String>(&args,"title")?,argument::<i64>(&args,"number")?).await?),
         "rename_chapter" => encode(storage.rename_chapter(&argument::<String>(&args,"chapterId")?, &argument::<String>(&args,"title")?).await?),
@@ -95,6 +97,8 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "delete_scene" => encode(storage.delete_scene(&argument::<String>(&args,"sceneId")?,&argument::<String>(&args,"parent")?).await?),
         "restore_deleted_scene" => encode(storage.restore_deleted_scene(&argument::<String>(&args,"sceneId")?,argument::<Scene>(&args,"scene")?,argument::<Vec<String>>(&args,"heads")?).await?),
         "metadata_heads" => encode(storage.metadata_heads(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"entityId")?,&argument::<String>(&args,"entityType")?).await?),
+        "metadata_resolution_snapshot" => encode(storage.metadata_resolution_snapshot(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"entityId")?,&argument::<String>(&args,"entityType")?).await?),
+        "resolve_metadata_checked" => encode(storage.resolve_metadata_checked(&argument::<MetadataResolutionSnapshot>(&args,"snapshot")?,argument::<Value>(&args,"payload")?).await?),
         "resolve_metadata" => encode(storage.resolve_metadata(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"entityId")?,&argument::<String>(&args,"entityType")?,argument::<Value>(&args,"payload")?,argument::<Vec<String>>(&args,"heads")?).await?),
         "scene_heads" => encode(storage.scene_heads(&argument::<String>(&args,"sceneId")?).await?),
         "project_data_heads" => encode(storage.project_data_heads(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"kind")?).await?),

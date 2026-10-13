@@ -59,6 +59,27 @@ pub struct RevisionHeads {
     pub entity_type:String,
     pub revision_ids:Vec<String>
 }
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+pub struct MetadataPlacementState {
+    pub scene_id:String,
+    pub chapter_id:String,
+    pub position:i64,
+    pub deleted:bool,
+    pub heads:Vec<String>,
+}
+/// One coherent read binds an author's metadata preview to its ordering dependencies.
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+pub struct MetadataResolutionSnapshot {
+    pub project_id:String,
+    pub entity_id:String,
+    pub entity_type:String,
+    pub heads:Vec<String>,
+    pub projection:Value,
+    pub chapter_order:Vec<String>,
+    pub placement_heads:Vec<MetadataPlacementState>,
+}
 #[derive(Debug,Clone,Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
 pub struct IngestResult {
@@ -466,6 +487,7 @@ impl Storage {
             }
         }
         let mut heads=vec![];
+        let mut metadata_updates=vec![];
         let mut handled=HashSet::new();
         for(entity,kind)in affected{
             let normalized=if kind=="tombstone"{
@@ -490,12 +512,24 @@ impl Storage {
                 sqlx::query("INSERT INTO project_data(project_id,kind,head) VALUES(?,?,?) ON CONFLICT(project_id,kind) DO UPDATE SET head=excluded.head").bind(pid).bind(kind).bind(&revision_ids[0]).execute(&mut *tx).await.map_err(err)?;
             }
             if revision_ids.len()==1&&["project","chapter","scenePlacement"].contains(&normalized){
-                apply_metadata(&mut tx,pid,&entity,normalized,&revision_ids[0]).await?;
+                let sequence:i64=sqlx::query_scalar("SELECT sequence FROM change_marker WHERE revision_id=?").bind(&revision_ids[0]).fetch_one(&mut *tx).await.map_err(err)?;
+                metadata_updates.push((sequence,entity.clone(),normalized.to_owned(),revision_ids[0].clone()));
             }
             heads.push(RevisionHeads{
                 entity_id:entity,entity_type:normalized.into(),revision_ids
             }
             );
+        }
+        // Cross-chapter moves write placement followed by the two chapter orders.
+        // HashSet iteration cannot determine the application order: an order could
+        // otherwise refer to a scene whose placement has not been applied yet.
+        metadata_updates.sort_by_key(|update|update.0);
+        for (_,entity,kind,revision) in metadata_updates{
+            // An order depending on a competing placement has no safe membership
+            // to apply yet. Retain both histories and the explicit placement heads
+            // for Recovery rather than choosing a chapter for the scene.
+            if kind=="chapter" && order_has_placement_conflicts(&mut tx,pid,&revision).await?{continue;}
+            apply_metadata(&mut tx,pid,&entity,&kind,&revision).await?;
         }
         // Keep order deterministic when concurrent creations use the same insertion position.
         normalize_positions(&mut tx,pid).await?;
@@ -509,12 +543,34 @@ impl Storage {
         let mut tx=self.pool.begin().await.map_err(err)?;validate_metadata_owner(&mut tx,pid,entity,kind).await?;
         let revision_ids=entity_leaves(&mut tx,pid,entity,kind).await?;Ok(RevisionHeads{entity_id:entity.into(),entity_type:kind.into(),revision_ids})
     }
+    pub async fn metadata_resolution_snapshot(&self,pid:&str,entity:&str,kind:&str)->Result<MetadataResolutionSnapshot,String>{
+        let mut tx=self.pool.begin().await.map_err(err)?;let snapshot=metadata_resolution_capture(&mut tx,pid,entity,kind).await?;tx.commit().await.map_err(err)?;Ok(snapshot)
+    }
+    /// Resolve competing heads, or explicitly acknowledge an unapplied retained chapter order.
+    /// A single-head acknowledgement can select the immutable payload or the exact
+    /// captured current projection; it cannot silently edit either or pick a placement.
+    pub async fn resolve_metadata_checked(&self,snapshot:&MetadataResolutionSnapshot,payload:Value)->Result<String,String>{
+        validate_metadata_resolution_payload(&payload)?;
+        let mut tx=self.pool.begin().await.map_err(err)?;
+        let current=metadata_resolution_capture(&mut tx,&snapshot.project_id,&snapshot.entity_id,&snapshot.entity_type).await?;
+        if &current!=snapshot{return Err("Conflict: metadata, chapter membership or scene placements changed after this preview. Reopen it before choosing a resolution.".into())}
+        if snapshot.heads.is_empty(){return Err("This object has no retained metadata to resolve.".into())}
+        if snapshot.heads.len()==1{
+            if snapshot.entity_type!="chapter"||!payload.get("order").is_some_and(Value::is_array){return Err("Only a retained chapter order can be explicitly replayed with one head.".into())}
+            let retained=verified_metadata_payload(&mut tx,&snapshot.project_id,&snapshot.entity_id,&snapshot.entity_type,&snapshot.heads[0]).await?;
+            if retained==snapshot.projection{return Err("The retained chapter order is already applied.".into())}
+            if payload!=retained&&payload!=snapshot.projection{return Err("Single-head acknowledgement must use the exact retained chapter version or captured current membership and order.".into())}
+        }
+        guard_metadata_placements(&mut tx,&snapshot.project_id,&snapshot.entity_id,&snapshot.entity_type,&payload).await?;
+        let rid=id();append(&mut tx,&snapshot.project_id,&snapshot.entity_id,&snapshot.entity_type,snapshot.heads.clone(),payload,"resolve",&rid).await?;
+        apply_metadata(&mut tx,&snapshot.project_id,&snapshot.entity_id,&snapshot.entity_type,&rid).await?;normalize_positions(&mut tx,&snapshot.project_id).await?;tx.commit().await.map_err(err)?;Ok(rid)
+    }
     pub async fn resolve_metadata(&self,pid:&str,entity:&str,kind:&str,payload:Value,expected_heads:Vec<String>)->Result<String,String>{
-        if !payload.is_object()||serde_json::to_vec(&payload).map_err(|_|"Invalid metadata resolution.")?.len()>2_000_000{return Err("Invalid or oversized metadata resolution.".into())}
+        validate_metadata_resolution_payload(&payload)?;
         let mut tx=self.pool.begin().await.map_err(err)?;validate_metadata_owner(&mut tx,pid,entity,kind).await?;
         let actual=entity_leaves(&mut tx,pid,entity,kind).await?;
         if expected_heads.len()<2||expected_heads.iter().collect::<HashSet<_>>().len()!=expected_heads.len()||actual.iter().cloned().collect::<HashSet<_>>()!=expected_heads.iter().cloned().collect(){return Err("Conflict: metadata heads changed before resolution.".into())}
-        if let Some(name)=payload.get("title"){title(name.as_str().ok_or("Invalid resolved title.")?)?;}
+        guard_metadata_placements(&mut tx,pid,entity,kind,&payload).await?;
         let rid=id();append(&mut tx,pid,entity,kind,expected_heads,payload,"resolve",&rid).await?;apply_metadata(&mut tx,pid,entity,kind,&rid).await?;normalize_positions(&mut tx,pid).await?;tx.commit().await.map_err(err)?;Ok(rid)
     }
     pub async fn project_data_heads(&self,pid:&str,kind:&str)->Result<RevisionHeads,
@@ -543,11 +599,15 @@ impl Storage {
             let scenes:Vec<String>=sqlx::query_scalar("SELECT s.id FROM manuscript_scene s JOIN chapter c ON c.id=s.chapter_id WHERE c.project_id=?").bind(pid).fetch_all(&mut *tx).await.map_err(err)?;
             validate_scene_links(&payload,&scenes.into_iter().collect())?;
         }
+        let mut previous=vec![];
         for head in &expected_heads{
-            let old:String=sqlx::query_scalar("SELECT payload FROM revision_envelope WHERE id=?").bind(head).fetch_one(&mut *tx).await.map_err(err)?;
+            let (old,checksum):(String,String)=sqlx::query_as("SELECT payload,checksum FROM revision_envelope WHERE id=? AND project_id=? AND entity_id=? AND entity_type='projectData'").bind(head).bind(pid).bind(&entity).fetch_one(&mut *tx).await.map_err(err)?;
+            if hash(old.as_bytes())!=checksum{return Err("Prior project data checksum failed. Stored data was preserved.".into())}
             let old:Value=serde_json::from_str(&old).map_err(|_|"Invalid prior project data.")?;
             validate_data_transition(kind,&old,&payload)?;
+            previous.push(old);
         }
+        if kind=="planning"{crate::planning_validation::validate_resolution(&previous.iter().collect::<Vec<_>>(),&payload)?;}
         if kind=="sceneTranslations"{crate::translations::validate_sources(&mut tx,pid,&payload).await?;}
         let rid=id();
         if kind=="universeCatalogue"{crate::universe::references(&mut tx,pid,&payload,false).await?;}
@@ -720,6 +780,48 @@ String>{
         asset_id:payload.get("id").and_then(Value::as_str).ok_or("Invalid asset identity.")?.into(),path:payload.get("path").and_then(Value::as_str).ok_or("Invalid asset path.")?.into(),mime_type:payload.get("mimeType").and_then(Value::as_str).ok_or("Invalid asset type.")?.into(),total_size:payload.get("size").and_then(Value::as_u64).ok_or("Invalid asset size.")? as usize,checksum:payload.get("checksum").and_then(Value::as_str).ok_or("Invalid asset hash.")?.into()
     }
     )
+}
+async fn order_has_placement_conflicts(tx:&mut Transaction<'_,Sqlite>,pid:&str,rid:&str)->Result<bool,String>{
+    let (entity,raw):(String,String)=sqlx::query_as("SELECT entity_id,payload FROM revision_envelope WHERE id=?").bind(rid).fetch_one(&mut **tx).await.map_err(err)?;
+    let payload:Value=serde_json::from_str(&raw).map_err(|_|"Invalid metadata payload.")?;
+    chapter_order_placement_conflicted(tx,pid,&entity,&payload).await
+}
+fn validate_metadata_resolution_payload(payload:&Value)->Result<(),String>{
+    if !payload.is_object()||serde_json::to_vec(payload).map_err(|_|"Invalid metadata resolution.")?.len()>2_000_000{return Err("Invalid or oversized metadata resolution.".into())}
+    if let Some(name)=payload.get("title"){title(name.as_str().ok_or("Invalid resolved title.")?)?;}Ok(())
+}
+async fn verified_metadata_payload(tx:&mut Transaction<'_,Sqlite>,pid:&str,entity:&str,kind:&str,rid:&str)->Result<Value,String>{
+    let (raw,checksum):(String,String)=sqlx::query_as("SELECT payload,checksum FROM revision_envelope WHERE id=? AND project_id=? AND entity_id=? AND entity_type=?").bind(rid).bind(pid).bind(entity).bind(kind).fetch_optional(&mut **tx).await.map_err(err)?.ok_or("Metadata revision does not belong to this project and object.")?;
+    if hash(raw.as_bytes())!=checksum{return Err("Metadata checksum failed. Stored data was preserved.".into())}serde_json::from_str(&raw).map_err(|_|"Invalid retained metadata payload.".into())
+}
+async fn metadata_resolution_capture(tx:&mut Transaction<'_,Sqlite>,pid:&str,entity:&str,kind:&str)->Result<MetadataResolutionSnapshot,String>{
+    validate_metadata_owner(tx,pid,entity,kind).await?;
+    let heads=entity_leaves(tx,pid,entity,kind).await?;
+    for head in &heads{verified_metadata_payload(tx,pid,entity,kind,head).await?;}
+    let projection=if kind=="scenePlacement"{
+        let (chapter,position):(String,i64)=sqlx::query_as("SELECT chapter_id,position FROM manuscript_scene WHERE id=?").bind(entity).fetch_one(&mut **tx).await.map_err(err)?;json!({"chapterId":chapter,"position":position})
+    }else{crate::workspace::metadata_snapshot(tx,entity,kind).await?};
+    let chapter_order=sqlx::query_scalar("SELECT id FROM chapter WHERE project_id=? ORDER BY position,id").bind(pid).fetch_all(&mut **tx).await.map_err(err)?;
+    let rows=sqlx::query("SELECT s.id,s.chapter_id,s.position,s.deleted FROM manuscript_scene s JOIN chapter c ON c.id=s.chapter_id WHERE c.project_id=? ORDER BY s.id").bind(pid).fetch_all(&mut **tx).await.map_err(err)?;
+    if rows.len()>20_000{return Err("Metadata preview exceeds the 20,000-scene bound.".into())}
+    let mut placement_heads=vec![];
+    for row in rows{
+        let scene_id:String=row.get("id");let heads=entity_leaves(tx,pid,&scene_id,"scenePlacement").await?;
+        for head in &heads{verified_metadata_payload(tx,pid,&scene_id,"scenePlacement",head).await?;}
+        placement_heads.push(MetadataPlacementState{scene_id,chapter_id:row.get("chapter_id"),position:row.get("position"),deleted:row.get::<i64,_>("deleted")!=0,heads});
+    }
+    Ok(MetadataResolutionSnapshot{project_id:pid.into(),entity_id:entity.into(),entity_type:kind.into(),heads,projection,chapter_order,placement_heads})
+}
+/// Both currently placed and explicitly listed scenes must have settled membership.
+async fn chapter_order_placement_conflicted(tx:&mut Transaction<'_,Sqlite>,pid:&str,entity:&str,payload:&Value)->Result<bool,String>{
+    if payload.get("order").is_none(){return Ok(false)}
+    let mut scenes:HashSet<String>=sqlx::query_scalar::<_,String>("SELECT id FROM manuscript_scene WHERE chapter_id=?").bind(entity).fetch_all(&mut **tx).await.map_err(err)?.into_iter().collect();
+    for item in payload["order"].as_array().ok_or("Invalid metadata order.")?{scenes.insert(item.as_str().ok_or("Invalid metadata order ID.")?.into());}
+    for scene in scenes{if entity_leaves(tx,pid,&scene,"scenePlacement").await?.len()>1{return Ok(true)}}
+    Ok(false)
+}
+async fn guard_metadata_placements(tx:&mut Transaction<'_,Sqlite>,pid:&str,entity:&str,kind:&str,payload:&Value)->Result<(),String>{
+    if kind=="chapter"&&chapter_order_placement_conflicted(tx,pid,entity,payload).await?{return Err("Conflict: resolve competing scene placements before applying a chapter order.".into())}Ok(())
 }
 async fn apply_metadata(tx:&mut Transaction<'_,Sqlite>,pid:&str,entity:&str,kind:&str,rid:&str)->Result<(),
 String>{

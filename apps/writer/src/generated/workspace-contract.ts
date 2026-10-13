@@ -80,6 +80,47 @@ export interface ChapterEditSnapshot {
   chapterNumberStart: number;
 }
 
+export interface MetadataPlacementState {
+  sceneId: string;
+  chapterId: string;
+  position: number;
+  deleted: boolean;
+  heads: Array<string>;
+}
+
+export interface MetadataResolutionSnapshot {
+  projectId: string;
+  entityId: string;
+  entityType: string;
+  heads: Array<string>;
+  projection: unknown;
+  chapterOrder: Array<string>;
+  placementHeads: Array<MetadataPlacementState>;
+}
+
+export interface SceneArrangementEntry {
+  id: string;
+  position: number;
+  deleted: boolean;
+  placementHead: (string | null);
+}
+
+export interface SceneArrangementChapter {
+  chapter: Chapter;
+  metadataHead: (string | null);
+  scenes: Array<SceneArrangementEntry>;
+}
+
+export interface SceneArrangementSnapshot {
+  projectId: string;
+  sceneId: string;
+  title: string;
+  sourceChapterId: string;
+  sceneHead: string;
+  projectHead: (string | null);
+  chapters: Array<SceneArrangementChapter>;
+}
+
 export interface SceneRecord<TScene extends Scene = Scene> {
   id: string;
   chapterId: string;
@@ -530,6 +571,166 @@ export const workspaceWireSchema = {
         "rustName": "chapter_number_start",
         "name": "chapterNumberStart",
         "rustType": "i64"
+      }
+    ]
+  },
+  "MetadataPlacementState": {
+    "source": "crates/storage/src/sync.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "scene_id",
+        "name": "sceneId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "chapter_id",
+        "name": "chapterId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "position",
+        "name": "position",
+        "rustType": "i64"
+      },
+      {
+        "rustName": "deleted",
+        "name": "deleted",
+        "rustType": "bool"
+      },
+      {
+        "rustName": "heads",
+        "name": "heads",
+        "rustType": "Vec<String>"
+      }
+    ]
+  },
+  "MetadataResolutionSnapshot": {
+    "source": "crates/storage/src/sync.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "project_id",
+        "name": "projectId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "entity_id",
+        "name": "entityId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "entity_type",
+        "name": "entityType",
+        "rustType": "String"
+      },
+      {
+        "rustName": "heads",
+        "name": "heads",
+        "rustType": "Vec<String>"
+      },
+      {
+        "rustName": "projection",
+        "name": "projection",
+        "rustType": "Value"
+      },
+      {
+        "rustName": "chapter_order",
+        "name": "chapterOrder",
+        "rustType": "Vec<String>"
+      },
+      {
+        "rustName": "placement_heads",
+        "name": "placementHeads",
+        "rustType": "Vec<MetadataPlacementState>"
+      }
+    ]
+  },
+  "SceneArrangementEntry": {
+    "source": "crates/storage/src/scene_arrangement.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "id",
+        "name": "id",
+        "rustType": "String"
+      },
+      {
+        "rustName": "position",
+        "name": "position",
+        "rustType": "i64"
+      },
+      {
+        "rustName": "deleted",
+        "name": "deleted",
+        "rustType": "bool"
+      },
+      {
+        "rustName": "placement_head",
+        "name": "placementHead",
+        "rustType": "Option<String>"
+      }
+    ]
+  },
+  "SceneArrangementChapter": {
+    "source": "crates/storage/src/scene_arrangement.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "chapter",
+        "name": "chapter",
+        "rustType": "Chapter"
+      },
+      {
+        "rustName": "metadata_head",
+        "name": "metadataHead",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "scenes",
+        "name": "scenes",
+        "rustType": "Vec<SceneArrangementEntry>"
+      }
+    ]
+  },
+  "SceneArrangementSnapshot": {
+    "source": "crates/storage/src/scene_arrangement.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "project_id",
+        "name": "projectId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "scene_id",
+        "name": "sceneId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "title",
+        "name": "title",
+        "rustType": "String"
+      },
+      {
+        "rustName": "source_chapter_id",
+        "name": "sourceChapterId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "scene_head",
+        "name": "sceneHead",
+        "rustType": "String"
+      },
+      {
+        "rustName": "project_head",
+        "name": "projectHead",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "chapters",
+        "name": "chapters",
+        "rustType": "Vec<SceneArrangementChapter>"
       }
     ]
   },
@@ -1226,6 +1427,10 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   list_projects: {args: {}; result: Array<Project>};
   create_project: {args: {title: string;}; result: Project};
   open_project: {args: {projectId: string;}; result: ProjectBundle<TScene>};
+  metadata_resolution_snapshot: {args: {projectId: string; entityId: string; entityType: string;}; result: MetadataResolutionSnapshot};
+  resolve_metadata_checked: {args: {snapshot: MetadataResolutionSnapshot; payload: unknown;}; result: string};
+  scene_arrangement_snapshot: {args: {projectId: string; sceneId: string;}; result: SceneArrangementSnapshot};
+  arrange_scene: {args: {snapshot: SceneArrangementSnapshot; targetChapterId: string; position: number;}; result: ProjectIndex};
   chapter_edit_snapshot: {args: {projectId: string; chapterId: string;}; result: ChapterEditSnapshot};
   edit_chapter: {args: {chapterId: string; expectedChapterHead: (string | null); expectedProjectHead: (string | null); expectedOrder: Array<string>; numberingParent: (string | null); title: string; number: number;}; result: ProjectIndex};
   rename_project: {args: {projectId: string; title: string;}; result: null};
@@ -1274,6 +1479,10 @@ export const storageRpcCoverage = {
     "list_projects",
     "create_project",
     "open_project",
+    "metadata_resolution_snapshot",
+    "resolve_metadata_checked",
+    "scene_arrangement_snapshot",
+    "arrange_scene",
     "chapter_edit_snapshot",
     "edit_chapter",
     "rename_project",

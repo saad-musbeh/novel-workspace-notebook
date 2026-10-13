@@ -1,3 +1,13 @@
+# Checked scene organization, recovery dependencies and native validation — October 13, 2026
+
+The locked offline storage suite passed **131 tests, 0 failures**. Arrangement fixtures cover ownership, stale scene/title/order/membership/numbering, bounds, tombstones, atomic rollback, reopening, archive and competing sync while preserving rich multilingual writing. Metadata recovery fixtures cover unresolved placements, stale dependency refusal, exact deferred single-head replay and explicit current-membership acknowledgement when a retained chapter order lists a now-foreign scene. Neither placement choice automatically applies chapter order.
+
+Planning tests verify compatibility/author-transition separation, exact snapshots, approved knowledge, explicit scopes/sources, retained historical stale claims, transaction rollback, archive remapping and rejection of unacknowledged-ancestor claims in resolution. Shortcut and view settings tests cover strict bounds, reserved/duplicate chords, composition-safe supported bindings and fractional/unknown settings refusal. Historical branch/time-machine fixtures first author valid knowledge and then withdraw the fact, retaining their original stale-history assertions.
+
+The companion suite passed **69 tests**, with the OS-keyring test ignored; synthetic loopback transport fixtures used disposable credentials and stores. Python contract drift and source-derived RPC shape checks passed; synthetic changed keys fail without overwriting generated output, and borrowed wire fields are refused. The cached Rust serde fixture compiled and emitted **37 wire shapes**, including checked arrangement and metadata snapshots. TypeScript/Vitest is not rerun because its dependencies remain absent. Native desktop controls and the complete GUI workflow are separate ongoing qualification.
+
+---
+
 # Native project-data conflict resolution — October 13, 2026
 
 Native unit discovery passed **7 tests** with the GTK fixture ignored. The explicit full GTK workflow passed **1 test** with fatal criticals, debug workers and disposable synthetic stores. Its new resolver fixture creates genuine planning/writing-system conflicts by revision sync between two stores; checks exact checked previews, stale head refusal, all-window manuscript/form Save/Cancel, immutable resolution rejection without marker/head/payload changes, retained version history, branch-lineage inspection and detached routing after the original closes. No network listener is enabled by this workflow.
