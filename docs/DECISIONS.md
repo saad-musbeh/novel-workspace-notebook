@@ -1,3 +1,9 @@
+# Native source qualification boundary — October 14, 2026
+
+Keep accepted coverage, scoped source tests and published/installed qualification distinct. The final continuation is tested through actual workers and complete GTK lifecycle, while local-provider replies and input events remain controlled synthetic fixtures. Shared World references may remain independently readable/status-labelled when local planning is ambiguous; tests must assert competing local claims withheld rather than demand an empty combined panel. English catalogue coverage and generated RPC/runtime-schema gaps stay explicit instead of being marked universally complete.
+
+---
+
 # Optional Parts as authored chapter groups — October 14, 2026
 
 Store optional Part definitions/assignments in existing revisioned planning data. Parts organize canonical chapters without a new database hierarchy or implicit manuscript reordering. Dedicated author Save checks captured project/chapter/planning metadata atomically; every generic new assignment also checks same-transaction ownership. Exact stale historical pairs remain compatible. Group order is a list preference; canonical reading order remains chapter/scene order, so noncontiguous memberships repeat headers. Hidden headings and explicit group removal preserve all writing and history.

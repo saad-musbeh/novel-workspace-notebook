@@ -1,3 +1,13 @@
+# Current unreleased native continuation — October 14, 2026
+
+The completed source queue now includes checked board groups/view controls, typed story fields, deterministic continuity/occurrence lanes, saved statistics, actual universe/series grouping and shared World notes, contextual synonyms/exact spelling exceptions, explicit one-scene consistency review, optional Parts and the English shell/shared-form catalogue foundation. Earlier source slices also supply checked planning author guards, chronology feasibility, formatting sequences, alphabet/resources and original/mapping export. Manual writing/saving remains independent of optional providers.
+
+Final observed qualification: locked offline workspace excluding retained Tauri passed **554 tests, 0 failures, 6 opt-in tests ignored** (native **238**, storage **220**). Complete real GTK/actual-worker workflow passed **1 test / 68.22 s**, with fatal criticals and disposable synthetic stores. Parts archive/branch checks passed **9 storage tests**. A real cached Rust serialization fixture verified **56 selected serde shapes plus RPC unit/null**. Contract drift, catalogue freshness/source-hook checks, four catalogue compiler tests and whitespace passed; offline worker/native build and full test compilation are warning-free.
+
+Next source work is explicit: finish specialized UI captions and parameterized message contracts, extend the bounded generated RPC/runtime-schema coverage, and evaluate any separately accepted durable per-record rule exceptions or whole-universe/branch-merge workflows before treating them as delivered. Physical IME/accessibility/supplied-font shaping, long-project performance, clean-host install/update/signing, real private two-device transport and supplied-model quality remain external qualification. Android/phone work remains deferred. Published 0.4.0 and installed binaries are not retroactively qualified by these source results.
+
+---
+
 # Unreleased optional manuscript Parts — October 14, 2026
 
 Organize Parts authors named optional chapter groups, title/order/hidden headings and explicit chapter assignments in revisioned planning metadata. Outline and manuscript overview group existing chapters without moving canonical chapter/scene order; interleaved groups repeat headings, hidden groups retain writing. Removing a Part explicitly unassigns only its chapters.

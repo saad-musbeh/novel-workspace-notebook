@@ -1,3 +1,15 @@
+# Final combined native continuation — October 14, 2026
+
+`cargo test --workspace --exclude novel-workspace --offline --locked -j 2 -- --test-threads=1` passed **554 tests, 0 failures, 6 ignored**, with no compiler warnings: 71 companion, 13 DOCX, 12 editor, 238 native and 220 storage. The retained Tauri member is excluded because its frontend/Node build prerequisites are unavailable; none were installed.
+
+The complete opt-in `notebook_navigation_manual_save_and_multi_window` GTK workflow passed **1 test / 68.22 s** with `G_DEBUG=fatal-criticals`, actual rebuilt workers and synthetic stores. It invokes every new helper including Parts, board, references, dictionary/exception, statistics, continuity, typed fields, universe grouping and scoped consistency alongside existing writing/manual-save/sequence/resource/recovery workflows. Targeted Parts passed **1 test / 0.89 s**; Parts storage finished **9/9**, including archive/branch copied ownership and immutable multilingual history. Additional checked-fields real companion bridge passed **1 test / 0.30 s**.
+
+Actual Rust serde fixture compilation/serialization verified **56 selected wire shapes and RPC unit/null** against the source-derived field/type map. Workspace contract drift, native catalogue freshness, declared source-hook/identifier coverage (**154 captions**), four compiler tests and whitespace passed. Offline worker/native build is warning-free. Logs: `/tmp/novel-final-workspace.log`, `/tmp/novel-final-complete-gtk.log`, `/tmp/novel-final-workers-build.log`.
+
+Full integration initially exposed standalone validator test imports and a legacy reference assertion that expected the whole buffer empty after local conflict. Fixtures now use the real shared Parts schema guard and assert ambiguous local canon is absent while separate shared-source status remains visible. No refusal was weakened and no competing canon was chosen. Synthetic callbacks/provider replies do not qualify physical IME, installed model quality, clean-host packages or real Tailscale/credential access.
+
+---
+
 # Checked optional Parts integration — October 14, 2026
 
 Focused Parts passed **9 storage** and **3 native pure** checks. Actual GTK passed **1 test / 0.89 s** with rebuilt workers and fatal criticals, covering no autosave, preedit refusal, manual Cancel/Discard/Save, repeated real tree parents across a hidden group, canonical book order, later chapter/index refusal, stale draft retention and detached Save after origin close. Full combined GTK passed **1 test / 68.22 s**.

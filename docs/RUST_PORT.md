@@ -1,6 +1,6 @@
 # Rust desktop port
 
-Updated October 13, 2026. Version 0.4.0. The requested scope includes the interface: the active desktop is a native GTK application written in Rust. It does not embed the React page or launch a Python editor.
+Updated October 14, 2026. Published version: 0.4.0; the later source slices below are unreleased. The requested scope includes the interface: the active desktop is a native GTK application written in Rust. It does not embed the React page or launch a Python editor.
 
 ## Architecture
 
@@ -38,15 +38,18 @@ The editor protocol retains scalar-value positions, rich block JSON, layout fram
 | Cutting-room floor | Explicit kept selections and plain-text cuts from saved revision differences; text drag/drop or append to a scene draft, followed by manual Save |
 | Reading and reminders | Saved read-only manuscript, selected Bored/Confused/Curious reactions, revision-checked passage navigation, unresolved scene notes and edit-save counts |
 | Return bookmark | Explicit next-session reminder, scene/cursor/selection capture, exact document-hash check before restoration |
-| Story bible | Native structured forms for records, custom fields, linked facts/events, reveals, knowledge and issues; stable identities remain hidden |
-| Plot board / chronology | Draggable cards, Pango multilingual edge labels, explicit checked source/target connections; known/unknown/fixed/interval/relative times and explicit constraint findings |
-| Library | Shared universe/series catalogue, atomic novel creation, existing novel membership and shared planning notes |
+| Story bible (source extended after 0.4.0) | Structured records, seven typed custom fields with choice/link controls, hidden/ordered fields and retained unavailable values; dedicated checked knowledge/reader-reveal authoring. New author transitions guard identity, applicability, variants, typed values and links while preserving historical sparse payloads |
+| Plot board / chronology (source extended after 0.4.0) | Pango captions/connections, local zoom/pan/reset/filter and scale-aware drag; authored groups/labels require checked Save. Confirmed chronology feasibility and main/subplot occurrence lanes retain unknown/uncertain evidence. Six bounded authored continuity checks do not infer prose or write canon/issues |
+| Library (source extended after 0.4.0) | Atomic novel creation and catalogue membership; actual universe/series selector with nonselectable headings and selectable independent/uncertain fallbacks. Shared World notes and references read a sole checked source with universe/series/revision provenance, without copying canon |
 | Recovery | Saved history preview, snapshots, consistent backups, deleted-scene restore and common-point scene/whole-bible recovery with captured-head checks |
 | What-if branches | Separate copies, comparison previews and explicit selected scene/whole-bible bring-back |
 | Conflicts | Preview saved/current/local versions and choose a resolution. A stale unsaved local draft can be saved explicitly over the captured current head as a new revision; changing heads refuse the action |
 | Translation (source after 0.4.0) | Historical-source editable previews, optional cancellable local generation and checked author Save; originals remain the exported manuscript |
-| Local review (source after 0.4.0) | Explicit configured loopback provider, frozen all-source manifest, reviewed Apply/Reject and unsaved exact one-step replacement/Undo |
-| Word / portable exports | Saved snapshot, per-novel export-profile forms, original Unicode/rich marks/language/direction/spacing in DOCX; full project archives |
+| Local review (source after 0.4.0) | Explicit configured loopback provider, frozen all-source manifest, reviewed Apply/Reject and unsaved exact one-step replacement/Undo. One-scene consistency binds saved text and confirmed facts, excludes belief/rumor/unconfirmed rows and labels unknown timing; accepting provisional questions writes neither manuscript nor canon |
+| Word / portable exports (source extended after 0.4.0) | Saved original Unicode/rich DOCX with per-novel profiles; complete project archives. Separate alphabet manuscript JSON preserves exact rich originals and immutable mapping/history assignments, with an optional one-pass authored transliteration copy. It carries no resource bytes and does not change DOCX |
+| Saved statistics (source after 0.4.0) | One bounded checked manuscript snapshot, distinct scalar/grapheme/whitespace-token/CJK definitions, read-only Refresh and stale/detached-owner guards; unsaved drafts, titles, planning and deleted text excluded |
+| Dictionary and spelling exceptions (source after 0.4.0) | Licensed local sense/POS lookup, captured rich-draft synonym context and exact guarded unsaved Apply/Cancel/Undo with inflection notice. Exact term/language/reason exceptions remain unsaved until manual Save; filtering suppresses only validated proofreading evidence with an exact quoted term and selected language |
+| Alphabets and licensed resources (source after 0.4.0) | Versioned immutable author mappings, literal palette/input choices, revision-bound editor profiles and explicit licensed local font/dictionary import; no automatic resource download |
 | Recorded sequences (source after 0.4.0) | Eight named formatting slots, acknowledged recording, explicit per-step Save playback, queued-input guards and retained manual draft/Undo recovery |
 | Private sync (source after 0.4.0) | Session listener/status, scoped challenges/pairing, approval/revocation, strict private endpoint controls, manual sync/forget and credential repair; external transport qualification remains separate |
 
@@ -62,10 +65,13 @@ Scraps, reactions, notes and bookmarks use the existing revisioned project-data 
 
 ## Interface differences and outstanding parity
 
-Source after 0.4.0 qualifies checked scene organization, reader rehearsal, authored character cuts and pin/follow references, installed dictionary lookup, labelled board connections, exact Back/Forward, saved shortcut/view settings, ripple preview and explicit private-peer controls. The native conflict pages qualify checked placement/chapter decisions and reviewed combined immutable candidates for alternatives, translations and alphabets. See PROJECT_STATE.md and TEST_RESULTS.md for observed results.
+Source after 0.4.0 qualifies checked scene organization, reader rehearsal, authored character cuts and pin/follow references, dedicated knowledge/reader-timeline authoring, hold-to-peek/saved paragraph comparison, exact Back/Forward, ripple preview, formatting sequences, licensed resources/alphabet profiles, editable translation previews and revision-bound review decisions. Separate conflict pages expose checked placement/chapter and writing/deletion recovery, plus reviewed combined immutable candidates for alternatives, translations and alphabets. These are later source slices, not features retroactively shipped in the published package.
 
-Remaining integration work includes dedicated character knowledge/reader-timeline authoring, hold-to-peek/saved paragraph comparison, formatting sequences, local language-pack/font import and alphabet palette/input mapping, generated translation review and revision-bound review Apply/Reject/job-history controls. Complete chronology feasibility, physical input and actual private transport remain separate qualification.
-Existing data for those features is preserved by storage and complete archives. Do not claim full convenience-feature parity or use the earlier webview workflow probes to qualify this interface. Earlier guides describe the retained React/Tauri implementation where marked.
+The second audit’s eight gaps now have scoped observed qualification: core planning author-transition guards; board viewport/filter/group controls; typed fields; authored continuity and occurrence lanes; saved statistics; contextual synonyms and exact spelling exceptions; actual universe grouping/shared notes; and one-scene consistency review. The consistency workflow passed 1 GTK test / 1.24 s with delayed test-provider replies, which does not establish real model accuracy. See [PROJECT_STATE.md](PROJECT_STATE.md) and [TEST_RESULTS.md](TEST_RESULTS.md) for each slice; final combined source passed 554 Rust tests with 6 opt-in tests ignored and the complete GTK workflow (1 test / 68.22 s).
+
+Optional Parts now passes checked grouping/manual lifecycle/native GTK and archive/branch remapping/history qualification. The 154-caption English catalogue has qualified partial shell/shared-form coverage; remaining specialized tool captions and parameterized messages are explicit future source work. Full convenience parity is not claimed. Durable per-record continuity rule exceptions, whole-universe export and hierarchy branch merging are outside the delivered slices.
+
+Physical Arabic/Chinese IME, accessibility, supplied-font shaping, dense/long-project responsiveness, clean-host install/update/signing and real authenticated private transport remain external release gates. Android/phone jobs and physical two-device work remain explicitly deferred. Retained webview probes do not qualify GTK; earlier guides describe React/Tauri where marked. The October 10 notebook/manual-save policy supersedes the old split/autosave layouts.
 
 ## Build and packaging
 
@@ -85,4 +91,4 @@ Native editor tests exercise immutable blocks, exact rich-text edits, grapheme d
 
 The GTK workflow runs actual native widgets and worker processes with synthetic stores. It checks the notebook layout, manual saving and prompts, top-tab switching, middle clicks, scene/form/tool-page detach, independent windows, retained stale drafts and explicit conflict recovery. See [NOTEBOOK_DESIGN.md](NOTEBOOK_DESIGN.md) and TEST_SUITE.md. It does not establish physical IME or screen-reader accessibility.
 
-No new timing guarantee is claimed. The previous giant-paragraph measurements belong to the prior runtime and need a separate Rust benchmark. Custom font registration is implemented in the engine, but no permitted author font or physical qualification has been supplied.
+No new timing guarantee is claimed. The previous giant-paragraph measurements belong to the prior runtime and need a separate Rust benchmark. Alphabet/resource tests use synthetic permitted fixtures. They do not qualify an actual author-supplied font’s shaping, physical input or an installed release. Earlier engine/comparison counts remain historical evidence, not final totals for the current combined source.

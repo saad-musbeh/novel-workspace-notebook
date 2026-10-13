@@ -82,7 +82,7 @@ pub(super) fn run(binaries: &Path) {
     let mut remote=current["payload"].clone();remote["facts"][0]["value"]=json!("COMPETING SECRET VALUE");
     rpc(&peer,"save_project_data",json!({"projectId":pid,"kind":"planning","payload":remote,"parent":current["revisionId"]}));transfer(&peer,&detached.client);
     let marker=rpc(&detached.client,"sync_cursor",json!({}));
-    find_button(&reference,"Refresh saved references").unwrap().clicked();wait(||label_contains(&reference,"competing planning"));assert!(content(&reference).is_empty());
+    find_button(&reference,"Refresh saved references").unwrap().clicked();wait(||content(&reference).contains("competing planning"));let withheld=content(&reference);assert!(withheld.contains("Shared World notes"));for claim in ["Name: New canon value","Recorded fact:","COMPETING SECRET VALUE"]{assert!(!withheld.contains(claim),"Ambiguous local canon disclosed: {claim}");}
     detached.reader_rehearsal();wait(||detached.current_widget().is_some_and(|w|label_contains(&w,"competing planning")));assert!(content(&detached.current_widget().unwrap()).is_empty());
     detached.character_cut();wait(||detached.current_widget().is_some_and(|w|label_contains(&w,"competing planning")));assert_eq!(rpc(&detached.client,"sync_cursor",json!({})),marker);
     let heads=rpc(&detached.client,"project_data_heads",json!({"projectId":pid,"kind":"planning"}));
