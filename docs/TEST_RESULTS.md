@@ -1,3 +1,9 @@
+# Saved text measures and checked manuscript reads — October 14, 2026
+
+Eight manuscript-read storage regressions, six alphabet-export regressions and two native measure checks passed. Actual GTK statistics passed **1 test / 0.73 s** against rebuilt workers with fatal criticals. Coverage includes exact multilingual counting, exclusion of unsaved/title/planning/deleted text, concurrent head/order/placement and corrupt snapshot refusal, stale refresh clearing, unchanged draft/Undo/storage and detached current ownership. Log: `/tmp/novel-statistics-final-gtk.log`. Full integration results follow separately.
+
+---
+
 # Typed custom field controls — October 14, 2026
 
 Scoped pure coverage adds nine cases for all supported types, canonical IDs, choice validation, preservation and incompatible definition refusal. Root real GTK passed **1 test / 0.92 s** with actual workers/fatal criticals and synthetic stores, exercising exact multilingual values, typed scene/canonical links, hide/reorder, preserved unavailable choices and checked source/CAS failure retaining drafts. Log: `/tmp/novel-custom-fields-gtk.log`. Final combined regression is recorded separately.

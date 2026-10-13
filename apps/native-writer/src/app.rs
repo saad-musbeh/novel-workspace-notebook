@@ -47,6 +47,8 @@ use sequence_host::{SequenceHost,SequencePage};
 pub(crate) mod alphabet_host;
 #[path="alphabet_export.rs"]
 pub(crate) mod alphabet_export;
+#[path="statistics.rs"]
+pub(crate) mod statistics;
 #[path="licensed_imports.rs"]
 mod licensed_imports;
 use crate::alphabets::AlphabetPage;

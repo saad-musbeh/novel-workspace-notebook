@@ -925,7 +925,9 @@ impl Storage {
     }
     pub async fn statistics(&self,pid:&str)->Result<Statistics,
     String>{
-        let bundle=self.open_project(pid).await?;
+        let mut tx=self.pool.begin().await.map_err(err)?;
+        let bundle=crate::manuscript_read::read_project_manuscript(&mut tx,pid).await?;
+        tx.commit().await.map_err(err)?;
         let mut stats=Statistics{
             scenes:bundle.scenes.len(),
             method:"Exact Unicode scalar/grapheme counts; whitespace-delimited tokens and CJK characters are separate measures, not comparable word counts.".into(),

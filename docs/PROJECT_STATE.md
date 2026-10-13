@@ -1,3 +1,11 @@
+# Unreleased saved manuscript statistics — October 14, 2026
+
+Saved manuscript counts exposes exact Unicode scalars/grapheme clusters, whitespace tokens and CJK scalars as distinct measures with explicit definitions. It reads saved scene text only; dirty editor/form drafts remain untouched. Refresh clears stale counts and respects current page/project/owner and request generation.
+
+Statistics and alphabet export share a bounded coherent manuscript read which verifies complete live/deleted scene and metadata heads, checksums, placement and authoritative order before returning saved text. Observed: eight new storage tests, six alphabet-export regressions and two native pure tests passed; final actual GTK statistics passed **1 test / 0.73 s**. No new tokenizer, dependency or manuscript write.
+
+---
+
 # Unreleased typed story fields — October 14, 2026
 
 Story notes now authors all seven supported field types with choice options and canonical record/scene/event/plot-point links. Rename, hide and per-record-kind reorder preserve stored values. Unavailable historical choices/missing links remain visible; incompatible type/ownership changes and removal refuse while values remain. Introduced scene links carry captured scene heads into checked Save.

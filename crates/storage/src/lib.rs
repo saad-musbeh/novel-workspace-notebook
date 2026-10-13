@@ -54,6 +54,7 @@ mod review_sources;
 pub use review_sources::*;
 mod planning_read;
 pub use planning_read::*;
+mod manuscript_read;
 mod alphabet_export;
 pub use alphabet_export::*;
 mod scene_arrangement;

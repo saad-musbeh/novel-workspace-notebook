@@ -240,7 +240,7 @@ impl Workspace {
         let versions=self.menu(&review,"Saved versions",false);self.link(&versions,"Scene history",|a|a.history());self.link_routes(&versions,"Scene conflicts",Rc::new(|a|a.conflicts()),Rc::new(|a|a.open_conflicts_window()));
         self.control(&versions,"Create scene snapshot",Self::snapshot);
         let project=self.group("Project");let library=self.menu(&project,"Novels & files",true);
-        self.link(&library,"Library",|a|a.library());self.control(&library,"New novel",Self::new_project);self.control(&library,"Import project",Self::import);self.control(&library,"Export manuscript",Self::export);self.control(&library,"Export alphabet manuscript",Self::alphabet_export);
+        self.link(&library,"Library",|a|a.library());self.control(&library,"New novel",Self::new_project);self.control(&library,"Import project",Self::import);self.control(&library,"Export manuscript",Self::export);self.control(&library,"Export alphabet manuscript",Self::alphabet_export);self.control(&library,"Saved manuscript counts",Self::manuscript_statistics);
         let recovery=self.menu(&project,"History & recovery",false);self.link(&recovery,"What-if branches",|a|a.branches());self.control(&recovery,"New what-if branch",Self::new_branch);self.link(&recovery,"Project time machine",|a|a.time_machine());self.link(&recovery,"Deleted scenes",|a|a.deleted());
         self.link(&recovery,"Backup now",|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,"Private sync",|a|a.private_sync());
         self.link(&recovery,"Project data conflicts",|a|a.data_conflicts());
