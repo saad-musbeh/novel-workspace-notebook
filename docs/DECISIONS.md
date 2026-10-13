@@ -232,3 +232,12 @@ Use revisioned `notebookTools` project data for explicitly kept scraps, reading 
 Recover automatic scraps by comparing saved scene revisions with their actual parents. Use a bounded Unicode diff, retaining the changed old span conservatively for very large rewrites. Preserve all source history and explicit scraps when inserting plain-text copies into drafts. Undo handles unsaved deletions. The attention list counts only saved edits removing/replacing existing text, excluding append-only writing, formatting, renames and restores; it makes no claim to judge prose quality or time spent writing.
 
 Publish original source under Apache-2.0 with upstream license/NOTICE files retained. Keep private writing, runtime stores, work artifacts, credentials and model/font files out of the public Git snapshot. Publish tested Linux x86_64 archives/RPMs as a GitHub prerelease. Android is outside this desktop release.
+
+
+## October 13 — Revision-checked native chapter editing
+
+Host chapter title and number edits in a normal notebook page. Reuse the manual draft lifecycle, composition guards and tab ownership transfer so navigation, closing, project switching and detached saves retain the same author decisions. Route chapter rename through this page; do not use the uncaptured rename API from the native interface.
+
+Read the chapter title, order, numbering and expected metadata heads in one SQLite transaction through an additive `chapter_edit_snapshot` RPC. Independent reads could pair an old displayed value with a newer head. Reuse the existing atomic `edit_chapter` mutation and refuse all stale captured boundaries. Keep entered values on failure; loading newer values requires discarding and reopening. Chapter edits change metadata/order only, preserving scene IDs, text and scene revisions. No schema migration or dependency is needed.
+
+Qualify the active GTK runtime with native workspace tests excluding the retained Tauri UI member. That member additionally needs its frontend build and remains a separate reference check. Source qualification does not qualify the published 0.4.0 packages.

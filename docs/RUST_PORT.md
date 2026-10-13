@@ -32,6 +32,7 @@ The editor protocol retains scalar-value positions, rich block JSON, layout fram
 | Scene writing | Exact multilingual input, rich marks, heading/paragraph language/direction/spacing, grapheme navigation, selection, clipboard, Alt+X, Find/Replace and independent Undo |
 | Save safety | Manual Save / Discard / Cancel before leaving, snapshot after queued operations, expected-parent writes, retained failed drafts, per-window closing and saved-project checks across windows |
 | Workspace | Left area selector and collapsible menus, searchable hierarchy, chapter opening and empty-chapter Start writing, ready-to-write novel creation, scene/chapter creation and renaming, ordinary page replacement, middle-click windows, draggable/closable/reorderable top tabs and scene Back/Forward |
+| Chapter editing (source after 0.4.0) | Revision-checked title and number form, Chapter 0, chapter reordering/renumbering, manual-save navigation and detachable draft ownership |
 | Manuscript overview | Chapter/scene navigation in manuscript order; one page per tab, additional windows in place of within-window splits; at most 16 live scene sessions per window |
 | Cutting-room floor | Explicit kept selections and plain-text cuts from saved revision differences; text drag/drop or append to a scene draft, followed by manual Save |
 | Reading and reminders | Saved read-only manuscript, selected Bored/Confused/Curious reactions, revision-checked passage navigation, unresolved scene notes and edit-save counts |
@@ -59,7 +60,7 @@ Scraps, reactions, notes and bookmarks use the existing revisioned project-data 
 
 ## Interface differences and outstanding parity
 
-The Rust interface is a new native implementation, not a pixel-for-pixel copy. Some specialized controls from the React workspace still need native counterparts: character-cut navigation, hold-to-peek, exact bookmarked Back/Forward restoration, paragraph-alternative management/swapping, reader rehearsal and ripple/rehearsal previews, shortcut remapping, recorded formatting sequences, saved writing-width/interface-direction preferences, hierarchy reordering/number editing, language-pack/font import, generated translation review and review Apply/Reject/job-history controls.
+The Rust interface is a new native implementation, not a pixel-for-pixel copy. Some specialized controls from the React workspace still need native counterparts: character-cut navigation, hold-to-peek, exact bookmarked Back/Forward restoration, paragraph-alternative management/swapping, reader rehearsal and ripple/rehearsal previews, shortcut remapping, recorded formatting sequences, saved writing-width/interface-direction preferences, scene reordering/moving between chapters, language-pack/font import, generated translation review and review Apply/Reject/job-history controls.
 
 Full peer pairing, challenge entry, revocation and manual synchronization controls remain in the retained interface/backend. The GTK listener controls alone do not complete a remote pairing workflow. Project-data conflicts beyond scenes retain storage enforcement but do not yet have a complete GTK resolution panel.
 

@@ -9,12 +9,12 @@ thread_local! {
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(super) enum SaveChoice { Save, Discard, Cancel }
 #[derive(Clone)]
-enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>) }
+enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>), Chapter(Rc<ChapterPage>) }
 impl Draft {
-    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get() } }
-    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get() } }
-    fn composing(&self)->bool { matches!(self,Self::Scene(p) if p.composing.get()) }
-    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into() } }
+    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get(), Self::Chapter(p)=>p.dirty.get() } }
+    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get(), Self::Chapter(p)=>p.saving.get() } }
+    fn composing(&self)->bool { match self { Self::Scene(p)=>p.composing.get(), Self::Chapter(p)=>p.composing.get(), Self::Form(_)=>false } }
+    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into(), Self::Chapter(_)=>"Edit chapter".into() } }
 }
 pub(super) struct Desk {
     pub sidebar:gtk::Box,
@@ -50,9 +50,12 @@ pub(super) fn effective(app:&Rc<Workspace>)->Rc<Workspace> {
     ACTION_WINDOW.with(|current|current.borrow().clone()).unwrap_or_else(||app.clone())
 }
 pub(super) fn with_button_owner(widget:&gtk::Widget,action:impl FnOnce()) {
-    let window=widget.toplevel().and_then(|w|w.downcast::<gtk::Window>().ok());
-    let app=window.and_then(|window|WINDOWS.with(|windows|windows.borrow().iter().find(|a|a.window==window).cloned()));
+    let app=workspace_for_widget(widget);
     let previous=ACTION_WINDOW.with(|current|current.replace(app));action();ACTION_WINDOW.with(|current|current.replace(previous));
+}
+pub(super) fn workspace_for_widget(widget:&gtk::Widget)->Option<Rc<Workspace>> {
+    let window=widget.toplevel().and_then(|w|w.downcast::<gtk::Window>().ok())?;
+    WINDOWS.with(|windows|windows.borrow().iter().find(|a|a.window==window && !a.desk.closed.get()).cloned())
 }
 pub(super) fn register(app:&Rc<Workspace>) { WINDOWS.with(|windows|windows.borrow_mut().push(app.clone())); }
 fn owner(window:&gtk::Window)->Rc<Workspace> {
@@ -186,7 +189,7 @@ impl Workspace {
         let write=self.group("Write");
         let outline=self.menu(&write,"Manuscript",true);outline.pack_start(&self.search,false,false,4);outline.pack_start(&self.binder,true,true,0);
         let create=self.menu(&write,"Add & arrange",false);
-        self.control(&create,"New chapter",Self::new_chapter);self.control(&create,"New scene",Self::new_scene);self.control(&create,"Rename selected item",Self::rename);
+        self.control(&create,"New chapter",Self::new_chapter);self.control(&create,"New scene",Self::new_scene);self.control(&create,"Edit chapter",Self::edit_chapter);self.control(&create,"Rename selected item",Self::rename);
         let edit=self.menu(&write,"Edit",false);
         self.control(&edit,"Undo",|a|a.undo());self.control(&edit,"Redo",|a|a.redo());
         self.control(&edit,"Bold",|a|a.bold());self.control(&edit,"Italic",|a|a.italic());self.control(&edit,"Underline",|a|a.underline());self.control(&edit,"Paragraph format",|a|a.format());
@@ -282,6 +285,7 @@ impl Workspace {
     }
     pub(super) fn current_widget(&self)->Option<gtk::Widget> { self.pages.current_page().and_then(|i|self.pages.nth_page(Some(i))) }
     fn draft(&self,widget:&gtk::Widget)->Option<Draft> {
+        if let Some(p)=self.chapter_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Chapter(p));}
         if let Some(p)=self.panes.borrow().values().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Scene(p));}
         if let Some(p)=self.data_pages().into_iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget){return Some(Draft::Form(p));}
         self.desk.bindings.borrow().iter().find(|(w,_)|w==widget).map(|(_,p)|Draft::Form(p.clone()))
@@ -293,7 +297,7 @@ impl Workspace {
         let label=gtk::Label::new(Some(&format!("Save changes to “{title}” before leaving?")));label.set_line_wrap(true);label.set_margin_start(20);label.set_margin_end(20);label.set_margin_top(18);label.set_margin_bottom(18);dialog.content_area().pack_start(&label,false,false,0);
         dialog.show_all();let response=dialog.run();dialog.close();match response{gtk::ResponseType::Accept=>SaveChoice::Save,gtk::ResponseType::Reject=>SaveChoice::Discard,_=>SaveChoice::Cancel}
     }
-    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>p.save(callback)} }
+    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>p.save(callback),Draft::Chapter(p)=>p.save(self,callback)} }
     fn confirm(self:&Rc<Self>,draft:Draft,started:std::time::Instant,callback:Box<dyn FnOnce(bool)>) {
         if draft.composing(){self.error("Finish the current input composition before leaving.");callback(false);return;}
         if draft.busy(){
@@ -307,6 +311,7 @@ impl Workspace {
             SaveChoice::Discard=>match draft {
                 Draft::Scene(p)=>{let a=self.clone();p.discard(move|r|match r{Ok(())=>callback(true),Err(e)=>{a.error(&format!("Could not discard. Your draft stays open. {e}"));callback(false);}});},
                 Draft::Form(p)=>{p.discard();callback(true);}
+                Draft::Chapter(p)=>{p.discard();callback(true);}
             }
         }
     }
@@ -322,6 +327,7 @@ impl Workspace {
         let started=std::time::Instant::now();let failures=self.notebook_failures.get();
         let mut drafts=self.panes.borrow().values().cloned().map(Draft::Scene).collect::<Vec<_>>();
         drafts.extend(self.data_pages().into_iter().map(Draft::Form));
+        drafts.extend(self.chapter_pages.borrow().iter().cloned().map(Draft::Chapter));
         let a=self.clone();let owner=self.clone();
         let done:Box<dyn FnOnce(bool)>=Box::new(move|ok|{owner.window.set_sensitive(true);owner.desk.busy.set(false);callback(ok);});
         self.confirm_next(drafts,0,Box::new(move|ok|{
@@ -393,6 +399,7 @@ impl Workspace {
                 if let Some(draft)=a.draft(&widget){match draft{
                     Draft::Scene(p)=>{a.panes.borrow_mut().remove(&p.scene_id);p.process.stop();},
                     Draft::Form(p)=>{a.data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));a.extra_data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::Chapter(p)=>{a.chapter_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                 }}a.release_view(&widget);
                 *a.desk.selected.borrow_mut()=a.current_widget();if let Some(w)=a.current_widget(){a.activate_widget(&w);}else{*a.active.borrow_mut()=None;a.new_tab();}
             }
@@ -425,6 +432,7 @@ impl Workspace {
         }
     }
     fn release_view(&self,widget:&gtk::Widget){
+        self.chapter_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.desk.titles.borrow_mut().remove(widget);
         self.desk.bindings.borrow_mut().retain(|(w,_)|w!=widget);
         self.desk.board_views.borrow_mut().retain(|(w,_)|w!=widget);
@@ -490,6 +498,7 @@ impl Workspace {
     fn transfer_ownership(self:&Rc<Self>,widget:&gtk::Widget,child:&Rc<Self>) {
         if let Some(draft)=self.draft(widget){match draft{
             Draft::Scene(p)=>{self.panes.borrow_mut().remove(&p.scene_id);child.panes.borrow_mut().insert(p.scene_id.clone(),p.clone());*child.active.borrow_mut()=Some(p);},
+            Draft::Chapter(p)=>{self.chapter_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.chapter_pages.borrow_mut().push(p);},
             Draft::Form(p)=>{
                 self.data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));self.extra_data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));
                 if p.project_id.borrow().as_str()==self.pid.borrow().as_str(){child.data.borrow_mut().push(p.clone());}else{child.extra_data.borrow_mut().push(p.clone());}

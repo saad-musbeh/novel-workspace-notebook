@@ -1,3 +1,15 @@
+# Unreleased native chapter editing — October 13, 2026
+
+The source after 0.4.0 adds Write → Add & arrange → Edit chapter. A selected chapter or scene opens a title/number form with ordinary manual Save / Discard / Cancel, composition guards and detachable draft ownership. Chapter rename uses the same checked form. Saving a number moves the chapter and renumbers the manuscript, including Chapter 0 and returning its first chapter to 1. Scene identities, exact writing and saved scene revisions remain unchanged.
+
+The additive `chapter_edit_snapshot` RPC captures title, order, numbering and metadata heads in one read transaction with project ownership/conflict/checksum checks. Saving reuses the existing atomic `edit_chapter` operation. Concurrent title/order/numbering changes refuse the stale form and retain its entered values. No dependency, schema migration, service or network setting was added.
+
+Observed checks: locked offline native build passed; Rust workspace excluding the retained Tauri UI passed **202 tests, 0 failed, 2 opt-in tests ignored**; the explicit GTK workflow passed **1 test** with fatal criticals enabled and actual debug workers. The expanded fixture covers guarded opening from an unsaved scene, manual inactivity, Chapter 0/1, reordering, invalid fields, Save/Discard/Cancel, competing-window title/order edits, stale numbering, refused close, composition, detached saves and continued saving after the original window closes. Its actual multilingual page capture was inspected. Generated RPC contract drift and Git whitespace checks passed.
+
+The retained Tauri member requires its built frontend assets; they are absent in this checkout. Its tests and TypeScript/contract Vitest checks were not rerun because Node dependencies are absent. Documentation now gives a native-only test command. Physical input/accessibility, release workers, packaging and installation were not qualified for this slice; the published 0.4.0 downloads remain unchanged.
+
+---
+
 # Current Rust desktop state — October 13, 2026
 
 The active Rust desktop is now version 0.4.0 with the requested minimal notebook redesign: white pages, a left Write/Planning/Review/Project selector and collapsible menus, a single detachable tab row, manual saving and Save / Discard / Cancel before leaving edited pages. Ordinary navigation replaces the active tab; middle click opens an independent window. Drag-out transfers the existing draft/Undo. Additional windows replace within-window split editing, and closing one window leaves the others working. Tool pages occupy tabs. See [NOTEBOOK_DESIGN.md](NOTEBOOK_DESIGN.md).

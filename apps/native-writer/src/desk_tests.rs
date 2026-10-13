@@ -1,5 +1,7 @@
 #[path="notebook_tests.rs"]
 mod notebook_features;
+#[path="chapter_tests.rs"]
+mod chapter_forms;
 use super::*;
 use std::time::Instant;
 fn wait(condition:impl Fn()->bool) {
@@ -168,6 +170,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
     let binaries=std::env::var_os("NOVEL_RUST_TEST_BINARIES").map(PathBuf::from).unwrap_or_else(||PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/debug"));
     new_novel_workflow(&binaries);
     notebook_features::run(&binaries);
+    chapter_forms::run(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));
     let first=rpc(&client,"create_scene",json!({"chapterId":chapter["id"],"scene":{"schemaVersion":1,"title":"The first morning","document":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The room was quiet. مِ 中文 👩🏽‍🚀"}]}]}}}));

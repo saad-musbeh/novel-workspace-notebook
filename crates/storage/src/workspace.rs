@@ -35,6 +35,17 @@ pub struct Chapter {
     pub title:String,
     pub position:i64
 }
+/// One transaction captures the values and revision boundaries shown by the editor.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all="camelCase", deny_unknown_fields)]
+pub struct ChapterEditSnapshot {
+    pub chapter:Chapter,
+    pub expected_chapter_head:Option<String>,
+    pub expected_project_head:Option<String>,
+    pub expected_order:Vec<String>,
+    pub numbering_parent:Option<String>,
+    pub chapter_number_start:i64,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
 pub struct SceneRecord {
@@ -565,6 +576,22 @@ impl Storage {
         append(&mut tx,&pid,eid,kind,parents,payload,"rename",&id()).await?;
         tx.commit().await.map_err(err)?;
         Ok(())
+    }
+    pub async fn chapter_edit_snapshot(&self,pid:&str,cid:&str)->Result<ChapterEditSnapshot,String>{
+        let mut tx=self.pool.begin().await.map_err(err)?;
+        let row=sqlx::query("SELECT id,project_id,title,position FROM chapter WHERE project_id=? AND id=?").bind(pid).bind(cid).fetch_optional(&mut *tx).await.map_err(err)?.ok_or("Chapter does not belong to this novel.")?;
+        let chapter=Chapter{id:row.get("id"),project_id:row.get("project_id"),title:row.get("title"),position:row.get("position")};
+        let chapter_heads=metadata_parent(&mut tx,cid,"chapter").await?;
+        let project_heads=metadata_parent(&mut tx,pid,"project").await?;
+        for head in chapter_heads.iter().chain(project_heads.iter()){
+            let (payload,checksum):(String,String)=sqlx::query_as("SELECT payload,checksum FROM revision_envelope WHERE id=?").bind(head).fetch_one(&mut *tx).await.map_err(err)?;
+            if hash(payload.as_bytes())!=checksum{return Err("Metadata checksum failed. Stored data was preserved.".into())}
+        }
+        let expected_order=sqlx::query_scalar("SELECT id FROM chapter WHERE project_id=? ORDER BY position,id").bind(pid).fetch_all(&mut *tx).await.map_err(err)?;
+        let (chapter_number_start,numbering_parent,conflicted)=chapter_numbering_state(&mut tx,pid).await?;
+        if conflicted{return Err("Conflict: resolve competing chapter numbering before editing.".into())}
+        tx.commit().await.map_err(err)?;
+        Ok(ChapterEditSnapshot{chapter,expected_chapter_head:chapter_heads.first().cloned(),expected_project_head:project_heads.first().cloned(),expected_order,numbering_parent,chapter_number_start})
     }
     /// Rename and renumber with every captured metadata boundary checked together.
     pub async fn edit_chapter(&self,cid:&str,expected_chapter_head:Option<String>,expected_project_head:Option<String>,expected_order:Vec<String>,numbering_parent:Option<String>,name:&str,number:i64)->Result<ProjectIndex,String>{

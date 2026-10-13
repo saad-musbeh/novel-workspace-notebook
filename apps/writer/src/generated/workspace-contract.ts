@@ -71,6 +71,15 @@ export interface Chapter {
   position: number;
 }
 
+export interface ChapterEditSnapshot {
+  chapter: Chapter;
+  expectedChapterHead: (string | null);
+  expectedProjectHead: (string | null);
+  expectedOrder: Array<string>;
+  numberingParent: (string | null);
+  chapterNumberStart: number;
+}
+
 export interface SceneRecord<TScene extends Scene = Scene> {
   id: string;
   chapterId: string;
@@ -484,6 +493,42 @@ export const workspaceWireSchema = {
       {
         "rustName": "position",
         "name": "position",
+        "rustType": "i64"
+      }
+    ]
+  },
+  "ChapterEditSnapshot": {
+    "source": "crates/storage/src/workspace.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "chapter",
+        "name": "chapter",
+        "rustType": "Chapter"
+      },
+      {
+        "rustName": "expected_chapter_head",
+        "name": "expectedChapterHead",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "expected_project_head",
+        "name": "expectedProjectHead",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "expected_order",
+        "name": "expectedOrder",
+        "rustType": "Vec<String>"
+      },
+      {
+        "rustName": "numbering_parent",
+        "name": "numberingParent",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "chapter_number_start",
+        "name": "chapterNumberStart",
         "rustType": "i64"
       }
     ]
@@ -1181,6 +1226,7 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   list_projects: {args: {}; result: Array<Project>};
   create_project: {args: {title: string;}; result: Project};
   open_project: {args: {projectId: string;}; result: ProjectBundle<TScene>};
+  chapter_edit_snapshot: {args: {projectId: string; chapterId: string;}; result: ChapterEditSnapshot};
   edit_chapter: {args: {chapterId: string; expectedChapterHead: (string | null); expectedProjectHead: (string | null); expectedOrder: Array<string>; numberingParent: (string | null); title: string; number: number;}; result: ProjectIndex};
   rename_project: {args: {projectId: string; title: string;}; result: null};
   create_chapter: {args: {projectId: string; title: string;}; result: Chapter};
@@ -1228,6 +1274,7 @@ export const storageRpcCoverage = {
     "list_projects",
     "create_project",
     "open_project",
+    "chapter_edit_snapshot",
     "edit_chapter",
     "rename_project",
     "create_chapter",

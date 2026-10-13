@@ -26,6 +26,7 @@ STRUCTS = {
     "UniverseNovelCreated": "crates/storage/src/universe.rs",
     "Project": "crates/storage/src/workspace.rs",
     "Chapter": "crates/storage/src/workspace.rs",
+    "ChapterEditSnapshot": "crates/storage/src/workspace.rs",
     "SceneRecord": "crates/storage/src/workspace.rs",
     "ProjectBundle": "crates/storage/src/workspace.rs",
     "SceneSummary": "crates/storage/src/workspace.rs",

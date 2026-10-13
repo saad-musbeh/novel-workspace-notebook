@@ -1,3 +1,19 @@
+# Native chapter form — October 13, 2026 (unreleased source)
+
+- Locked offline debug desktop/companion/editor build: passed.
+- Rust workspace excluding the retained Tauri UI: **202 passed, 0 failed, 2 ignored**.
+- Explicit GTK workflow with `G_DEBUG=fatal-criticals`, temporary synthetic stores and real debug workers: **1 passed**.
+- Generated RPC contract `--check` and Git whitespace validation: passed.
+- Actual `work/notebook-edit-chapter.png`: inspected; the manual form is light and legible with Arabic/Chinese text.
+
+Storage adds read-only/scoped snapshot and corruption-refusal tests. Existing chapter tests retain stale title/order/numbering, rollback, archives, sync and numbering-conflict coverage. The companion test now captures values through the new snapshot RPC before using the checked edit command. The GTK fixture adds Chapter 0/1 and reordering, no-save inactivity, exact manuscript preservation, invalid title/number refusal, Save/Discard/Cancel, two-window title/order conflicts, stale numbering, failed-close retention, composition barriers and detachable-form saving after the original window closes.
+
+Initial fixture attempts failed because the form helper did not wait for an asynchronous manuscript save, and a corruption test attempted to update an immutable revision without bypassing its fixture-only trigger. Those fixtures were corrected; they are not counted as passes. Full-workspace compilation was blocked by absent retained Tauri frontend assets. The final 202 count excludes that UI member. No Node dependency installation or TypeScript/Vitest rerun was performed. No physical IME, release-worker/package or clean-install qualification is claimed for this slice.
+
+Logs for this run: `/tmp/novel-chapter-build.log`, `/tmp/novel-chapter-tests.log` and `/tmp/novel-chapter-gui.log`. All writing and stores were synthetic. Personal stores and installed launchers were not opened.
+
+---
+
 # Notebook tools 0.4.0 — October 13, 2026
 
 Four native notebook aids are implemented. Validation uses temporary synthetic manuscripts only.

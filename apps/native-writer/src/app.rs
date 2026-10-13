@@ -20,6 +20,9 @@ mod desk;
 mod notebook;
 #[path="reader.rs"]
 mod reader;
+#[path="chapter.rs"]
+mod chapter;
+use chapter::ChapterPage;
 use desk::{Desk, Panel};
 pub struct Workspace {
     pub window:gtk::Window,
@@ -40,6 +43,7 @@ pub struct Workspace {
     active:RefCell<Option<Rc<EditorPane>>>,
     data:RefCell<Vec<Rc<DataPage>>>,
     extra_data:RefCell<Vec<Rc<DataPage>>>,
+    chapter_pages:RefCell<Vec<Rc<ChapterPage>>>,
     changing:Cell<bool>,
     closing:Cell<bool>,
     loading:Cell<bool>,
@@ -182,7 +186,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -260,7 +264,7 @@ impl Workspace {
             }
             a.clear_tabs();
             for pane in a.panes.borrow().values(){pane.process.stop();}
-            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();
+            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
             *a.index.borrow_mut()=Value::Null;a.populate_outline();a.populate_book();
             a.pages.set_group_name(Some(a.group_name()));
@@ -603,41 +607,30 @@ impl Workspace {
         let Some((id,kind))=self.selected()else{
             return;
         };
-        let title=if kind=="scene"{
-            self.index.borrow()["scenes"].as_array().and_then(|v|v.iter().find(|s|s["id"]==id)).and_then(|s|s["title"].as_str()).unwrap_or("").to_owned()
-        }else{
-            self.index.borrow()["chapters"].as_array().and_then(|v|v.iter().find(|s|s["id"]==id)).and_then(|s|s["title"].as_str()).unwrap_or("").to_owned()
-        };
+        if kind=="chapter"{self.edit_chapter();return;}
+        let title=self.index.borrow()["scenes"].as_array().and_then(|v|v.iter().find(|s|s["id"]==id)).and_then(|s|s["title"].as_str()).unwrap_or("").to_owned();
         let Some(title)=prompt(&self.window,"Rename",&title)else{
             return;
         };
         let a=self.clone();
-        if kind=="chapter"{
-            self.client.rpc("rename_chapter",json!({
-                "chapterId":id,"title":title
-            }),move|r|match r{
-                Ok(_)=>a.load_index(),Err(e)=>a.error(&e)
-            });
+        if let Some(p)=self.panes.borrow().get(&id).cloned(){
+            *p.title.borrow_mut()=title;
+            p.dirty.set(true);
+            a.status.set_text("Name changed · Save to keep this scene name");
         }else{
-            if let Some(p)=self.panes.borrow().get(&id).cloned(){
-                *p.title.borrow_mut()=title;
-                p.dirty.set(true);
-                a.status.set_text("Name changed · Save to keep this scene name");
-            }else{
-                let a=self.clone();
-                self.client.rpc("load_scene",json!({
-                    "sceneId":id
-                }),move|reply|match reply{
-                    Ok(s)=>{
-                        let a_=a.clone();
-                        a.client.rpc("rename_scene",json!({
-                            "sceneId":id,"title":title,"parent":s["revisionId"]
-                        }),move|r|match r{
-                            Ok(_)=>a_.load_index(),Err(e)=>a_.error(&e)
-                        });
-                    },Err(e)=>a.error(&e)
-                });
-            }
+            let a=self.clone();
+            self.client.rpc("load_scene",json!({
+                "sceneId":id
+            }),move|reply|match reply{
+                Ok(s)=>{
+                    let a_=a.clone();
+                    a.client.rpc("rename_scene",json!({
+                        "sceneId":id,"title":title,"parent":s["revisionId"]
+                    }),move|r|match r{
+                        Ok(_)=>a_.load_index(),Err(e)=>a_.error(&e)
+                    });
+                },Err(e)=>a.error(&e)
+            });
         }
     }
     fn detach(self:&Rc<Self>){self.detach_current();}

@@ -56,6 +56,7 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "load_project_scene" => encode(storage.load_project_scene(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"sceneId")?).await?),
         "rename_project" => encode(storage.rename_project(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"title")?).await?),
         "create_chapter" => encode(storage.create_chapter(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"title")?).await?),
+        "chapter_edit_snapshot" => encode(storage.chapter_edit_snapshot(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"chapterId")?).await?),
         "edit_chapter" => encode(storage.edit_chapter(&argument::<String>(&args,"chapterId")?,argument::<Option<String>>(&args,"expectedChapterHead")?,argument::<Option<String>>(&args,"expectedProjectHead")?,argument::<Vec<String>>(&args,"expectedOrder")?,argument::<Option<String>>(&args,"numberingParent")?,&argument::<String>(&args,"title")?,argument::<i64>(&args,"number")?).await?),
         "rename_chapter" => encode(storage.rename_chapter(&argument::<String>(&args,"chapterId")?, &argument::<String>(&args,"title")?).await?),
         "reorder_chapters" => encode(storage.reorder_chapters(&argument::<String>(&args,"projectId")?, argument::<Vec<String>>(&args,"ids")?).await?),
@@ -247,8 +248,9 @@ mod chapter_numbering_rpc_tests {
   let d=tempfile::tempdir().unwrap();let storage=Storage::open(&d.path().join("chapter-command.sqlite")).await.unwrap();
   let recovery=Err("Synthetic unavailable backup service".to_owned());let sync=Err("Synthetic unavailable sync service".to_owned());let peer=Err("Synthetic unavailable peer service".to_owned());let listener=Arc::new(tokio::sync::Mutex::new(None));
   let p=storage.create_project("Novel").await.unwrap();let chapter=storage.create_chapter(&p.id,"First").await.unwrap();
-  let ch=storage.metadata_heads(&p.id,&chapter.id,"chapter").await.unwrap();let ph=storage.metadata_heads(&p.id,&p.id,"project").await.unwrap();
-  let args=json!({"chapterId":chapter.id,"expectedChapterHead":ch.revision_ids[0],"expectedProjectHead":ph.revision_ids[0],"expectedOrder":[chapter.id],"numberingParent":null,"title":"Prologue مِ 中文","number":0});
+  let captured=execute(&storage,&recovery,&sync,&listener,&peer,"chapter_edit_snapshot",json!({"projectId":p.id,"chapterId":chapter.id})).await.unwrap();
+  assert_eq!(captured["chapter"]["title"],"First");assert_eq!(captured["chapterNumberStart"],1);
+  let args=json!({"chapterId":chapter.id,"expectedChapterHead":captured["expectedChapterHead"],"expectedProjectHead":captured["expectedProjectHead"],"expectedOrder":captured["expectedOrder"],"numberingParent":captured["numberingParent"],"title":"Prologue مِ 中文","number":0});
   let result=execute(&storage,&recovery,&sync,&listener,&peer,"edit_chapter",args.clone()).await.unwrap();assert_eq!(result["chapterNumberStart"],0);assert_eq!(result["chapters"][0]["title"],"Prologue مِ 中文");assert!(result["chapterNumberingRevisionId"].is_string());
   assert!(execute(&storage,&recovery,&sync,&listener,&peer,"edit_chapter",args).await.is_err());let mut missing=json!({"chapterId":chapter.id,"title":"No overwrite","number":1});assert!(execute(&storage,&recovery,&sync,&listener,&peer,"edit_chapter",missing.take()).await.is_err());assert_eq!(storage.open_project_index(&p.id).await.unwrap().chapter_number_start,0);
  }

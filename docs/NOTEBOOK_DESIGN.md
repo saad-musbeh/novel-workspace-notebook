@@ -35,6 +35,16 @@ Middle clicking a page link, chapter or scene opens a full additional window and
 
 After a refused scene save, middle click **Review → Saved versions → Scene conflicts**. The separate preview includes the retained draft and captured saved/competing versions. Explicitly saving the retained draft creates a new revision and keeps history. A changed draft or saved head refuses that decision.
 
+## Edit chapter titles and numbers
+
+The source after 0.4.0 adds **Write → Add & arrange → Edit chapter**. Select a chapter, or one of its scenes, then open the page. **Rename selected item** opens the same page for chapters. Opening it uses the ordinary Save / Discard / Cancel guard for the page you are leaving.
+
+Edit the title and chapter number, then choose **Save chapter** or **Ctrl+S**. Changing the number moves the chapter and renumbers the others. Use **0** for a prologue; setting the first chapter to **1** returns numbering to a Chapter 1 start. Scene identities, text, revision history and fictional dates remain unchanged. Saved manuscript exports use the resulting chapter order.
+
+Typing into this form does not save it. **Discard changes** restores the form's last confirmed values. Leaving, closing or changing novels checks its draft, and a failed save keeps the page and entered values. A detached form retains the same draft and captured revisions. Unfinished title composition blocks saving, leaving and detaching.
+
+The title, order, numbering and metadata heads are captured together. If another window changes a captured title, manuscript order or numbering, Save refuses the stale edit. Discard the pending values and reopen Edit chapter to load the newer version; the app never automatically replaces them. This source slice has not been included in the published 0.4.0 packages.
+
 ## Keep passages and return to work
 
 Open **Write → Keep & return → Cutting-room floor** to see passages removed between saved scene versions. It compares each revision with its saved parents; it does not capture every deletion as you type. Use Undo for unsaved deletions, or select text and choose **Keep selection as scrap** before cutting it. Keeping a selection saves a separate plain-text copy and leaves the draft unchanged.

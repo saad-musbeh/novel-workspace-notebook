@@ -9,7 +9,7 @@ import json
 # Coverage selection only: field names and types are derived, never hand copied.
 OPERATIONS = (
     'create_universe','create_universe_novel','create_novel','load', 'save', 'list_projects', 'create_project', 'open_project',
-    'edit_chapter', 'rename_project', 'create_chapter', 'rename_chapter', 'reorder_chapters',
+    'chapter_edit_snapshot', 'edit_chapter', 'rename_project', 'create_chapter', 'rename_chapter', 'reorder_chapters',
     'open_project_index', 'load_project_scene', 'create_scene', 'load_scene', 'rename_scene', 'reorder_scenes', 'history',
     'restore_scene', 'export_archive', 'import_archive', 'load_project_data',
     'load_entity_revision', 'project_data_history', 'load_project_data_revision',

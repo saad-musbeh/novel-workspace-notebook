@@ -8,10 +8,12 @@ Prepare the three debug executables first. This also prepares the sidecars requi
 
 ```sh
 tools/run-desktop.sh --build
-cargo test --workspace --offline --locked -j 2 -- --test-threads=1
+cargo test --workspace --exclude novel-workspace --offline --locked -j 2 -- --test-threads=1
 ```
 
-The suite covers the real storage/recovery/sync/provider/export APIs, the native editor and chronology. The opt-in OS-keyring test and current-display GTK workflow remain ignored in ordinary discovery.
+The suite covers the real storage/recovery/sync/provider/export APIs, the native editor and chronology. The opt-in OS-keyring test and current-display GTK workflow remain ignored in ordinary discovery. Excluding `novel-workspace` omits the retained Tauri UI member, whose full-workspace tests also require its generated frontend assets. Run that member separately after preparing the retained frontend; it is not required to qualify the active GTK runtime.
+
+The chapter-form regression also checks guarded opening from an unsaved scene, manual-save inactivity, Chapter 0/Chapter 1, reordering, invalid fields, Save/Discard/Cancel, competing-window title/order changes, stale numbering, composition refusal, detached form saves and a surviving window after the original closes. It verifies unchanged scene text/revisions and writes `work/notebook-edit-chapter.png`.
 
 For the actual GTK workflow, run separately on a graphical desktop:
 

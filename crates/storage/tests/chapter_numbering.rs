@@ -1,10 +1,30 @@
-use novel_storage::{Storage,ProjectIndex,SyncCursor};
+use novel_storage::{Storage,ProjectIndex,SyncCursor,Scene};
 use sqlx::Connection;
 use serde_json::json;
 use sha2::{Digest,Sha256};
 async fn fixture()->(tempfile::TempDir,Storage){let d=tempfile::tempdir().unwrap();let s=Storage::open(&d.path().join("chapters.sqlite")).await.unwrap();(d,s)}
 async fn heads(s:&Storage,index:&ProjectIndex,cid:&str)->(Option<String>,Option<String>){let c=s.metadata_heads(&index.project.id,cid,"chapter").await.unwrap();let p=s.metadata_heads(&index.project.id,&index.project.id,"project").await.unwrap();assert!(c.revision_ids.len()<=1&&p.revision_ids.len()<=1);(c.revision_ids.first().cloned(),p.revision_ids.first().cloned())}
 async fn edit(s:&Storage,index:&ProjectIndex,cid:&str,title:&str,number:i64)->Result<ProjectIndex,String>{let (c,p)=heads(s,index,cid).await;s.edit_chapter(cid,c,p,index.chapters.iter().map(|c|c.id.clone()).collect(),index.chapter_numbering_revision_id.clone(),title,number).await}
+#[tokio::test]
+async fn chapter_form_snapshot_is_read_only_scoped_and_rejects_stale_saved_values(){
+ let (_d,s)=fixture().await;let p=s.create_project("Novel").await.unwrap();let a=s.create_chapter(&p.id,"Original مِ 中文").await.unwrap();let b=s.create_chapter(&p.id,"Second").await.unwrap();
+ let scene=s.create_scene(&a.id,Scene{schema_version:1,title:"Scene".into(),document:json!({"type":"doc","content":[{"type":"paragraph","attrs":{"dir":"rtl","lang":"ar"},"content":[{"type":"text","text":"مِ 中文 𠀀 👩🏽‍🚀","marks":[{"type":"bold"}]}]}]})}).await.unwrap();
+ let marker=s.sync_cursor().await.unwrap();let captured=s.chapter_edit_snapshot(&p.id,&a.id).await.unwrap();assert_eq!(s.sync_cursor().await.unwrap(),marker);assert_eq!(captured.chapter,a);assert_eq!(captured.expected_order,vec![a.id.clone(),b.id.clone()]);assert_eq!(captured.chapter_number_start,1);
+ let other=s.create_project("Other").await.unwrap();assert!(s.chapter_edit_snapshot(&other.id,&a.id).await.is_err());assert!(s.chapter_edit_snapshot(&p.id,"missing").await.is_err());
+ s.rename_chapter(&a.id,"Newer title").await.unwrap();let marker=s.sync_cursor().await.unwrap();
+ assert!(s.edit_chapter(&a.id,captured.expected_chapter_head,captured.expected_project_head,captured.expected_order,captured.numbering_parent,"Stale title",0).await.unwrap_err().starts_with("Conflict"));assert_eq!(s.sync_cursor().await.unwrap(),marker);
+ let fresh=s.chapter_edit_snapshot(&p.id,&a.id).await.unwrap();assert_eq!(fresh.chapter.title,"Newer title");
+ let index=s.edit_chapter(&a.id,fresh.expected_chapter_head,fresh.expected_project_head,fresh.expected_order,fresh.numbering_parent,"Prologue مِ 中文",0).await.unwrap();assert_eq!(index.chapter_number_start,0);assert_eq!(s.load_scene(&scene.id).await.unwrap().revision_id,scene.revision_id);assert_eq!(s.load_scene(&scene.id).await.unwrap().scene,scene.scene);
+ let fresh=s.chapter_edit_snapshot(&p.id,&b.id).await.unwrap();assert_eq!(fresh.chapter_number_start,0);assert_eq!(fresh.numbering_parent,index.chapter_numbering_revision_id);
+}
+#[tokio::test]
+async fn chapter_form_snapshot_refuses_corrupt_metadata(){
+ let (d,s)=fixture().await;let p=s.create_project("Novel").await.unwrap();let c=s.create_chapter(&p.id,"First").await.unwrap();let capture=s.chapter_edit_snapshot(&p.id,&c.id).await.unwrap();
+ let mut raw=sqlx::SqliteConnection::connect_with(&sqlx::sqlite::SqliteConnectOptions::new().filename(d.path().join("chapters.sqlite"))).await.unwrap();
+ // Deliberately bypass immutability only in this disposable corruption fixture.
+ sqlx::query("DROP TRIGGER immutable_revision_update").execute(&mut raw).await.unwrap();
+ sqlx::query("UPDATE revision_envelope SET checksum='invalid' WHERE id=?").bind(capture.expected_chapter_head).execute(&mut raw).await.unwrap();assert!(s.chapter_edit_snapshot(&p.id,&c.id).await.unwrap_err().contains("checksum"));
+}
 #[tokio::test]
 async fn chapter_zero_reorders_persists_appends_and_explicitly_returns_to_one(){
  let (d,s)=fixture().await;let p=s.create_project("Novel").await.unwrap();let a=s.create_chapter(&p.id,"أول").await.unwrap();let b=s.create_chapter(&p.id,"中文").await.unwrap();let initial=s.open_project_index(&p.id).await.unwrap();assert_eq!(initial.chapter_number_start,1);assert_eq!(initial.chapter_numbering_revision_id,None);
