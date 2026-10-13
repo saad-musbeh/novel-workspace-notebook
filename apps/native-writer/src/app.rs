@@ -149,10 +149,10 @@ fn scroll(widget:&impl IsA<gtk::Widget>)->gtk::ScrolledWindow{
     scroller
 }
 pub fn prompt(parent:&gtk::Window,title:&str,current:&str)->Option<String>{
-    prompt_with_action(parent,title,current,"Apply")
+    prompt_with_action(parent,title,current,crate::ui_text::text("action.apply"))
 }
 fn prompt_with_action(parent:&gtk::Window,title:&str,current:&str,action:&str)->Option<String>{
-    let dialog=gtk::Dialog::with_buttons(Some(title),Some(parent),gtk::DialogFlags::MODAL,&[("Cancel",gtk::ResponseType::Cancel),(action,gtk::ResponseType::Accept)]);
+    let dialog=gtk::Dialog::with_buttons(Some(title),Some(parent),gtk::DialogFlags::MODAL,&[(crate::ui_text::text("action.cancel"),gtk::ResponseType::Cancel),(action,gtk::ResponseType::Accept)]);
     dialog.set_accept_focus(parent.accepts_focus());dialog.set_focus_on_map(parent.accepts_focus());if !parent.accepts_focus(){dialog.set_keep_below(true);}
     let entry=gtk::Entry::new();
     entry.set_text(current);
@@ -170,7 +170,7 @@ fn prompt_with_action(parent:&gtk::Window,title:&str,current:&str,action:&str)->
     result
 }
 fn choose_option(parent:&gtk::Window,title:&str,options:&[(&str,&str)],current:&str)->Option<String>{
-    let dialog=gtk::Dialog::with_buttons(Some(title),Some(parent),gtk::DialogFlags::MODAL,&[("Cancel",gtk::ResponseType::Cancel),("Continue",gtk::ResponseType::Accept)]);
+    let dialog=gtk::Dialog::with_buttons(Some(title),Some(parent),gtk::DialogFlags::MODAL,&[(crate::ui_text::text("action.cancel"),gtk::ResponseType::Cancel),(crate::ui_text::text("action.continue"),gtk::ResponseType::Accept)]);
     dialog.set_accept_focus(parent.accepts_focus());dialog.set_focus_on_map(parent.accepts_focus());if !parent.accepts_focus(){dialog.set_keep_below(true);}
     let combo=gtk::ComboBoxText::new();for (id,label) in options{combo.append(Some(id),label);}combo.set_active_id(Some(current));combo.set_margin_start(18);combo.set_margin_end(18);combo.set_margin_top(18);combo.set_margin_bottom(18);dialog.content_area().pack_start(&combo,false,false,0);dialog.show_all();
     let result=if dialog.run()==gtk::ResponseType::Accept{combo.active_id().map(|id|id.to_string())}else{None};dialog.hide();unsafe{dialog.destroy();}result
@@ -205,7 +205,7 @@ impl Workspace {
         window.set_focus_on_map(focus);
         window.set_accept_focus(focus);
         if !focus{window.set_keep_below(true);}
-        window.set_title("Novel Workspace");
+        window.set_title(crate::ui_text::text("app.title"));
         window.set_default_size(1120,800);
         let root=gtk::Box::new(gtk::Orientation::Vertical,0);
         window.add(&root);
@@ -217,15 +217,15 @@ impl Workspace {
         sidebar.set_margin_end(14);
         sidebar.set_margin_top(16);
         sidebar.set_margin_bottom(12);
-        let heading=gtk::Label::new(Some("NOTEBOOK"));
+        let heading=gtk::Label::new(Some(crate::ui_text::text("app.notebook_heading")));
         heading.set_xalign(0.);
         heading.style_context().add_class("desk-heading");
         sidebar.pack_start(&heading,false,false,0);
         let projects=gtk::ComboBoxText::new();
-        projects.set_tooltip_text(Some("Choose a novel"));
+        projects.set_tooltip_text(Some(crate::ui_text::text("app.choose_novel")));
         sidebar.pack_start(&projects,false,false,0);
         let area=gtk::ComboBoxText::new();
-        for name in ["Write","Planning","Review","Project"]{area.append(Some(name),name);}
+        for (id,key) in [("Write","area.write"),("Planning","area.planning"),("Review","area.review"),("Project","area.project")]{area.append(Some(id),crate::ui_text::text(key));}
         area.set_active(Some(0));
         sidebar.pack_start(&area,false,false,0);
         let menu_scroll=gtk::ScrolledWindow::new(None::<&gtk::Adjustment>,None::<&gtk::Adjustment>);
@@ -234,7 +234,7 @@ impl Workspace {
         menu_scroll.add(&menus);
         sidebar.pack_start(&menu_scroll,true,true,0);
         let search=gtk::SearchEntry::new();
-        search.set_placeholder_text(Some("Find a scene"));
+        search.set_placeholder_text(Some(crate::ui_text::text("app.find_scene")));
         let outline=gtk::TreeStore::new(&[String::static_type(),String::static_type(),String::static_type()]);
         let tree=gtk::TreeView::with_model(&outline);
         tree.set_headers_visible(false);
@@ -257,7 +257,7 @@ impl Workspace {
         content.pack2(&pages,true,false);
         content.set_position(260);
         root.pack_start(&content,true,true,0);
-        let status=gtk::Label::new(Some("Opening local notebook…"));
+        let status=gtk::Label::new(Some(crate::ui_text::text("status.opening_notebook")));
         status.set_xalign(0.);
         status.set_line_wrap(true);
         status.set_margin_start(16);
@@ -846,7 +846,7 @@ impl Workspace {
     }
     fn export(self:&Rc<Self>){
         let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.export();return;}
-        let Some(format)=choose_option(&self.window,"Export",&[("docx","Word document (.docx)"),("text","Plain text (.txt)"),("markdown","Markdown (.md)"),("html","Web page (.html)"),("project","Complete project archive")],"docx")else{return;};
+        let Some(format)=choose_option(&self.window,crate::ui_text::text("export.title"),&[("docx",crate::ui_text::text("export.docx")),("text",crate::ui_text::text("export.text")),("markdown",crate::ui_text::text("export.markdown")),("html",crate::ui_text::text("export.html")),("project",crate::ui_text::text("export.project"))],"docx")else{return;};
         if format=="docx"{let page=self.page("exportProfile");let a=self.clone();self.when_loaded(page,move||a.export_saved(format));}else{self.export_saved(format);}
     }
     fn export_saved(self:&Rc<Self>,format:String){

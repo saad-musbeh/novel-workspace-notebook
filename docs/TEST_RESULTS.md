@@ -1,3 +1,9 @@
+# English UI catalogue checks — October 14, 2026
+
+Three Rust lookup checks and four standard-library catalogue compiler tests passed. Freshness and declared hook checks passed for **154 original English captions**, exact identifiers and minimum static references. Duplicate/invalid keys, oversized/control/surrogate text and undeclared format placeholders refuse generation; literal multilingual/quote/backslash values round-trip. Offline workers/native build completed warning-free. Tools: `generate-native-ui-text.py --check`, `check-native-ui-text.py`, `test-native-ui-text.py`. This covers selected shell/shared-form text, not translated locales or complete native message coverage.
+
+---
+
 # Scoped consistency review integration — October 14, 2026
 
 Focused checks passed **7 storage, 19 native review and 2 canonical projection tests**; generated contract drift/whitespace checks passed. Root real GTK consistency passed **1 test / 1.24 s** with fatal criticals and actual synthetic-store workers. Scope includes one exact saved scene plus bounded canonical approved-fact bytes, labels all excluded scenes/facts and warns temporal applicability is unknown. Missing/conflicting/corrupt planning refuses, empty facts retain revision dependency, changed scene/planning source or final CAS refuses stale decisions, and provisional question acceptance never changes manuscript/canon. Validated proofreading exceptions preserve malformed-result refusal. Log: `/tmp/novel-consistency-final-gtk.log`. Test-only provider replies qualify orchestration, not model accuracy.

@@ -1,3 +1,9 @@
+# English interface text foundation — October 14, 2026
+
+Keep interface display strings in a bounded English catalogue with stable keys and generated compile-time Rust storage. Treat authored manuscript/record names and serialized route/language/command IDs as separate values. Source coverage is explicit and checked. Add parameterized messages only with reviewed argument contracts; do not pass arbitrary saved author text through translation lookup or infer a locale from the operating system.
+
+---
+
 # Optional scoped consistency review — October 14, 2026
 
 Consistency operates only on one explicitly previewed saved scene and a canonical confirmed-fact projection with full planning-head provenance. No temporal context is inferred, and context omissions remain visible. Store provisional questions as author review notes through existing checked settings decisions. Require both scene and projectData dependencies for final acceptance; absent planning cannot be made safely revision-bound, so refuse consistency until the author saves planning. Normal editing/saving and wording review remain independent.

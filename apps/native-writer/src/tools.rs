@@ -171,7 +171,7 @@ impl Form{
             0
         });
         if depth>12{
-            box_.pack_start(&gtk::Label::new(Some("This nested record can be read from its project archive.")),false,false,0);
+            box_.pack_start(&gtk::Label::new(Some(crate::ui_text::text("form.nested_archive"))),false,false,0);
             return box_.upcast();
         }
         if key=="fields" && path.len()==1 { return custom_fields::definitions(self.clone()); }
@@ -278,7 +278,7 @@ impl Form{
                         }
                     });
                     if let Some(template)=template(key){
-                        let add=gtk::Button::with_label("Add");
+                        let add=gtk::Button::with_label(crate::ui_text::text("action.add"));
                         let form=self.clone();
                         let p=path.clone();
                         let combo_=combo.clone();
@@ -296,7 +296,7 @@ impl Form{
                             combo_.set_active_id(Some(&index.to_string()));
                         });
                         box_.pack_start(&add,false,false,0);
-                        let remove=gtk::Button::with_label("Remove selected record");
+                        let remove=gtk::Button::with_label(crate::ui_text::text("action.remove_record"));
                         let form=self.clone();let p=path.clone();let combo_=combo.clone();
                         remove.connect_clicked(move|_|{
                             let Some(index)=combo_.active_id().and_then(|s|s.parse::<usize>().ok())else{return;};
@@ -318,7 +318,7 @@ impl Form{
                 }
             }
             Value::Bool(value)=>{
-                let check=gtk::CheckButton::with_label("Yes");
+                let check=gtk::CheckButton::with_label(crate::ui_text::text("form.yes"));
                 check.set_active(value);
                 let form=self.clone();
                 check.connect_toggled(move|c|form.change(&path,json!(c.is_active())));
@@ -350,7 +350,7 @@ impl Form{
                 let immutable=["sceneId","sourceText","sourceLanguage","targetLanguage"].contains(&key) && path.iter().any(|p|matches!(p,Part::Key(k) if k=="drafts"));
                 if (key.ends_with("Id") || key=="id") && !immutable{
                     let combo=gtk::ComboBoxText::new();
-                    combo.append(Some(""),"Unspecified");
+                    combo.append(Some(""),crate::ui_text::text("form.unspecified"));
                     for (id,name) in self.references.iter(){
                         combo.append(Some(id),name);
                     }if !text.is_empty() && !self.references.iter().any(|(i,_)|i==&text){
@@ -396,7 +396,7 @@ impl Form{
             Value::Null=>{
                 if key.ends_with("Id"){
                     let combo=gtk::ComboBoxText::new();
-                    combo.append(Some(""),"Unspecified");
+                    combo.append(Some(""),crate::ui_text::text("form.unspecified"));
                     for(id,name)in self.references.iter(){
                         combo.append(Some(id),name);
                     }combo.set_active(Some(0));
@@ -410,7 +410,7 @@ impl Form{
                     });
                     box_.pack_start(&combo,false,false,0);
                 }else{
-                    box_.pack_start(&gtk::Label::new(Some("Unspecified")),false,false,0);
+                    box_.pack_start(&gtk::Label::new(Some(crate::ui_text::text("form.bool_null"))),false,false,0);
                 }
             }
         }
@@ -424,7 +424,7 @@ impl DataPage{
         widget.set_margin_end(12);
         widget.set_margin_top(12);
         let controls=gtk::Box::new(gtk::Orientation::Horizontal,6);
-        let status=gtk::Label::new(Some("Open a novel to begin."));
+        let status=gtk::Label::new(Some(crate::ui_text::text("form.open_novel")));
         status.set_xalign(0.);status.set_line_wrap(true);
         controls.pack_start(&status,true,true,0);widget.pack_start(&controls,false,false,0);
         let scroll=gtk::ScrolledWindow::new(None::<&gtk::Adjustment>,None::<&gtk::Adjustment>);
@@ -438,12 +438,12 @@ impl DataPage{
     }
     pub fn load(self:&Rc<Self>,project_id:&str,references:Vec<(String,String)>){
         if self.dirty.get(){
-            self.status.set_text("Save this draft before changing novels.");
+            self.status.set_text(crate::ui_text::text("form.save_before_switch"));
             return;
         }*self.project_id.borrow_mut()=project_id.into();
         self.loaded.set(false);self.body.set_sensitive(false);self.scene_catalog.borrow_mut().clear();
         *self.source_references.borrow_mut()=references.clone();
-        self.status.set_text("Opening…");
+        self.status.set_text(crate::ui_text::text("status.opening"));
         let weak=Rc::downgrade(self);
         let pid=project_id.to_owned();
         let current=pid.clone();let epoch=self.epoch.get();
@@ -456,7 +456,7 @@ impl DataPage{
                 Ok(reply)=>{
                     let snapshot=if p.kind=="planning"{
                         if reply["index"]["project"]["id"]!=current || !reply["index"]["scenes"].is_array() || reply.get("planning").is_none(){
-                            p.status.set_text("Unsupported checked planning snapshot. Reopen Story notes.");return;
+                            p.status.set_text(crate::ui_text::text("form.invalid_snapshot"));return;
                         }
                         *p.scene_catalog.borrow_mut()=reply["index"]["scenes"].as_array().unwrap().clone();reply["planning"].clone()
                     }else{reply};
@@ -468,7 +468,7 @@ impl DataPage{
                     *p.parent.borrow_mut()=snapshot["revisionId"].clone();
                     *p.saved_value.borrow_mut()=p.value.borrow().clone();
                     p.loaded.set(true);p.body.set_sensitive(true);
-                    p.status.set_text("Saved");
+                    p.status.set_text(crate::ui_text::text("status.saved"));
                     p.render(references);
                 },Err(e)=>p.status.set_text(&e)
             }
@@ -505,7 +505,7 @@ impl DataPage{
             }
         }else{Vec::new()};
         self.saving.set(true);
-        self.status.set_text("Saving…");
+        self.status.set_text(crate::ui_text::text("status.saving"));
         let epoch=self.epoch.get();
         let value=self.value.borrow().clone();
         let saved_value=value.clone();
@@ -538,7 +538,7 @@ impl DataPage{
         });
     }
     pub fn discard(&self){
-        *self.value.borrow_mut()=self.saved_value.borrow().clone();self.dirty.set(false);self.epoch.set(self.epoch.get()+1);self.render(Vec::new());self.status.set_text("Changes discarded");
+        *self.value.borrow_mut()=self.saved_value.borrow().clone();self.dirty.set(false);self.epoch.set(self.epoch.get()+1);self.render(Vec::new());self.status.set_text(crate::ui_text::text("status.discarded"));
     }
     pub fn update(&self,value:Value){
         *self.value.borrow_mut()=value;

@@ -111,7 +111,7 @@ pub(super) fn apply_style() {
     if let Some(screen)=gdk::Screen::default(){gtk::StyleContext::add_provider_for_screen(&screen,&provider,gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);}
 }
 fn data_title(kind:&str)->&str {
-    match kind { "planning"=>"Story notes", "settings"=>"Review settings", "sceneMetadata"=>"Scene details", "exportProfile"=>"Word styles", "writingSystems"=>"Alphabets", "sceneTranslations"=>"Translations", _=>"Project notes" }
+    match kind { "planning"=>crate::ui_text::text("page.story_notes"), "settings"=>crate::ui_text::text("page.review_settings"), "sceneMetadata"=>crate::ui_text::text("page.scene_details"), "exportProfile"=>crate::ui_text::text("page.word_styles"), "writingSystems"=>crate::ui_text::text("page.alphabets"), "sceneTranslations"=>crate::ui_text::text("page.translations"), _=>crate::ui_text::text("page.project_notes") }
 }
 
 /// A tool page is ordinary tab content, never a separate GTK window.
@@ -171,7 +171,7 @@ impl Workspace {
         let b=button(row,title,move||if let Some(a)=weak.upgrade(){let a_=a.clone();let action=action.clone();if a.sequence_window_blocked(){return;}a.navigate(move||action(a_));});
         b.style_context().add_class("desk-link");b.set_halign(gtk::Align::Fill);
         if let Some(label)=b.child().and_then(|w|w.downcast::<gtk::Label>().ok()){label.set_xalign(0.);label.set_ellipsize(gtk::pango::EllipsizeMode::End);}
-        b.set_tooltip_text(Some("Open here. Middle click to open in another window."));
+        b.set_tooltip_text(Some(crate::ui_text::text("nav.middle_click_hint")));
         b.add_events(gdk::EventMask::BUTTON_PRESS_MASK|gdk::EventMask::BUTTON_RELEASE_MASK);
         let weak=Rc::downgrade(self);
         b.connect_button_press_event(move|_,event|{
@@ -183,76 +183,76 @@ impl Workspace {
         if let Some(label)=b.child().and_then(|w|w.downcast::<gtk::Label>().ok()){label.set_xalign(0.);}
     }
     pub(super) fn build_menus(self:&Rc<Self>) {
-        self.control(&self.desk.sidebar,"Save   Ctrl+S",Self::save_now);
+        self.control(&self.desk.sidebar,crate::ui_text::text("action.save_shortcut"),Self::save_now);
         // Keep Save above the menus, directly below the area selector.
         self.desk.sidebar.reorder_child(self.desk.sidebar.children().last().unwrap(),3);
         let write=self.group("Write");
-        let outline=self.menu(&write,"Manuscript",true);outline.pack_start(&self.search,false,false,4);outline.pack_start(&self.binder,true,true,0);
-        let create=self.menu(&write,"Add & arrange",false);
-        self.control(&create,"New chapter",Self::new_chapter);self.control(&create,"New scene",Self::new_scene);self.control(&create,"Edit chapter",Self::edit_chapter);self.control(&create,"Arrange scene",Self::arrange_scene);self.control(&create,"Rename selected item",Self::rename);
-        let edit=self.menu(&write,"Edit",false);
-        self.control(&edit,"Undo",|a|a.undo());self.control(&edit,"Redo",|a|a.redo());
-        self.control(&edit,"Bold",|a|a.bold());self.control(&edit,"Italic",|a|a.italic());self.control(&edit,"Underline",|a|a.underline());self.control(&edit,"Paragraph format",|a|a.format());
-        let format=gtk::Expander::new(Some("Paragraph"));let formatting=gtk::Box::new(gtk::Orientation::Vertical,5);
-        let language=gtk::ComboBoxText::new();for (id,name) in [("en","English"),("ar","Arabic"),("zh-Hans","Chinese (simplified)"),("zh-Hant","Chinese (traditional)"),("und","Unspecified language")]{language.append(Some(id),name);}language.set_active(Some(0));
-        let direction=gtk::ComboBoxText::new();for (id,name) in [("auto","Automatic direction"),("ltr","Left to right"),("rtl","Right to left")]{direction.append(Some(id),name);}direction.set_active(Some(0));
-        let style=gtk::ComboBoxText::new();style.append(Some("paragraph"),"Paragraph");style.append(Some("heading"),"Heading");style.set_active(Some(0));
-        let spacing=gtk::ComboBoxText::new();for (id,name) in [("1","Single spacing"),("1.15","1.15 spacing"),("1.5","1.5 spacing"),("2","Double spacing")]{spacing.append(Some(id),name);}spacing.set_active(Some(1));
+        let outline=self.menu(&write,crate::ui_text::text("menu.manuscript"),true);outline.pack_start(&self.search,false,false,4);outline.pack_start(&self.binder,true,true,0);
+        let create=self.menu(&write,crate::ui_text::text("menu.arrange"),false);
+        self.control(&create,crate::ui_text::text("action.new_chapter"),Self::new_chapter);self.control(&create,crate::ui_text::text("action.new_scene"),Self::new_scene);self.control(&create,crate::ui_text::text("page.edit_chapter"),Self::edit_chapter);self.control(&create,crate::ui_text::text("page.arrange_scene"),Self::arrange_scene);self.control(&create,crate::ui_text::text("action.rename"),Self::rename);
+        let edit=self.menu(&write,crate::ui_text::text("menu.edit"),false);
+        self.control(&edit,crate::ui_text::text("action.undo"),|a|a.undo());self.control(&edit,crate::ui_text::text("action.redo"),|a|a.redo());
+        self.control(&edit,crate::ui_text::text("format.bold"),|a|a.bold());self.control(&edit,crate::ui_text::text("format.italic"),|a|a.italic());self.control(&edit,crate::ui_text::text("format.underline"),|a|a.underline());self.control(&edit,crate::ui_text::text("page.paragraph_format"),|a|a.format());
+        let format=gtk::Expander::new(Some(crate::ui_text::text("format.paragraph")));let formatting=gtk::Box::new(gtk::Orientation::Vertical,5);
+        let language=gtk::ComboBoxText::new();for (id,name) in [("en",crate::ui_text::text("language.english")),("ar",crate::ui_text::text("language.arabic")),("zh-Hans",crate::ui_text::text("language.zh_hans")),("zh-Hant",crate::ui_text::text("language.zh_hant")),("und",crate::ui_text::text("language.unspecified"))]{language.append(Some(id),name);}language.set_active(Some(0));
+        let direction=gtk::ComboBoxText::new();for (id,name) in [("auto",crate::ui_text::text("format.auto_direction")),("ltr",crate::ui_text::text("format.ltr")),("rtl",crate::ui_text::text("format.rtl"))]{direction.append(Some(id),name);}direction.set_active(Some(0));
+        let style=gtk::ComboBoxText::new();style.append(Some("paragraph"),crate::ui_text::text("format.paragraph"));style.append(Some("heading"),crate::ui_text::text("format.heading"));style.set_active(Some(0));
+        let spacing=gtk::ComboBoxText::new();for (id,name) in [("1",crate::ui_text::text("format.single_spacing")),("1.15",crate::ui_text::text("format.spacing115")),("1.5",crate::ui_text::text("format.spacing15")),("2",crate::ui_text::text("format.double_spacing"))]{spacing.append(Some(id),name);}spacing.set_active(Some(1));
         for c in [&language,&direction,&style,&spacing]{formatting.pack_start(c,false,false,0);}
-        let weak=Rc::downgrade(self);button(&formatting,"Apply to paragraph",move||if let Some(a)=weak.upgrade(){if a.sequence_window_blocked(){return;}if let Some(p)=a.active.borrow().clone(){
+        let weak=Rc::downgrade(self);button(&formatting,crate::ui_text::text("format.apply"),move||if let Some(a)=weak.upgrade(){if a.sequence_window_blocked(){return;}if let Some(p)=a.active.borrow().clone(){
             p.operation(json!({"type":"command","command":"blockStyle","language":language.active_id().unwrap().as_str(),"direction":direction.active_id().unwrap().as_str(),"style":style.active_id().unwrap().as_str()}),true);
             p.operation(json!({"type":"command","command":"lineSpacing","lineSpacing":spacing.active_id().unwrap().parse::<f64>().unwrap()}),true);
         }});format.add(&formatting);write.pack_start(&format,false,false,0);*self.desk.format.borrow_mut()=Some(format);
-        let find=gtk::Expander::new(Some("Find & replace"));let find_body=gtk::Box::new(gtk::Orientation::Vertical,5);
-        let query=gtk::Entry::new();query.set_placeholder_text(Some("Find exact text"));let replacement=gtk::Entry::new();replacement.set_placeholder_text(Some("Replace with"));
+        let find=gtk::Expander::new(Some(crate::ui_text::text("find.title")));let find_body=gtk::Box::new(gtk::Orientation::Vertical,5);
+        let query=gtk::Entry::new();query.set_placeholder_text(Some(crate::ui_text::text("find.query")));let replacement=gtk::Entry::new();replacement.set_placeholder_text(Some(crate::ui_text::text("find.replacement")));
         find_body.pack_start(&query,false,false,0);find_body.pack_start(&replacement,false,false,0);
-        let weak=Rc::downgrade(self);let q=query.clone();button(&find_body,"Find next",move||if let Some(a)=weak.upgrade(){if a.sequence_window_blocked(){return;}if let Some(p)=a.active.borrow().clone(){p.operation(json!({"type":"command","command":"find","query":q.text().as_str()}),false);}});
-        let weak=Rc::downgrade(self);let q=query.clone();button(&find_body,"Replace match",move||if let Some(a)=weak.upgrade(){if a.sequence_window_blocked(){return;}if let Some(p)=a.active.borrow().clone(){p.operation(json!({"type":"command","command":"replace","query":q.text().as_str(),"replacement":replacement.text().as_str()}),true);}});
+        let weak=Rc::downgrade(self);let q=query.clone();button(&find_body,crate::ui_text::text("find.next"),move||if let Some(a)=weak.upgrade(){if a.sequence_window_blocked(){return;}if let Some(p)=a.active.borrow().clone(){p.operation(json!({"type":"command","command":"find","query":q.text().as_str()}),false);}});
+        let weak=Rc::downgrade(self);let q=query.clone();button(&find_body,crate::ui_text::text("find.replace"),move||if let Some(a)=weak.upgrade(){if a.sequence_window_blocked(){return;}if let Some(p)=a.active.borrow().clone(){p.operation(json!({"type":"command","command":"replace","query":q.text().as_str(),"replacement":replacement.text().as_str()}),true);}});
         find.add(&find_body);write.pack_start(&find,false,false,0);*self.desk.find.borrow_mut()=Some(find);*self.desk.find_entry.borrow_mut()=Some(query);
-        let keeps=self.menu(&write,"Keep & return",false);
-        self.control(&keeps,"Keep selection as scrap",Self::keep_scrap);
-        self.link(&keeps,"Cutting-room floor",|a|a.cutting_room());
-        self.control(&keeps,"Leave return bookmark",Self::leave_bookmark);
-        self.link(&keeps,"Return to bookmark",|a|a.return_to_bookmark());
-        self.control(&keeps,"Clear return bookmark",Self::clear_bookmark);
-        let pages=self.menu(&write,"Other pages",false);
-        self.link(&pages,"Manuscript overview",|a|a.open_book());
-        self.link(&pages,"Scene details",|a|a.details());
-        self.link(&pages,"Scene references",|a|a.scene_references());self.link(&pages,"Character cut",|a|a.character_cut());
-        self.link(&pages,"Writing view",|a|a.writing_view());self.link(&pages,"Keyboard shortcuts",|a|a.keyboard_shortcuts());
-        self.link(&pages,"Choose hold comparison version",|a|a.choose_peek_revision());
-        let peek_hint=gtk::Label::new(Some("On the writing page: hold F6 for saved references, F7 for changes."));peek_hint.set_line_wrap(true);peek_hint.set_xalign(0.);pages.pack_start(&peek_hint,false,false,0);
-        self.link(&pages,"Paragraph alternatives",|a|a.alternatives());self.link(&pages,"Command sequences",|a|a.command_sequences());
+        let keeps=self.menu(&write,crate::ui_text::text("menu.keep_return"),false);
+        self.control(&keeps,crate::ui_text::text("action.keep_scrap"),Self::keep_scrap);
+        self.link(&keeps,crate::ui_text::text("page.scraps"),|a|a.cutting_room());
+        self.control(&keeps,crate::ui_text::text("action.leave_bookmark"),Self::leave_bookmark);
+        self.link(&keeps,crate::ui_text::text("action.return_bookmark"),|a|a.return_to_bookmark());
+        self.control(&keeps,crate::ui_text::text("action.clear_bookmark"),Self::clear_bookmark);
+        let pages=self.menu(&write,crate::ui_text::text("menu.other_pages"),false);
+        self.link(&pages,crate::ui_text::text("page.manuscript"),|a|a.open_book());
+        self.link(&pages,crate::ui_text::text("page.scene_details"),|a|a.details());
+        self.link(&pages,crate::ui_text::text("page.scene_references"),|a|a.scene_references());self.link(&pages,crate::ui_text::text("page.character_cut"),|a|a.character_cut());
+        self.link(&pages,crate::ui_text::text("page.writing_view"),|a|a.writing_view());self.link(&pages,crate::ui_text::text("page.shortcuts"),|a|a.keyboard_shortcuts());
+        self.link(&pages,crate::ui_text::text("page.peek_version"),|a|a.choose_peek_revision());
+        let peek_hint=gtk::Label::new(Some(crate::ui_text::text("peek.hold_hint")));peek_hint.set_line_wrap(true);peek_hint.set_xalign(0.);pages.pack_start(&peek_hint,false,false,0);
+        self.link(&pages,crate::ui_text::text("page.alternatives"),|a|a.alternatives());self.link(&pages,crate::ui_text::text("page.sequences"),|a|a.command_sequences());
         for kind in ["exportProfile","sceneTranslations"]{self.link(&pages,data_title(kind),move|a|a.open_data(kind,data_title(kind)));}
-        self.link(&pages,"Alphabets",|a|a.alphabet_palette());self.link(&pages,"Licensed fonts & dictionaries",|a|a.licensed_imports());
-        self.link(&pages,"New translation draft",|a|a.new_translation());
-        let planning=self.group("Planning");let story=self.menu(&planning,"Story",true);
-        let board_tools=self.menu(&planning,"Board tools",true);board_tools.pack_start(&self.desk.board_controls,false,false,0);
-        self.link(&story,"Story notes",|a|a.open_data("planning","Story notes"));self.link(&story,"Plot board",|a|a.open_board());self.link(&story,"Chronology",|a|{text_dialog(&a.window,"Chronology",&crate::planning::chronology(&a.page("planning").value.borrow()));});
-        self.link(&story,"Character knowledge",|a|a.character_knowledge());self.link(&story,"Reader learns timeline",|a|a.reader_timeline());
-        self.link(&story,"Reader rehearsal",|a|a.reader_rehearsal());self.link(&story,"Preview story change",|a|a.ripple());
-        let review=self.group("Review");let checks=self.menu(&review,"Review",true);
-        self.link(&checks,"Read like a stranger",|a|a.reader());
-        self.link(&checks,"Passages to revisit",|a|a.attention());
-        self.link(&checks,"Dictionary and synonyms",|a|a.dictionary());
-        self.link(&checks,"Authored continuity checks",|a|a.continuity_checks());
-        self.link(&checks,"Spelling exceptions",|a|a.proofreading_exceptions());
-        self.link(&checks,"Occurrence chronology and lanes",|a|a.occurrence_lanes());
-        self.link(&checks,"Review decisions",|a|a.review_decisions());self.link(&checks,"Translation preview",|a|a.translation_preview());
-        self.link(&checks,"Local review",|a|a.review());self.link(&checks,"Review settings",|a|a.open_data("settings","Review settings"));
-        let versions=self.menu(&review,"Saved versions",false);self.link(&versions,"Scene history",|a|a.history());self.link_routes(&versions,"Scene conflicts",Rc::new(|a|a.conflicts()),Rc::new(|a|a.open_conflicts_window()));
-        self.control(&versions,"Create scene snapshot",Self::snapshot);
-        let project=self.group("Project");let library=self.menu(&project,"Novels & files",true);
-        self.link(&library,"Library",|a|a.library());self.control(&library,"New novel",Self::new_project);self.control(&library,"Import project",Self::import);self.control(&library,"Export manuscript",Self::export);self.control(&library,"Export alphabet manuscript",Self::alphabet_export);self.control(&library,"Saved manuscript counts",Self::manuscript_statistics);self.control(&library,"Shared World notes",Self::universe_world_notes);
-        let recovery=self.menu(&project,"History & recovery",false);self.link(&recovery,"What-if branches",|a|a.branches());self.control(&recovery,"New what-if branch",Self::new_branch);self.link(&recovery,"Project time machine",|a|a.time_machine());self.link(&recovery,"Deleted scenes",|a|a.deleted());
-        self.link(&recovery,"Backup now",|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,"Private sync",|a|a.private_sync());
-        self.link(&recovery,"Project data conflicts",|a|a.data_conflicts());
-        self.link(&recovery,"Scene writing and deletion recovery",|a|a.scene_conflicts());
-        self.link(&recovery,"Manuscript organization conflicts",|a|a.metadata_conflicts());
-        let window=self.menu(&self.desk.sidebar,"Tabs & windows",false);
-        self.control(&window,"New tab",Self::new_tab);self.control(&window,"New window",|a|{let child=a.spawn_window();child.new_tab();});
-        self.control(&window,"Move tab to new window",Self::detach);self.control(&window,"Close this tab",|a|{if let Some(w)=a.current_widget(){a.close_tab(&w);}});
-        self.control(&window,"Back",Self::back);self.control(&window,"Forward",Self::forward);
+        self.link(&pages,crate::ui_text::text("page.alphabets"),|a|a.alphabet_palette());self.link(&pages,crate::ui_text::text("page.licensed_imports"),|a|a.licensed_imports());
+        self.link(&pages,crate::ui_text::text("action.new_translation"),|a|a.new_translation());
+        let planning=self.group("Planning");let story=self.menu(&planning,crate::ui_text::text("menu.story"),true);
+        let board_tools=self.menu(&planning,crate::ui_text::text("menu.board_tools"),true);board_tools.pack_start(&self.desk.board_controls,false,false,0);
+        self.link(&story,crate::ui_text::text("page.story_notes"),|a|a.open_data("planning","Story notes"));self.link(&story,crate::ui_text::text("page.board"),|a|a.open_board());self.link(&story,crate::ui_text::text("page.chronology"),|a|{text_dialog(&a.window,"Chronology",&crate::planning::chronology(&a.page("planning").value.borrow()));});
+        self.link(&story,crate::ui_text::text("page.character_knowledge"),|a|a.character_knowledge());self.link(&story,crate::ui_text::text("page.reader_timeline"),|a|a.reader_timeline());
+        self.link(&story,crate::ui_text::text("page.reader_rehearsal"),|a|a.reader_rehearsal());self.link(&story,crate::ui_text::text("page.ripple"),|a|a.ripple());
+        let review=self.group("Review");let checks=self.menu(&review,crate::ui_text::text("menu.review"),true);
+        self.link(&checks,crate::ui_text::text("page.reader"),|a|a.reader());
+        self.link(&checks,crate::ui_text::text("page.attention"),|a|a.attention());
+        self.link(&checks,crate::ui_text::text("page.dictionary"),|a|a.dictionary());
+        self.link(&checks,crate::ui_text::text("page.continuity"),|a|a.continuity_checks());
+        self.link(&checks,crate::ui_text::text("page.spelling_exceptions"),|a|a.proofreading_exceptions());
+        self.link(&checks,crate::ui_text::text("page.occurrence_lanes"),|a|a.occurrence_lanes());
+        self.link(&checks,crate::ui_text::text("page.review_decisions"),|a|a.review_decisions());self.link(&checks,crate::ui_text::text("page.translation_preview"),|a|a.translation_preview());
+        self.link(&checks,crate::ui_text::text("page.local_review"),|a|a.review());self.link(&checks,crate::ui_text::text("page.review_settings"),|a|a.open_data("settings","Review settings"));
+        let versions=self.menu(&review,crate::ui_text::text("menu.versions"),false);self.link(&versions,crate::ui_text::text("page.scene_history"),|a|a.history());self.link_routes(&versions,crate::ui_text::text("page.scene_conflicts"),Rc::new(|a|a.conflicts()),Rc::new(|a|a.open_conflicts_window()));
+        self.control(&versions,crate::ui_text::text("action.snapshot"),Self::snapshot);
+        let project=self.group("Project");let library=self.menu(&project,crate::ui_text::text("menu.library"),true);
+        self.link(&library,crate::ui_text::text("page.library"),|a|a.library());self.control(&library,crate::ui_text::text("action.new_novel"),Self::new_project);self.control(&library,crate::ui_text::text("action.import"),Self::import);self.control(&library,crate::ui_text::text("action.export"),Self::export);self.control(&library,crate::ui_text::text("action.export_alphabet"),Self::alphabet_export);self.control(&library,crate::ui_text::text("page.statistics"),Self::manuscript_statistics);self.control(&library,crate::ui_text::text("page.world_notes"),Self::universe_world_notes);
+        let recovery=self.menu(&project,crate::ui_text::text("menu.recovery"),false);self.link(&recovery,crate::ui_text::text("page.branches"),|a|a.branches());self.control(&recovery,crate::ui_text::text("action.new_branch"),Self::new_branch);self.link(&recovery,crate::ui_text::text("page.time_machine"),|a|a.time_machine());self.link(&recovery,crate::ui_text::text("page.deleted_scenes"),|a|a.deleted());
+        self.link(&recovery,crate::ui_text::text("action.backup"),|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,crate::ui_text::text("page.private_sync"),|a|a.private_sync());
+        self.link(&recovery,crate::ui_text::text("page.data_conflicts"),|a|a.data_conflicts());
+        self.link(&recovery,crate::ui_text::text("page.scene_recovery"),|a|a.scene_conflicts());
+        self.link(&recovery,crate::ui_text::text("page.metadata_conflicts"),|a|a.metadata_conflicts());
+        let window=self.menu(&self.desk.sidebar,crate::ui_text::text("menu.windows"),false);
+        self.control(&window,crate::ui_text::text("action.new_tab"),Self::new_tab);self.control(&window,crate::ui_text::text("action.new_window"),|a|{let child=a.spawn_window();child.new_tab();});
+        self.control(&window,crate::ui_text::text("action.detach"),Self::detach);self.control(&window,crate::ui_text::text("action.close_tab"),|a|{if let Some(w)=a.current_widget(){a.close_tab(&w);}});
+        self.control(&window,crate::ui_text::text("action.back"),Self::back);self.control(&window,crate::ui_text::text("action.forward"),Self::forward);
     }
     pub(super) fn update_area(&self) {
         let area=self.desk.area.active_id().unwrap_or_else(||"Write".into());
@@ -326,7 +326,7 @@ impl Workspace {
     }
     fn choice(&self,title:&str)->SaveChoice {
         #[cfg(test)] if let Some(choice)=self.desk.choices.borrow_mut().pop_front(){return choice;}
-        let dialog=gtk::Dialog::with_buttons(Some("Unsaved changes"),Some(&self.window),gtk::DialogFlags::MODAL,&[("Cancel",gtk::ResponseType::Cancel),("Discard",gtk::ResponseType::Reject),("Save",gtk::ResponseType::Accept)]);
+        let dialog=gtk::Dialog::with_buttons(Some(crate::ui_text::text("dialog.unsaved")),Some(&self.window),gtk::DialogFlags::MODAL,&[(crate::ui_text::text("action.cancel"),gtk::ResponseType::Cancel),(crate::ui_text::text("action.discard"),gtk::ResponseType::Reject),(crate::ui_text::text("action.save"),gtk::ResponseType::Accept)]);
         dialog.set_default_response(gtk::ResponseType::Cancel);
         let label=gtk::Label::new(Some(&format!("Save changes to “{title}” before leaving?")));label.set_line_wrap(true);label.set_margin_start(20);label.set_margin_end(20);label.set_margin_top(18);label.set_margin_bottom(18);dialog.content_area().pack_start(&label,false,false,0);
         dialog.show_all();let response=dialog.run();dialog.close();match response{gtk::ResponseType::Accept=>SaveChoice::Save,gtk::ResponseType::Reject=>SaveChoice::Discard,_=>SaveChoice::Cancel}
@@ -460,10 +460,10 @@ impl Workspace {
             self.pages.tab_label(widget).and_then(|w|{
                 if let Ok(label)=w.clone().downcast::<gtk::Label>(){Some(label.text().to_string())}
                 else{w.downcast::<gtk::Box>().ok().and_then(|b|b.children().first().cloned()).and_then(|w|w.downcast::<gtk::Label>().ok()).map(|l|l.text().to_string())}
-            }).unwrap_or_else(||"Notebook".into())
+            }).unwrap_or_else(||crate::ui_text::text("page.notebook").into())
         });
         let tab=gtk::Box::new(gtk::Orientation::Horizontal,8);tab.set_tooltip_text(Some(&title));let label=gtk::Label::new(Some(&title));label.set_max_width_chars(25);label.set_width_chars(18);label.set_ellipsize(gtk::pango::EllipsizeMode::End);tab.pack_start(&label,true,true,0);
-        let close=gtk::Button::with_label("×");close.set_relief(gtk::ReliefStyle::None);close.set_tooltip_text(Some("Close tab"));close.set_can_focus(false);tab.pack_start(&close,false,false,0);
+        let close=gtk::Button::with_label("×");close.set_relief(gtk::ReliefStyle::None);close.set_tooltip_text(Some(crate::ui_text::text("action.close_tab_tip")));close.set_can_focus(false);tab.pack_start(&close,false,false,0);
         let weak=Rc::downgrade(self);let widget_=widget.clone();close.connect_clicked(move|_|if let Some(a)=weak.upgrade(){a.close_tab(&widget_);});
         self.apply_desktop_to_widget(tab.upcast_ref());self.pages.set_tab_label(widget,Some(&tab));self.pages.set_tab_reorderable(widget,true);self.pages.set_tab_detachable(widget,true);tab.show_all();
     }
@@ -515,12 +515,12 @@ impl Workspace {
     }
     fn blank_tab(self:&Rc<Self>) {
         let box_=gtk::Box::new(gtk::Orientation::Vertical,16);box_.set_margin_start(48);box_.set_margin_top(56);
-        let title=gtk::Label::new(Some("Your notebook"));title.set_xalign(0.);title.style_context().add_class("page-title");box_.pack_start(&title,false,false,0);
+        let title=gtk::Label::new(Some(crate::ui_text::text("page.notebook_caption")));title.set_xalign(0.);title.style_context().add_class("page-title");box_.pack_start(&title,false,false,0);
         let empty=self.pid.borrow().is_empty();
-        let text=if empty{"Create a novel to begin.\n\nSave when you are ready. You will be asked before leaving an edited page."}else{"Choose a scene from the left to begin.\n\nWrite, Planning, Review and Project each have their own menus.\nSave when you are ready. You will be asked before leaving an edited page."};
+        let text=if empty{crate::ui_text::text("body.notebook_empty")}else{crate::ui_text::text("body.notebook_ready")};
         let hint=gtk::Label::new(Some(text));hint.set_xalign(0.);hint.set_line_wrap(true);box_.pack_start(&hint,false,false,0);
         if empty{let row=gtk::Box::new(gtk::Orientation::Horizontal,0);box_.pack_start(&row,false,false,0);let a=self.clone();button(&row,"New novel",move||a.new_project());}
-        self.install(&box_,"Notebook",false);
+        self.install(&box_,crate::ui_text::text("page.notebook"),false);
     }
     pub(super) fn panel(self:&Rc<Self>,title:&str)->Rc<Panel> {
         let widget=gtk::Box::new(gtk::Orientation::Vertical,12);widget.set_margin_start(32);widget.set_margin_end(32);widget.set_margin_top(26);widget.set_margin_bottom(20);
@@ -650,7 +650,7 @@ impl Workspace {
         if self.sequence_window_blocked(){return;}
         if self.desk.busy.get(){return;}let Some(widget)=self.current_widget()else{return;};
         if self.draft(&widget).is_some_and(|d|d.composing()){self.error("Finish the current input composition before moving this tab.");return;}
-        let title=self.pages.tab_label(&widget).and_then(|w|w.downcast::<gtk::Box>().ok()).and_then(|b|b.children().first().cloned()).and_then(|w|w.downcast::<gtk::Label>().ok()).map(|l|l.text().to_string()).unwrap_or_else(||"Notebook".into());
+        let title=self.pages.tab_label(&widget).and_then(|w|w.downcast::<gtk::Box>().ok()).and_then(|b|b.children().first().cloned()).and_then(|w|w.downcast::<gtk::Label>().ok()).map(|l|l.text().to_string()).unwrap_or_else(||crate::ui_text::text("page.notebook").into());
         let child=self.spawn_window();self.transfer_ownership(&widget,&child);self.desk.suppress.set(true);self.pages.remove_page(self.pages.page_num(&widget));self.desk.suppress.set(false);child.install(&widget,&title,false);
         *self.desk.selected.borrow_mut()=self.current_widget();if let Some(w)=self.current_widget(){self.activate_widget(&w);}else{*self.active.borrow_mut()=None;self.blank_tab();}
     }

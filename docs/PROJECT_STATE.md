@@ -1,3 +1,11 @@
+# Unreleased English interface catalogue foundation — October 14, 2026
+
+154 static English captions are externalized under stable interface keys for the native shell, menus, common dialogs/forms and launcher. Existing English bytes remain exact; route/group/language/format identifiers and authored titles/text stay separate. A bounded standard-library compiler generates the static Rust table, with explicit coverage/freshness checks. No translated locale or UI-language switch is claimed.
+
+Observed: three Rust lookup tests, four catalogue compiler tests, source-hook/identifier checks and offline native build passed. This is deliberately partial externalization: specialized tool captions and parameterized prompts/status/errors still need explicit string/argument contracts.
+
+---
+
 # Unreleased optional one-scene consistency review — October 14, 2026
 
 Local review now offers wording or explicit consistency operation. Consistency previews the selected saved scene and exact confirmed fact projection, shows included/excluded scope and unknown/unprovided timing, and requires a saved checked planning head. Beliefs, rumors and unconfirmed proposals are excluded. Questions remain provisional; accepting a review note edits neither manuscript nor canon.
