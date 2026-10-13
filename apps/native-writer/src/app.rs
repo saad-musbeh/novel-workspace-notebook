@@ -26,6 +26,8 @@ use chapter::ChapterPage;
 #[path="alternatives.rs"]
 mod alternatives;
 use alternatives::AlternativesPage;
+#[path="data_conflicts.rs"]
+mod data_conflicts;
 use desk::{Desk, Panel};
 pub struct Workspace {
     pub window:gtk::Window,

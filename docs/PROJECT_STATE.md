@@ -1,3 +1,13 @@
+# Unreleased project-data conflict page — October 13, 2026
+
+Project → History & recovery → Project data conflicts shows retained heads and checked full-version previews for all supported project-data kinds. The author explicitly chooses a saved payload against the complete captured head set. Resolution checks unsaved pages across the novel's windows first; stale previews refuse the decision. Every earlier revision remains in history, and detached pages route to their current window.
+
+Immutable-field guards remain enforced: choosing a whole version that drops required immutable definitions/versions can be refused. This page does not automatically merge them; a combined author resolution remains a separate control gap. Branch lineage is inspection only. Scene placement/chapter metadata conflicts are also separate from this project-data page.
+
+Observed: native unit discovery passed **7 tests, 1 ignored**, and the explicit complete GTK workflow passed **1 test** using real debug workers and synthetic two-store revision sync. New cases cover exact multilingual checked previews, stale full-head refusal, dirty manuscript/settings Cancel and Save, retained history, immutable choice refusal, detachment and continued resolution after the original window closes. No network listener or personal store was used. Published packages and physical/external qualification remain separate.
+
+---
+
 # Unreleased paragraph alternatives — October 13, 2026
 
 Write → Other pages → Paragraph alternatives keeps exact rich originals and named saved versions. The author chooses a paragraph number, captures it explicitly, edits a version and saves it as a new immutable alternative. Comparing and selecting versions never changes writing. Apply replaces exactly the captured paragraph as one undoable unsaved scene edit; manuscript Save remains manual. A changed document hash or saved scene revision refuses the operation. Explicit rebinding after saving the current scene updates only the group's guarded anchor; its original and saved versions remain intact.

@@ -1,3 +1,11 @@
+# Native project-data conflict resolution — October 13, 2026
+
+Native unit discovery passed **7 tests** with the GTK fixture ignored. The explicit full GTK workflow passed **1 test** with fatal criticals, debug workers and disposable synthetic stores. Its new resolver fixture creates genuine planning/writing-system conflicts by revision sync between two stores; checks exact checked previews, stale head refusal, all-window manuscript/form Save/Cancel, immutable resolution rejection without marker/head/payload changes, retained version history, branch-lineage inspection and detached routing after the original closes. No network listener is enabled by this workflow.
+
+This qualifies whole-version project-data resolution only. An explicit combined candidate is still needed where neither whole version satisfies immutable retention constraints. It does not qualify metadata placement/order or deletion conflict controls, real private transport, release binaries or installation. Logs: `/tmp/novel-data-conflicts-{unit,gui}.log`.
+
+---
+
 # Native paragraph alternatives — October 13, 2026 (unreleased source)
 
 - Offline desktop/editor/companion build: passed.

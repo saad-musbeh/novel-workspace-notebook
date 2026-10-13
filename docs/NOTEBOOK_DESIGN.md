@@ -75,6 +75,12 @@ Below the reminders, **Repeated saved rewrites** lists scenes with at least two 
 
 Keeping a scrap, marking a reaction, saving/resolving a note and leaving a bookmark are explicit save actions for those items. They do not enable manuscript autosave. Concurrent changes use the same captured-parent checks as other project data; a conflict is reported rather than silently replacing newer notes.
 
+## Resolve project-data conflicts
+
+The source after 0.4.0 adds **Project → History & recovery → Project data conflicts**. Choose the data area, load its retained versions and inspect a checked preview. **Use this version; keep all history** checks unsaved pages across this novel's windows, then saves the chosen payload against every captured current head. Changed heads refuse the decision; refresh the previews before choosing again.
+
+This is an explicit whole-version choice. Required immutable content from both heads can make a choice invalid; the error retains all versions rather than silently merging or dropping them. Branch lineage is inspection only. Metadata order/placement and scene conflicts remain separate workflows. The page can detach and continues to work after its original window closes.
+
 ## Tabs and additional windows
 
 **Tabs & windows → New tab / Ctrl+T** creates a notebook tab. Subsequent navigation uses that tab. The top tabs can be reordered and closed with × or Ctrl+W.

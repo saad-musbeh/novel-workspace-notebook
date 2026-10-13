@@ -248,3 +248,8 @@ Qualify the active GTK runtime with native workspace tests excluding the retaine
 Keep rich originals and versions in existing revisioned paragraphAlternatives data. Author text changes append immutable versions with scalar-safe prefix/suffix run preservation, unchanged attributes and local inherited marks. Native Apply creates a normal unsaved scene edit and one Undo step; it never changes the manual manuscript-save policy. Keep exact anchor/hash and saved-revision checks, require explicit rebinding after changed writing, and include saved scene dependencies in capture/rebind/apply metadata commits. Retain failed metadata candidates and any already-applied scene draft with clear status; Discard metadata never silently discards scene writing.
 
 Integrate alternative forms with the shared manual draft and detached ownership lifecycle. Reject checked first saves if project-data revision roots already exist without a current projection, preserving every concurrent root for explicit resolution. No migration or dependency is needed.
+
+
+## October 13 — Explicit project-data conflict choices
+
+Expose checked retained full-version previews and a whole-version author decision against every captured head. Resolve only after all windows for the project complete their manual draft decisions. Route detached actions to the owning window and preserve all revision history. Keep backend immutable retention checks; refuse choices that require a combined candidate rather than silently manufacturing a merge. Branch lineage remains inspection-only.

@@ -63,7 +63,7 @@ Scraps, reactions, notes and bookmarks use the existing revisioned project-data 
 
 The Rust interface is a new native implementation, not a pixel-for-pixel copy. Some specialized controls from the React workspace still need native counterparts: character-cut navigation, hold-to-peek, exact bookmarked Back/Forward restoration, reader rehearsal and ripple/rehearsal previews, shortcut remapping, recorded formatting sequences, saved writing-width/interface-direction preferences, scene reordering/moving between chapters, language-pack/font import, generated translation review and review Apply/Reject/job-history controls.
 
-Full peer pairing, challenge entry, revocation and manual synchronization controls remain in the retained interface/backend. The GTK listener controls alone do not complete a remote pairing workflow. Project-data conflicts beyond scenes retain storage enforcement but do not yet have a complete GTK resolution panel.
+Full peer pairing, challenge entry, revocation and manual synchronization controls remain in the retained interface/backend. The GTK listener controls alone do not complete a remote pairing workflow. Source after 0.4.0 adds a GTK whole-version project-data conflict panel with captured-head refusal and retained history. Combined author resolution of immutable additions and metadata placement/order conflicts remain separate gaps.
 
 Existing data for those features is preserved by storage and complete archives. Do not claim full convenience-feature parity or use the earlier webview workflow probes to qualify this interface. Earlier guides describe the retained React/Tauri implementation where marked.
 

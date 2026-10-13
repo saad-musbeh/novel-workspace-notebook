@@ -4,6 +4,8 @@ mod notebook_features;
 mod chapter_forms;
 #[path="alternatives_tests.rs"]
 mod paragraph_forms;
+#[path="data_conflicts_tests.rs"]
+mod project_data_conflicts;
 use super::*;
 use std::time::Instant;
 fn wait(condition:impl Fn()->bool) {
@@ -174,6 +176,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
     notebook_features::run(&binaries);
     chapter_forms::run(&binaries);
     paragraph_forms::run(&binaries);
+    project_data_conflicts::run(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));
     let first=rpc(&client,"create_scene",json!({"chapterId":chapter["id"],"scene":{"schemaVersion":1,"title":"The first morning","document":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The room was quiet. مِ 中文 👩🏽‍🚀"}]}]}}}));

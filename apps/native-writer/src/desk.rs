@@ -234,6 +234,7 @@ impl Workspace {
         self.link(&library,"Library",|a|a.library());self.control(&library,"New novel",Self::new_project);self.control(&library,"Import project",Self::import);self.control(&library,"Export manuscript",Self::export);
         let recovery=self.menu(&project,"History & recovery",false);self.link(&recovery,"What-if branches",|a|a.branches());self.control(&recovery,"New what-if branch",Self::new_branch);self.link(&recovery,"Project time machine",|a|a.time_machine());self.link(&recovery,"Deleted scenes",|a|a.deleted());
         self.link(&recovery,"Backup now",|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,"Private sync",|a|a.sync());
+        self.link(&recovery,"Project data conflicts",|a|a.data_conflicts());
         let window=self.menu(&self.desk.sidebar,"Tabs & windows",false);
         self.control(&window,"New tab",Self::new_tab);self.control(&window,"New window",|a|{let child=a.spawn_window();child.new_tab();});
         self.control(&window,"Move tab to new window",Self::detach);self.control(&window,"Close this tab",|a|{if let Some(w)=a.current_widget(){a.close_tab(&w);}});
