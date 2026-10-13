@@ -1,3 +1,13 @@
+# Unreleased confirmed chronology feasibility — October 14, 2026
+
+Chronology and scene references now share a bounded read-only feasibility analysis of authored ranges, signed relative offsets and confirmed ordering constraints. Strict same-day conflicts, positive/strict cycles, unknown intermediary constraints and incompatible fixed bounds expose contributor identities instead of reporting satisfied/applicable. Relative relationships remain meaningful without absolute dates. Duplicate, malformed, incomplete or over-budget evidence stays unresolved; no dates, canon or histories are rewritten.
+
+Arithmetic paths and derived ranges carry uncertainty. Fractional cancellation cannot manufacture an order/contradiction; both confident forward/backward paths never choose Before. Exact strict-zero conflicts and genuine small direct offsets remain supported. References use this same feasibility basis before showing scoped facts/knowledge, while preserving frozen historical values.
+
+Observed: **18 chronology tests**, **8 reference tests**, and real GTK saved-reference/rehearsal/cut workflow **1 test / 2.70 s** passed offline/locked with fatal criticals. Regression fixtures reproduced strict same-day satisfaction and scoped knowledge Applies inside an infeasible component before the fix. Further tests cover negative signed paths, relative cycles, fractional roundtrip, tiny effects beside large offsets, malformed/duplicate identities and work limits. No author data, network, dependency or system change occurred. These are unreleased source results.
+
+---
+
 # Unreleased original/alphabet manuscript export — October 14, 2026
 
 Project → Library → Export alphabet manuscript offers the original saved rich manuscript with immutable mapping metadata, optionally accompanied by a derived author-rule transliteration. The separate `.alphabet-manuscript.json` preserves exact source revisions, scene assignments, historical mapping versions, rich marks/paragraph metadata and original titles. Only nonempty stored scalar transliterations apply, once; unmapped text stays literal. Font/dictionary bytes and full revision history remain outside this manuscript copy. Word export remains separate.

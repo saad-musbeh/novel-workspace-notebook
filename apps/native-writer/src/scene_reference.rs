@@ -12,89 +12,15 @@ fn has_scene(value: &Value, key: &str, scene: &str) -> bool { rows(value, key).i
 #[derive(Default)] struct Budget { work: usize, limited: bool }
 impl Budget { fn visit(&mut self) -> bool { self.work += 1; if self.work > LIMIT { self.limited = true; false } else { true } } }
 
-fn event_bounds(events: &HashMap<&str, &Value>, id: &str, budget: &mut Budget) -> Option<(f64, f64)> {
-    let mut current = id; let mut offset = 0.; let mut seen = HashSet::new();
-    loop {
-        if !budget.visit() || !seen.insert(current) { return None; }
-        let event = events.get(current)?; let time = &event["time"];
-        let result = match time["kind"].as_str()? {
-            "fixed" => { let n = time["day"].as_f64()?; Some((n + offset, n + offset)) },
-            "bounds" | "interval" => { let a = time["start"].as_f64()?; let b = time["end"].as_f64()?; if a > b { return None; } Some((a + offset, b + offset)) },
-            "relative" => { offset += time["offsetDays"].as_f64()?; current = time["eventId"].as_str()?; None },
-            _ => return None,
-        };
-        if let Some((a, b)) = result { return (a.is_finite() && b.is_finite()).then_some((a, b)); }
-        if !offset.is_finite() { return None; }
-    }
-}
-#[derive(Clone, Copy, PartialEq, Debug)] enum Order { Before, After, Same, Unknown, Unordered, Conflict }
-fn strict_path(doc: &Value, from: &str, to: &str, budget: &mut Budget) -> Option<bool> {
-    let mut queue = vec![(from, false)]; let mut seen = HashSet::new(); let mut cursor = 0;
-    while cursor < queue.len() {
-        if !budget.visit() { return None; } let (id, strict) = queue[cursor]; cursor += 1;
-        if id == to && strict { return Some(true); }
-        if !seen.insert((id, strict)) { continue; }
-        for edge in rows(doc, "constraints") {
-            if !budget.visit() { return None; }
-            if edge["confirmed"] == true && edge["beforeId"].as_str() == Some(id) {
-                if let Some(next) = edge["afterId"].as_str() { queue.push((next, strict || edge["strict"] == true || edge["minimumDays"].as_f64().is_some_and(|n| n > 0.))); }
-            }
-        }
-    } Some(false)
-}
-fn conflicting_bounds<'a>(doc: &'a Value, events: &HashMap<&'a str, &'a Value>, budget: &mut Budget) -> Option<HashSet<&'a str>> {
-    let mut bounds = HashMap::new(); let mut lower: HashMap<&str, (f64, bool)> = HashMap::new(); let mut queue = Vec::new();
-    for id in events.keys() {
-        if !budget.visit() { return None; }
-        let range = event_bounds(events, id, budget); bounds.insert(*id, range);
-        if let Some((start, _)) = range { lower.insert(*id, (start, false)); queue.push(*id); }
-    }
-    let mut conflicting = HashSet::new(); let mut cursor = 0;
-    while cursor < queue.len() {
-        if !budget.visit() { return None; }
-        let from = queue[cursor]; cursor += 1; let (day, strict) = *lower.get(from)?;
-        for edge in rows(doc, "constraints") {
-            if !budget.visit() { return None; }
-            if edge["confirmed"] != true || edge["beforeId"].as_str() != Some(from) { continue; }
-            let Some(to) = edge["afterId"].as_str().filter(|id| events.contains_key(id)) else { continue; };
-            let Some(days) = edge["minimumDays"].as_f64().filter(|n| *n >= 0.) else { return None; };
-            let candidate = (day + days, strict || edge["strict"] == true);
-            if !candidate.0.is_finite() { return None; }
-            if bounds.get(to).copied().flatten().is_some_and(|(_, end)| candidate.0 > end || candidate.0 == end && candidate.1) { conflicting.insert(from); conflicting.insert(to); continue; }
-            if lower.get(to).is_none_or(|old| candidate.0 > old.0 || candidate.0 == old.0 && candidate.1 && !old.1) { lower.insert(to, candidate); queue.push(to); }
-        }
-    } Some(conflicting)
-}
-fn event_order(doc: &Value, events: &HashMap<&str, &Value>, left: &str, right: &str, budget: &mut Budget) -> Order {
-    if !events.contains_key(left) || !events.contains_key(right) { return Order::Unknown; }
-    let Some(conflicting) = conflicting_bounds(doc, events, budget) else { return Order::Unknown; };
-    if conflicting.contains(left) || conflicting.contains(right) { return Order::Conflict; }
-    let a = event_bounds(events, left, budget); let b = event_bounds(events, right, budget);
-    let Some(forward) = strict_path(doc, left, right, budget) else { return Order::Unknown; };
-    let Some(backward) = strict_path(doc, right, left, budget) else { return Order::Unknown; };
-    if forward && backward || forward && a.zip(b).is_some_and(|((start, _), (_, end))| start >= end) || backward && a.zip(b).is_some_and(|((_, end), (start, _))| start >= end) { return Order::Conflict; }
-    // Check explicit minimum-day contradictions in this component. There is no
-    // automatic rescheduling or assumption that unspecified dates are false.
-    for edge in rows(doc, "constraints").iter().filter(|e| e["confirmed"] == true) {
-        if !budget.visit() { return Order::Unknown; }
-        if let (Some(from), Some(until), Some(days)) = (edge["beforeId"].as_str(), edge["afterId"].as_str(), edge["minimumDays"].as_f64()) {
-            if from == left || from == right || until == left || until == right {
-                if event_bounds(events, from, budget).zip(event_bounds(events, until, budget)).is_some_and(|((start, _), (_, end))| end - start < days || end - start == days && edge["strict"] == true) { return Order::Conflict; }
-            }
-        }
-    }
-    if left == right { Order::Same } else if forward || a.zip(b).is_some_and(|((_, end), (start, _))| end < start) { Order::Before }
-    else if backward || a.zip(b).is_some_and(|((start, _), (_, end))| end < start) { Order::After }
-    else if a.is_some() && b.is_some() { Order::Unordered } else { Order::Unknown }
-}
-fn event_scope(doc: &Value, events: &HashMap<&str, &Value>, scene_events: &[&Value], from: &str, until: Option<&str>, budget: &mut Budget) -> &'static str {
-    if let Some(until) = until { if matches!(event_order(doc, events, from, until, budget), Order::After | Order::Same | Order::Conflict) { return "Conflicting order"; } }
+use crate::planning::{ChronologyAnalysis,EventOrder as Order};
+fn event_scope(analysis: &ChronologyAnalysis<'_>, scene_events: &[&Value], from: &str, until: Option<&str>, budget: &mut Budget) -> &'static str {
+    if let Some(until) = until { if matches!(analysis.order(from, until), Order::After | Order::Same | Order::Conflict) { return "Conflicting order"; } }
     if scene_events.is_empty() { return "Timing unknown"; }
     let mut states = HashSet::new();
     for event in scene_events {
         if !budget.visit() { return "Timing unknown"; }
         let Some(id) = event["id"].as_str() else { return "Timing unknown"; };
-        let start = event_order(doc, events, from, id, budget); let end = until.map(|until| event_order(doc, events, id, until, budget)).unwrap_or(Order::Before);
+        let start = analysis.order(from, id); let end = until.map(|until| analysis.order(id, until)).unwrap_or(Order::Before);
         let status = if start == Order::Conflict || end == Order::Conflict { return "Conflicting order"; }
             else if start == Order::After { "Not yet" } else if matches!(end, Order::After | Order::Same) { "Ended" }
             else if start == Order::Unknown || end == Order::Unknown { "Timing unknown" }
@@ -103,12 +29,12 @@ fn event_scope(doc: &Value, events: &HashMap<&str, &Value>, scene_events: &[&Val
     }
     if states.len() == 1 { states.into_iter().next().unwrap() } else if states.contains("Timing unknown") { "Timing unknown" } else { "Order unresolved" }
 }
-fn knowledge_status(doc: &Value, entry: &Value, fact: Option<&Value>, events: &HashMap<&str, &Value>, scene_events: &[&Value], scene: &str, budget: &mut Budget) -> &'static str {
+fn knowledge_status(analysis: &ChronologyAnalysis<'_>, entry: &Value, fact: Option<&Value>, scene_events: &[&Value], scene: &str, budget: &mut Budget) -> &'static str {
     let Some(fact) = fact else { return "Referenced fact changed or missing"; };
     if entry["stance"] == "knows" && (fact["confirmed"] != true || fact["status"] != "fact") || ["subjectId", "property", "value"].iter().any(|key| fact[*key] != entry["factSnapshot"][*key]) { return "Referenced fact changed"; }
     let scope = &entry["scope"];
     if scope["kind"] == "scenes" { if has_scene(scope, "sceneIds", scene) { "Applies" } else { "Outside selected scenes" } }
-    else if scope["kind"] == "events" { if let Some(from) = scope["fromEventId"].as_str() { event_scope(doc, events, scene_events, from, scope["untilEventId"].as_str(), budget) } else { "Timing unknown" } }
+    else if scope["kind"] == "events" { if let Some(from) = scope["fromEventId"].as_str() { event_scope(analysis, scene_events, from, scope["untilEventId"].as_str(), budget) } else { "Timing unknown" } }
     else { "Scope missing" }
 }
 
@@ -116,7 +42,7 @@ fn knowledge_status(doc: &Value, entry: &Value, fact: Option<&Value>, events: &H
 /// distinct rows; changes never rewrite the recorded snapshot or approve it.
 pub(super) fn references(doc: &Value, metadata: &Value, scenes: &[(String, String)], scene: &str) -> String {
     let Some((_, title)) = scenes.iter().find(|(id, _)| id == scene) else { return "This reference scene is missing. No authored reference information is shown.".into(); };
-    let mut budget = Budget::default(); let mut missing = 0;
+    let mut budget = Budget::default(); let mut missing = 0; let analysis=ChronologyAnalysis::new(doc);
     let events: HashMap<&str, &Value> = rows(doc, "events").iter().filter_map(|e| Some((e["id"].as_str()?, e))).collect();
     let records: HashMap<&str, &Value> = rows(doc, "records").iter().filter_map(|r| Some((r["id"].as_str()?, r))).collect();
     let facts: HashMap<&str, &Value> = rows(doc, "facts").iter().filter_map(|f| Some((f["id"].as_str()?, f))).collect();
@@ -149,7 +75,7 @@ pub(super) fn references(doc: &Value, metadata: &Value, scenes: &[(String, Strin
     let mut knowledge = Vec::new();
     for entry in rows(doc, "knowledge") {
         if !budget.visit() { break; }
-        let status = knowledge_status(doc, entry, entry["factId"].as_str().and_then(|id| facts.get(id)).copied(), &events, &scene_events, scene, &mut budget);
+        let status = knowledge_status(&analysis, entry, entry["factId"].as_str().and_then(|id| facts.get(id)).copied(), &scene_events, scene, &mut budget);
         if status == "Applies" || entry["characterId"].as_str().is_some_and(|id| record_ids.contains(id)) || entry["scope"]["kind"] == "scenes" && has_scene(&entry["scope"], "sceneIds", scene) {
             if let Some(id) = entry["characterId"].as_str() { record_ids.insert(id); } if let Some(id) = entry["factId"].as_str() { fact_ids.insert(id); } knowledge.push((entry, status));
         }
@@ -176,14 +102,14 @@ pub(super) fn references(doc: &Value, metadata: &Value, scenes: &[(String, Strin
     for id in &fact_ids {
         if shown >= 100 { budget.limited = true; break; }
         let Some(fact) = facts.get(id) else { missing += 1; continue; }; shown += 1;
-        let applicability = fact["eventId"].as_str().map(|from| event_scope(doc, &events, &scene_events, from, fact["untilEventId"].as_str(), &mut budget)).unwrap_or("No declared start");
+        let applicability = fact["eventId"].as_str().map(|from| event_scope(&analysis, &scene_events, from, fact["untilEventId"].as_str(), &mut budget)).unwrap_or("No declared start");
         let status = if fact["confirmed"] == true && fact["status"] == "fact" { "Approved fact".into() } else { string(fact, "status") };
         output.push_str(&format!("{}: {}\n{status} · {applicability}\nSource: {}\n\n", excerpt(&string(fact, "property")), excerpt(&string(fact, "value")), excerpt(&string(fact, "source"))));
     }
     if shown == 0 { output.push_str("No explicitly linked facts.\n\n"); }
     output.push_str("Story occurrence events\n\n");
     for event in scene_events.iter().take(100) {
-        let time = event_bounds(&events, event["id"].as_str().unwrap_or(""), &mut budget).map(|(a,b)| if a == b { format!("Day {a}") } else { format!("Days {a}–{b}") }).unwrap_or_else(|| "Unknown or cyclic story time".into());
+        let time = analysis.range(event["id"].as_str().unwrap_or("")).map(|(a,b)| if a == b { format!("Day {a}") } else { format!("Days {a}–{b}") }).unwrap_or_else(|| "Unknown or cyclic story time".into());
         output.push_str(&format!("{} · {time}\n{}\n\n", excerpt(&string(event, "title")), excerpt(&string(event, "notes"))));
     }
     if scene_events.is_empty() { output.push_str("No explicitly linked occurrence events.\n\n"); }
@@ -204,6 +130,9 @@ pub(super) fn references(doc: &Value, metadata: &Value, scenes: &[(String, Strin
     if knowledge.is_empty() { output.push_str("No authored character knowledge linked to this scene.\n\n"); }
     if scene_events.len() > 100 || knowledge.len() > 100 || rows(doc, "readerReveals").iter().filter(|r| r["scene"]["id"].as_str() == Some(scene)).count() > 100 { budget.limited = true; }
     if missing > 0 { output.push_str("Some authored links are missing; their values are not inferred.\n"); }
+    let mut contributing=BTreeSet::new();for event in &scene_events{if let Some(labels)=event["id"].as_str().and_then(|id|analysis.contributors(id)){contributing.extend(labels.iter().cloned());}}
+    if !contributing.is_empty(){output.push_str(&format!("Conflicting confirmed chronology · Contributing constraints: {}\n",contributing.into_iter().map(|id|excerpt(&id)).collect::<Vec<_>>().join(", ")));}
+    budget.limited|=analysis.limited();
     if budget.limited { output.push_str("Reference limit reached. Some authored data is omitted or timing remains unresolved.\n"); }
     output
 }
@@ -311,4 +240,12 @@ impl Workspace {
         let mut doc = fixture(); doc["records"][0]["links"] = json!([]); doc["records"][0]["values"] = json!({"links":[{"kind":"scene","id":"other"}]}); doc["knowledge"] = json!([]); let view = references(&doc, &json!({}), &scenes(), "other"); assert!(view.contains("نور 明")); assert!(!view.contains("Garden"));
         let details = json!({"scenes":[{"sceneId":"other","viewpointId":"hero","eventIds":["middle"]}]}); let view = references(&doc, &details, &scenes(), "other"); assert!(view.contains("Middle · Day 2"));
     }
+    #[test]fn relevant_confirmed_strict_cycle_labels_knowledge_and_contributing_constraints(){
+        let mut doc=fixture();doc["events"].as_array_mut().unwrap().extend([json!({"id":"u","title":"U","sceneIds":[],"time":{"kind":"unknown"}}),json!({"id":"v","title":"V","sceneIds":[],"time":{"kind":"unknown"}})]);doc["constraints"]=json!([{"id":"start-u","beforeId":"start","afterId":"u","minimumDays":0,"strict":false,"confirmed":true},{"id":"u-v","beforeId":"u","afterId":"v","minimumDays":0,"strict":true,"confirmed":true},{"id":"v-u","beforeId":"v","afterId":"u","minimumDays":0,"strict":false,"confirmed":true},{"id":"v-middle","beforeId":"v","afterId":"middle","minimumDays":0,"strict":false,"confirmed":true}]);let before=doc.clone();let report=references(&doc,&json!({}),&scenes(),"scene");assert!(report.contains("knows · Conflicting order"),"{report}");assert!(report.contains("Contributing constraints: u-v, v-u"));assert_eq!(doc,before);
+    }
+
+    #[test]fn unknown_relative_offset_conflict_cannot_apply_event_scoped_knowledge(){
+        let mut doc=fixture();doc["events"][0]["time"]=json!({"kind":"unknown"});doc["events"][1]["time"]=json!({"kind":"relative","eventId":"start","offsetDays":1});doc["constraints"]=json!([{"id":"opposite","beforeId":"middle","afterId":"start","minimumDays":0,"strict":true,"confirmed":true}]);let before=doc.clone();let report=references(&doc,&json!({}),&scenes(),"scene");assert!(report.contains("knows · Conflicting order"),"{report}");assert!(!report.contains("knows · Applies"));assert!(report.contains("relative event middle"));assert!(report.contains("opposite"));assert_eq!(doc,before);
+    }
+
 }

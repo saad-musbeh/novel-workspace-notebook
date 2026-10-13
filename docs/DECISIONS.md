@@ -320,3 +320,8 @@ Acquire a logical window/pane gate before changing sensitivity. Capture original
 ## October 14 — Original manuscript and author-rule transliteration export
 
 Use a separate bounded JSON manuscript copy for exact rich originals and immutable alphabet metadata; keep DOCX/complete archives distinct. Capture manuscript/alphabet heads in one read transaction and verify complete retained definitions before interpreting assignments. Do not embed font/pack bytes, guess transliterations, normalize stored text or replace originals. Derive scalar replacements once from the explicitly assigned historical version. Refuse ambiguous, corrupt or unsupported sources without dropping metadata. Bound capture, expansion and serialization incrementally; perform expensive parsing/encoding off GTK and reject obsolete delivery. Use ordinary manual draft decisions and the existing private atomic writer.
+
+
+## October 14 — Shared bounded confirmed chronology analysis
+
+Analyze authored ranges and signed relative equalities together with confirmed constraints, retaining contributor identities. Do not infer absolute dates or mutate canon. Propagate only qualified order into references; mark infeasible components, duplicate/unsupported evidence and work-limit exhaustion explicitly. Track representable arithmetic uncertainty so cancellation/rounding cannot create a confident order or contradiction; exact strict-zero statements remain meaningful. A path proving both directions never resolves to Before. Expose range uncertainty to future deterministic overlap checks rather than treating rounded endpoints as definite presence.

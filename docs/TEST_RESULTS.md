@@ -1,3 +1,13 @@
+# Native confirmed chronology and reference feasibility — October 14, 2026
+
+Focused native pure checks passed **18 chronology tests** and **8 reference tests**, offline/locked. The final real GTK projections section passed **1 test / 2.70 s** with fatal criticals, actual workers and synthetic stores. It covers saved references, pin/follow ownership, reader rehearsal and canonical character-cut navigation against the shared analysis.
+
+Before implementation, isolated exact-source regressions reproduced strict same-day confirmed constraints reported Satisfied and approved scoped knowledge reported Applies inside a connected strict-cycle component. Final tests cover contributors, positive/strict cycles through undated events, finite authored range contradictions, signed relative equality without absolute dates, reverse/zero-relative conflicts, balanced offset pairs, negative paths, malformed/missing/unconfirmed/duplicate evidence and fail-closed work bounds. Numerical regressions cover 0.1 + 0.2 roundtrip and +0.1 +0.2 -0.3 cancellation with known/unknown origins, a tiny cycle beside ±1e12, genuine 1e-100 direct offset, ambiguous decimal gap and exact strict integer gap. Ranges/path uncertainty prevents confident false ordering; bidirectional proofs refuse Before. Dates, raw snapshots and histories stay unchanged.
+
+GTK log: `/tmp/novel-chronology-projection-gtk.log`. This qualifies source behavior; package/physical IME/private transport/model quality remain separate.
+
+---
+
 # Native original/alphabet export — October 14, 2026
 
 Focused storage passed **6 tests** and native pure export checks **4 tests**, offline/locked. Targeted real GTK passed **1 test / 1.08 s** with fatal criticals and rebuilt companion/editor workers. The actual accepted action runs option selection, normal project draft choices, transactional RPC, off-thread parsing/encoding and real private atomic file writes. Only the module-local test destination chooser is substituted with synthetic paths; production retains the native local file chooser.
