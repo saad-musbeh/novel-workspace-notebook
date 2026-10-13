@@ -1,3 +1,9 @@
+# Typed custom field controls — October 14, 2026
+
+Scoped pure coverage adds nine cases for all supported types, canonical IDs, choice validation, preservation and incompatible definition refusal. Root real GTK passed **1 test / 0.92 s** with actual workers/fatal criticals and synthetic stores, exercising exact multilingual values, typed scene/canonical links, hide/reorder, preserved unavailable choices and checked source/CAS failure retaining drafts. Log: `/tmp/novel-custom-fields-gtk.log`. Final combined regression is recorded separately.
+
+---
+
 # Native board view integration — October 14, 2026
 
 Six board pure checks and the real GTK board section passed; final GTK result **1 test / 1.82 s**. Actual controls exercise zoom/pan/reset without storage writes, inverse scaled/scrolled drag, stale filter/data refusal, named group labels and explicit CAS/history/link-preserving saves. Actual workers and disposable synthetic stores were used with fatal GTK criticals. Log: `/tmp/novel-board-final-gtk.log`. Package and physical input qualification remain separate.

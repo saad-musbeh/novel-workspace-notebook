@@ -1,3 +1,11 @@
+# Unreleased typed story fields — October 14, 2026
+
+Story notes now authors all seven supported field types with choice options and canonical record/scene/event/plot-point links. Rename, hide and per-record-kind reorder preserve stored values. Unavailable historical choices/missing links remain visible; incompatible type/ownership changes and removal refuse while values remain. Introduced scene links carry captured scene heads into checked Save.
+
+Observed: nine new pure field tests passed in the scoped implementation; root actual GTK passed **1 test / 0.92 s**, including typed links, historical values, ordering and stale Save refusal against current planning guards. Existing planning drafts and manual lifecycle are retained. Source qualification only.
+
+---
+
 # Unreleased board view controls — October 14, 2026
 
 Board now offers local zoom, scrolling/panning, reset, named groups and member labels. Coordinate inversion follows the displayed scale and scroll position; stale filtered or changed-data drags refuse. Groups/labels remain registered unsaved planning drafts until explicit checked Save, preserving canonical links and history.

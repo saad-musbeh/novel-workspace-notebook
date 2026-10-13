@@ -1,3 +1,9 @@
+# Typed custom field authoring — October 14, 2026
+
+Field definitions and values remain revisioned planning data. Dedicated controls enforce the declared type at the authoring boundary, show unavailable historical choices without reinterpretation and use canonical identities for links. Read one planning/manuscript snapshot before introducing a scene link, then require its saved head during Save. Hide/reorder never deletes values; incompatible definition replacement/removal requires explicit prior value removal.
+
+---
+
 # Native board view and authored grouping — October 14, 2026
 
 Keep zoom, scroll and pan local to the current board page. Convert pointer positions through the exact displayed scale and scroll state before proposing an authored coordinate change; reject stale view/data captures. Named group titles and member labels are author-owned planning metadata, saved through existing registered draft/CAS controls. They never create or replace canonical story links.

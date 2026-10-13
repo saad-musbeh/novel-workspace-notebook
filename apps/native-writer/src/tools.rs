@@ -9,8 +9,11 @@ use std::{
         Cell,RefCell
     },rc::Rc
 };
+#[path="custom_fields.rs"]
+pub(crate) mod custom_fields;
+
 pub struct DataPage {
-    pub widget:gtk::Box,body:gtk::Box,status:gtk::Label,pub kind:String,     pub project_id:RefCell<String>,pub value:Rc<RefCell<Value>>,pub parent:RefCell<Value>,     pub dirty:Rc<Cell<bool>>,pub epoch:Rc<Cell<u64>>,pub saving:Cell<bool>,pub loaded:Cell<bool>,saved_value:RefCell<Value>,client:Process,
+    pub widget:gtk::Box,body:gtk::Box,status:gtk::Label,pub kind:String,     pub project_id:RefCell<String>,pub value:Rc<RefCell<Value>>,pub parent:RefCell<Value>,     pub dirty:Rc<Cell<bool>>,pub epoch:Rc<Cell<u64>>,pub saving:Cell<bool>,pub loaded:Cell<bool>,saved_value:RefCell<Value>,client:Process,scene_catalog:Rc<RefCell<Vec<Value>>>,source_references:RefCell<Vec<(String,String)>>,
 }
 fn id()->String{
     uuid::Uuid::new_v4().to_string()
@@ -151,7 +154,7 @@ fn enums(key:&str,current:&str)->Vec<&'static str>{
     }
 }
 #[derive(Clone)]struct Form{
-    value:Rc<RefCell<Value>>,dirty:Rc<Cell<bool>>,epoch:Rc<Cell<u64>>,references:Rc<Vec<(String,String)>>
+    value:Rc<RefCell<Value>>,dirty:Rc<Cell<bool>>,epoch:Rc<Cell<u64>>,references:Rc<Vec<(String,String)>>,scenes:Rc<RefCell<Vec<Value>>>
 }
 impl Form{
     fn change(&self,path:&[Part],value:Value){
@@ -171,6 +174,7 @@ impl Form{
             box_.pack_start(&gtk::Label::new(Some("This nested record can be read from its project archive.")),false,false,0);
             return box_.upcast();
         }
+        if key=="fields" && path.len()==1 { return custom_fields::definitions(self.clone()); }
         match value{
             Value::Object(map)=>{
                 if key=="time" && map.contains_key("kind"){
@@ -208,26 +212,8 @@ impl Form{
                 }
                 if key=="values"{
                     let mut record_path=path.clone();record_path.pop();
-                    let kind=at(&self.value.borrow(),&record_path)["kind"].as_str().unwrap_or("character").to_owned();
-                    let fields=self.value.borrow()["fields"].as_array().cloned().unwrap_or_default();
-                    for field in fields.iter().filter(|field|field["recordKind"]==kind && field["hidden"]!=true){
-                        let Some(id)=field["id"].as_str() else{continue;};
-                        let mut p=path.clone();p.push(Part::Key(id.to_owned()));
-                        if at(&self.value.borrow(),&p).is_null(){
-                            let initial=match field["kind"].as_str(){Some("number")=>json!(0),Some("multiple-choice"|"links")=>json!([]),_=>json!("")};
-                            let add=gtk::Button::with_label(&format!("Set {}",field["label"].as_str().unwrap_or("field")));
-                            let form=self.clone();let p=p.clone();let holder=gtk::Box::new(gtk::Orientation::Vertical,2);let holder_=holder.clone();
-                            add.connect_clicked(move|button|{
-                                form.change(&p,initial.clone());button.hide();
-                                holder_.pack_start(&form.render(p.clone(),"value",depth+1),false,false,0);holder_.show_all();
-                            });
-                            box_.pack_start(&add,false,false,0);box_.pack_start(&holder,false,false,0);
-                        }else{
-                            box_.pack_start(&gtk::Label::new(field["label"].as_str()),false,false,0);
-                            box_.pack_start(&self.render(p,"value",depth+1),false,false,0);
-                        }
-                    }
-                    return box_.upcast();
+                    let record=at(&self.value.borrow(),&record_path)["id"].as_str().unwrap_or("").to_owned();
+                    return custom_fields::values(self.clone(),record);
                 }
                 for (key,value) in map{
                     if key=="schemaVersion"{
@@ -446,7 +432,7 @@ impl DataPage{
         scroll.add(&body);
         widget.pack_start(&scroll,true,true,0);
         let page=Rc::new(Self{
-            widget,body,status,kind:kind.into(),project_id:RefCell::new(String::new()),value:Rc::new(RefCell::new(initial(kind))),parent:RefCell::new(Value::Null),dirty:Rc::new(Cell::new(false)),epoch:Rc::new(Cell::new(0)),saving:Cell::new(false),loaded:Cell::new(false),saved_value:RefCell::new(initial(kind)),client
+            widget,body,status,kind:kind.into(),project_id:RefCell::new(String::new()),value:Rc::new(RefCell::new(initial(kind))),parent:RefCell::new(Value::Null),dirty:Rc::new(Cell::new(false)),epoch:Rc::new(Cell::new(0)),saving:Cell::new(false),loaded:Cell::new(false),saved_value:RefCell::new(initial(kind)),client,scene_catalog:Rc::new(RefCell::new(Vec::new())),source_references:RefCell::new(Vec::new())
         });
         page
     }
@@ -455,18 +441,25 @@ impl DataPage{
             self.status.set_text("Save this draft before changing novels.");
             return;
         }*self.project_id.borrow_mut()=project_id.into();
-        self.loaded.set(false);
+        self.loaded.set(false);self.body.set_sensitive(false);self.scene_catalog.borrow_mut().clear();
+        *self.source_references.borrow_mut()=references.clone();
         self.status.set_text("Opening…");
         let weak=Rc::downgrade(self);
         let pid=project_id.to_owned();
         let current=pid.clone();let epoch=self.epoch.get();
-        self.client.rpc("load_project_data",json!({
-            "projectId":pid,"kind":self.kind
-        }),move|reply|if let Some(p)=weak.upgrade(){
+        let method=if self.kind=="planning"{"planning_read_snapshot"}else{"load_project_data"};
+        let args=if self.kind=="planning"{json!({"projectId":pid})}else{json!({"projectId":pid,"kind":self.kind})};
+        self.client.rpc(method,args,move|reply|if let Some(p)=weak.upgrade(){
             if *p.project_id.borrow()!=current || p.epoch.get()!=epoch || p.dirty.get(){
                 return;
             }match reply{
-                Ok(snapshot)=>{
+                Ok(reply)=>{
+                    let snapshot=if p.kind=="planning"{
+                        if reply["index"]["project"]["id"]!=current || !reply["index"]["scenes"].is_array() || reply.get("planning").is_none(){
+                            p.status.set_text("Unsupported checked planning snapshot. Reopen Story notes.");return;
+                        }
+                        *p.scene_catalog.borrow_mut()=reply["index"]["scenes"].as_array().unwrap().clone();reply["planning"].clone()
+                    }else{reply};
                     *p.value.borrow_mut()=if snapshot.is_null(){
                         initial(&p.kind)
                     }else{
@@ -474,14 +467,16 @@ impl DataPage{
                     };
                     *p.parent.borrow_mut()=snapshot["revisionId"].clone();
                     *p.saved_value.borrow_mut()=p.value.borrow().clone();
-                    p.loaded.set(true);
+                    p.loaded.set(true);p.body.set_sensitive(true);
                     p.status.set_text("Saved");
                     p.render(references);
                 },Err(e)=>p.status.set_text(&e)
             }
         });
     }
-    pub fn render(&self,mut references:Vec<(String,String)>){
+    pub fn render(&self,references:Vec<(String,String)>){
+        if !references.is_empty(){*self.source_references.borrow_mut()=references;}
+        let mut references=self.source_references.borrow().clone();
         for child in self.body.children(){
             self.body.remove(&child);
         }for key in ["records","events","plotPoints","lanes","systems"]{
@@ -491,7 +486,7 @@ impl DataPage{
                 }
             }
         }let form=Form{
-            value:self.value.clone(),dirty:self.dirty.clone(),epoch:self.epoch.clone(),references:Rc::new(references)
+            value:self.value.clone(),dirty:self.dirty.clone(),epoch:self.epoch.clone(),references:Rc::new(references),scenes:self.scene_catalog.clone()
         };
         self.body.pack_start(&form.render(Vec::new(),"",0),false,false,0);
         self.body.show_all();
@@ -504,15 +499,21 @@ impl DataPage{
             callback(Err("Project form is busy. Wait for its saved confirmation.".into()));
             return;
         }
+        let dependencies=if self.kind=="planning"{
+            match custom_fields::validate_transition(&self.saved_value.borrow(),&self.value.borrow(),&self.scene_catalog.borrow()){
+                Ok(dependencies)=>dependencies,Err(e)=>{self.status.set_text(&format!("Save refused; draft retained. {e}"));callback(Err(e));return;}
+            }
+        }else{Vec::new()};
         self.saving.set(true);
         self.status.set_text("Saving…");
         let epoch=self.epoch.get();
         let value=self.value.borrow().clone();
         let saved_value=value.clone();
         let weak=Rc::downgrade(self);
-        self.client.rpc("save_project_data",json!({
-            "projectId":self.project_id.borrow().clone(),"kind":self.kind,"payload":value,"parent":self.parent.borrow().clone()
-        }),move|reply|{
+        let method=if self.kind=="planning"{"save_project_data_checked"}else{"save_project_data"};
+        let mut args=json!({"projectId":self.project_id.borrow().clone(),"kind":self.kind,"payload":value,"parent":self.parent.borrow().clone()});
+        if self.kind=="planning"{args["dependencies"]=json!(dependencies);}
+        self.client.rpc(method,args,move|reply|{
             if let Some(p)=weak.upgrade(){
                 p.saving.set(false);
                 match reply{
