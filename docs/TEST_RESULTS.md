@@ -1,3 +1,11 @@
+# Native temporary peeks and preference conflicts — October 13, 2026
+
+Locked offline native units passed **64 tests, 0 failures, 1 ignored**. Targeted GTK sections passed: peek **1 test / 2.51 s**, shortcuts including genuine two-store settings conflicts **1 test / 2.33 s**, writing view **1 test / 2.33 s**. Fatal criticals were enabled and actual worker binaries used disposable synthetic stores.
+
+Peek cases verify actual installed key signals, release-before-reply, F6→F7 supersession and wrong-key release, focus/unmap/composition/pending refusal, frozen unsaved rich text, selection/focus/Undo preservation, chosen historical sources and bounded paragraph pagination, detached ownership and competing planning refusal. Preference cases verify explicit built-in fallback after conflicting custom heads, Ctrl+S/Ctrl+B availability, disabled author forms/no Save, exact rich multilingual text/head and no new revisions. Existing real width/mirroring behavior also passed. Logs: `/tmp/novel-native-peek-gui.log`, `/tmp/novel-native-preference-conflict-gui.log`, `/tmp/novel-native-peek-view-gui.log`, `/tmp/novel-native-peek-preference-unit.log`. No external listener or personal store was used.
+
+---
+
 # Native authored knowledge and reader timeline — October 13, 2026
 
 Locked offline native units passed **60 tests, 0 failures, 1 ignored**, including eight knowledge/reader-order pure checks. The targeted real GTK knowledge workflow passed **1 test** in 2.76 seconds with fatal criticals, disposable synthetic stores and actual debug workers. It checks exact frozen rich multilingual fact values, author approval/source/interpretation semantics, scene/event ranges, explicit reader positions, stale planning and deleted-scope/reveal Save refusal retaining drafts, manual Save / Discard / Cancel and current detached ownership. No personal database or external listener was used. Capture `work/notebook-character-knowledge.png` was inspected. Logs: `/tmp/novel-native-knowledge-unit.log`, `/tmp/novel-native-knowledge-gui.log`. Published packages and physical input are not qualified by this source test.

@@ -1,3 +1,13 @@
+# Unreleased temporary peeks and safe preference fallback — October 13, 2026
+
+On a writing page, hold F6 for saved authored references or F7 for a read-only paragraph comparison of the frozen acknowledged editor draft against a chosen saved version. Release, focus loss, composition, navigation and ownership transfer cancel the hold and reject late replies. Comparisons show unsaved status explicitly and never save or apply writing. An ordinary page chooses the saved comparison source; excerpts and paragraph pages are bounded.
+
+Optional shortcuts/writing-view settings now load through unambiguous project-data reads. Conflicting or unavailable settings visibly fall back to built-in runtime defaults so editing remains usable; their author forms refuse Save until recovery. Initial/no-project shortcuts work. Normal status updates retain the fallback notice.
+
+Observed: **64 native pure tests passed** with the desktop test ignored. Targeted real GTK peek, shortcuts/conflicted-preferences and writing-view workflows each passed **1 test** using actual debug workers and synthetic stores. No manuscript revision was created by holding, choosing a comparison or reading conflicted settings. This is unreleased source qualification; published binaries and physical input remain separate.
+
+---
+
 # Unreleased authored knowledge and reader timeline — October 13, 2026
 
 Story now exposes dedicated Character knowledge and Reader learns timeline pages. Knowledge captures exact frozen facts, author sources, explicit interpretations and scene/event scopes; approved knows requires approved canon. Reader reveals retain authored scene position independently of occurrence dates. Both pages use atomic saved planning/index/details reads, manual draft decisions, checked dependencies and detached ownership. Missing or deleted newly referenced scenes refuse Save while preserving the form; unchanged historical claims remain retained.
@@ -16,7 +26,7 @@ Desktop testing found and fixed a double-allocation resize loop and a missed ini
 
 Observed: locked offline workspace excluding the retained Tauri member passed **296 tests, 0 failures, 2 opt-in tests ignored**; the complete real GTK/worker workflow passed **1 test**, with fatal criticals and disposable synthetic stores. Storage alone passed **150 tests**. Forty cached Rust serde wire shapes, generated contract drift and whitespace checks passed. Actual bounded RTL writing and labelled multilingual board captures were inspected. The SHA-256 library is an additional direct native dependency on the same already pinned/cached version used by the workers; no dependency was installed. No migration, model download, persistent service, personal-store access or external private listener activation occurred.
 
-These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Temporary peeks, review/translation decisions, formatting sequences and local alphabet/font/pack controls remain the next integration slices; their delegated pure tests do not qualify the running notebook.
+These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Review/translation decisions, formatting sequences and local alphabet/font/pack controls remain the next integration slices; their delegated pure tests do not qualify the running notebook.
 
 ---
 

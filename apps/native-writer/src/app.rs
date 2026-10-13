@@ -39,6 +39,8 @@ use ripple::RipplePage;
 #[path="knowledge.rs"]
 mod knowledge;
 use knowledge::KnowledgePage;
+#[path="peek.rs"]
+pub(crate) mod peek;
 #[path="rehearsal.rs"]
 mod rehearsal;
 #[path="character_cut.rs"]
@@ -86,6 +88,7 @@ pub struct Workspace {
     desktop_preference_pages:RefCell<Vec<Rc<DesktopPreferencesPage>>>,
     ripple_pages:RefCell<Vec<Rc<RipplePage>>>,
     knowledge_pages:RefCell<Vec<Rc<KnowledgePage>>>,
+    peek:peek::PeekRuntime,
     changing:Cell<bool>,
     closing:Cell<bool>,
     loading:Cell<bool>,
@@ -228,7 +231,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -271,6 +274,9 @@ impl Workspace {
     fn error(&self,error:&str){
         self.status.set_text(error);
     }
+    fn normal_status(&self,message:&str){
+        if let Some(notice)=self.optional_preferences_notice(){self.status.set_text(&format!("{message}\n{notice}"));}else{self.status.set_text(message);}
+    }
     fn refresh_projects(self:&Rc<Self>,selection:Option<String>){
         let weak=Rc::downgrade(self);
         self.client.rpc("list_projects",json!({
@@ -310,6 +316,7 @@ impl Workspace {
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
             *a.index.borrow_mut()=Value::Null;a.populate_outline();a.populate_book();
             a.pages.set_group_name(Some(a.group_name()));
+            a.cancel_peek();
             a.trail.borrow_mut().clear();a.trail_index.set(0);a.desk.generation.set(a.desk.generation.get()+1);
             a.reload_shortcuts();a.reload_desktop_preferences();a.load_index();
         });
@@ -331,7 +338,7 @@ impl Workspace {
                     let references=index["scenes"].as_array().into_iter().flatten().map(|s|(s["id"].as_str().unwrap().to_owned(),s["title"].as_str().unwrap_or("Scene").to_owned())).collect::<Vec<_>>();
                     for p in a.data.borrow().iter(){
                         p.load(&selected,references.clone());
-                    }a.status.set_text("Manual saving · Ctrl+S to save · Middle click opens another window");
+                    }a.normal_status("Manual saving · Ctrl+S to save · Middle click opens another window");
                     if a.pages.n_pages()==0{
                         if let Some(id)=index["scenes"].as_array().and_then(|v|v.first()).and_then(|s|s["id"].as_str()){
                             a.open_start_scene(id.to_owned());
@@ -380,6 +387,7 @@ impl Workspace {
         self.book.show_all();
     }
     fn activate_widget(&self,widget:&gtk::Widget){
+        self.cancel_peek();
         self.update_page_controls(widget);
         let pane=self.panes.borrow().values().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned();
         if let Some(p)=&pane{self.remember_scene(&p.scene_id);}
@@ -555,9 +563,10 @@ impl Workspace {
     }
     fn save_now(self:&Rc<Self>){
         let a=self.clone();
-        self.save_current(move|result|match result{Ok(())=>a.status.set_text("Saved locally"),Err(e)=>a.error(&e)});
+        self.save_current(move|result|match result{Ok(())=>a.normal_status("Saved locally"),Err(e)=>a.error(&e)});
     }
     fn close(self:&Rc<Self>){
+        self.cancel_peek();
         if self.closing.replace(true){return;}
         let a=self.clone();
         self.confirm_all(move|accepted|{

@@ -194,13 +194,16 @@ impl EditorPane {
             glib::Propagation::Proceed
         });
         let im_focus=im.clone();
+        let weak=Rc::downgrade(pane);
         pane.area.connect_focus_out_event(move|area,_|{
+            if let Some(p)=weak.upgrade(){crate::app::peek::cancel_for_pane(&p,None);}
             im_focus.focus_out();
             area.queue_draw();
             glib::Propagation::Proceed
         });
         let weak=Rc::downgrade(pane);
         im.connect_preedit_start(move|_|if let Some(p)=weak.upgrade(){
+            crate::app::peek::cancel_for_pane(&p,None);
             p.composing.set(true);
         });
         let weak=Rc::downgrade(pane);
@@ -222,6 +225,8 @@ impl EditorPane {
             let key=event.keyval();
             let ctrl=event.state().contains(gdk::ModifierType::CONTROL_MASK);
             let shift=event.state().contains(gdk::ModifierType::SHIFT_MASK);
+            if let Some(result)=crate::app::peek::key_press(&p,event){return result;}
+            if key==gdk::keys::constants::Escape{crate::app::peek::cancel_for_pane(&p,None);}
             if let Some(result)=crate::app::shortcuts::editor_shortcut(&p,event){return result;}
             let name=match key{
                 gdk::keys::constants::Left=>Some("ArrowLeft"),gdk::keys::constants::Right=>Some("ArrowRight"),gdk::keys::constants::Up=>Some("ArrowUp"),gdk::keys::constants::Down=>Some("ArrowDown"),gdk::keys::constants::Home=>Some("Home"),gdk::keys::constants::End=>Some("End"),gdk::keys::constants::Page_Up=>Some("PageUp"),gdk::keys::constants::Page_Down=>Some("PageDown"),gdk::keys::constants::Return|gdk::keys::constants::KP_Enter=>Some("Enter"),gdk::keys::constants::BackSpace=>Some("Backspace"),gdk::keys::constants::Delete=>Some("Delete"),gdk::keys::constants::Tab=>Some("Tab"),gdk::keys::constants::Escape=>Some("Escape"),_=>None
@@ -241,11 +246,15 @@ impl EditorPane {
             }
         });
         let im_release=im.clone();
-        pane.area.connect_key_release_event(move|_,event|if im_release.filter_keypress(event){
-            glib::Propagation::Stop
-        }else{
-            glib::Propagation::Proceed
+        let weak=Rc::downgrade(pane);
+        pane.area.connect_key_release_event(move|_,event|{
+            if let Some(p)=weak.upgrade(){if let Some(result)=crate::app::peek::key_release(&p,event){return result;}}
+            if im_release.filter_keypress(event){glib::Propagation::Stop}else{glib::Propagation::Proceed}
         });
+        let weak=Rc::downgrade(pane);
+        pane.widget.connect_unmap(move|_|if let Some(p)=weak.upgrade(){crate::app::peek::cancel_for_pane(&p,None);});
+        let weak=Rc::downgrade(pane);
+        pane.area.connect_unmap(move|_|if let Some(p)=weak.upgrade(){crate::app::peek::cancel_for_pane(&p,None);});
         let weak=Rc::downgrade(pane);
         pane.area.connect_button_press_event(move|area,event|{
             area.grab_focus();

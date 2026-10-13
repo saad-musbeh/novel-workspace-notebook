@@ -73,9 +73,9 @@ impl WritingSurface {
     pub fn apply(&self,preferences:&NativeDeskPreferences){self.set_width(preferences.writing_width);self.widget.set_direction(gtk::TextDirection::Ltr);self.area.set_direction(gtk::TextDirection::Ltr);self.scrollbar.set_direction(gtk::TextDirection::Ltr);}
 }
 pub(super) struct DesktopRuntime {
-    value:RefCell<NativeDeskPreferences>,project_id:RefCell<String>,generation:Cell<u64>,pub loaded:Cell<bool>,
+    value:RefCell<NativeDeskPreferences>,project_id:RefCell<String>,generation:Cell<u64>,warning:RefCell<Option<String>>,pub loaded:Cell<bool>,
 }
-impl Default for DesktopRuntime {fn default()->Self{Self{value:RefCell::new(NativeDeskPreferences::default()),project_id:RefCell::new(String::new()),generation:Cell::new(0),loaded:Cell::new(false)}}}
+impl Default for DesktopRuntime {fn default()->Self{Self{value:RefCell::new(NativeDeskPreferences::default()),project_id:RefCell::new(String::new()),generation:Cell::new(0),warning:RefCell::new(None),loaded:Cell::new(false)}}}
 fn direction(root:&gtk::Widget,value:gtk::TextDirection){root.set_direction(value);if let Ok(container)=root.clone().downcast::<gtk::Container>(){for child in container.children(){direction(&child,value);}}}
 fn apply(owner:&Workspace,preferences:&NativeDeskPreferences){
     let value=match preferences.direction{NativeDeskDirection::Ltr=>gtk::TextDirection::Ltr,NativeDeskDirection::Rtl=>gtk::TextDirection::Rtl};direction(owner.window.upcast_ref(),value);
@@ -83,7 +83,7 @@ fn apply(owner:&Workspace,preferences:&NativeDeskPreferences){
 }
 fn publish(pid:&str,preferences:&NativeDeskPreferences){
     WINDOWS.with(|windows|for owner in windows.borrow().iter().filter(|a|*a.pid.borrow()==pid&&!a.desk.is_closed()){
-        owner.desktop_preferences.generation.set(owner.desktop_preferences.generation.get()+1);*owner.desktop_preferences.project_id.borrow_mut()=pid.into();*owner.desktop_preferences.value.borrow_mut()=preferences.clone();owner.desktop_preferences.loaded.set(true);apply(owner,preferences);
+        owner.desktop_preferences.generation.set(owner.desktop_preferences.generation.get()+1);*owner.desktop_preferences.project_id.borrow_mut()=pid.into();*owner.desktop_preferences.value.borrow_mut()=preferences.clone();*owner.desktop_preferences.warning.borrow_mut()=None;owner.desktop_preferences.loaded.set(true);apply(owner,preferences);
     });
 }
 pub(super) struct DesktopPreferencesPage {
@@ -112,10 +112,10 @@ impl DesktopPreferencesPage {
     fn changed(&self){if self.loaded.get()&&!self.updating.get(){self.dirty.set(true);self.status.set_text("Unsaved view · Save to use it");}}
     fn restore(&self,value:&NativeDeskPreferences){self.updating.set(true);self.direction.set_active_id(Some(match value.direction{NativeDeskDirection::Ltr=>"ltr",NativeDeskDirection::Rtl=>"rtl"}));self.mode.set_active_id(Some(if value.writing_width==0{"fill"}else{"bounded"}));self.width.set_value(if value.writing_width==0{720.}else{value.writing_width as f64});self.width.set_sensitive(value.writing_width!=0);self.updating.set(false);self.dirty.set(false);}
     pub fn discard(&self){self.restore(&self.confirmed.borrow());self.status.set_text("View changes discarded.");}
-    fn load(self:&Rc<Self>,owner:&Rc<Workspace>){let weak=Rc::downgrade(self);owner.client.rpc("load_project_data",json!({"projectId":self.project_id,"kind":"settings"}),move|reply|{
+    fn load(self:&Rc<Self>,owner:&Rc<Workspace>){let weak=Rc::downgrade(self);owner.client.rpc("load_project_data_unambiguous",json!({"projectId":self.project_id,"kind":"settings"}),move|reply|{
         let Some(p)=weak.upgrade()else{return;};if p.owner().is_none(){return;}
         match reply.and_then(|saved|{let value=if saved.is_null(){json!({"schemaVersion":1})}else{saved["payload"].clone()};let preferences=NativeDeskPreferences::from_project_settings(&value)?;Ok((saved["revisionId"].clone(),value,preferences))}){
-            Ok((parent,value,preferences))=>{*p.parent.borrow_mut()=parent;*p.value.borrow_mut()=value;*p.confirmed.borrow_mut()=preferences.clone();p.restore(&preferences);p.loaded.set(true);p.controls.set_sensitive(true);p.width.set_sensitive(preferences.writing_width!=0);p.status.set_text("Saved locally · View applies to this novel's windows");},Err(e)=>p.status.set_text(&format!("Could not load view preferences. {e}")),
+            Ok((parent,value,preferences))=>{*p.parent.borrow_mut()=parent;*p.value.borrow_mut()=value;*p.confirmed.borrow_mut()=preferences.clone();p.restore(&preferences);p.loaded.set(true);p.controls.set_sensitive(true);p.width.set_sensitive(preferences.writing_width!=0);p.status.set_text("Saved locally · View applies to this novel's windows");},Err(e)=>p.status.set_text(&format!("View editing unavailable; resolve settings conflicts or reload after recovery. The built-in writing view remains available. {e}")),
         }
     });}
     pub fn save(self:&Rc<Self>,owner:&Rc<Workspace>,callback:impl FnOnce(Result<(),String>)+'static){
@@ -137,9 +137,10 @@ impl DesktopPreferencesPage {
     }
 }
 impl Workspace {
-    pub(super) fn reload_desktop_preferences(self:&Rc<Self>){let pid=self.pid.borrow().clone();if pid.is_empty(){return;}let generation=self.desktop_preferences.generation.get()+1;self.desktop_preferences.generation.set(generation);self.desktop_preferences.loaded.set(false);*self.desktop_preferences.project_id.borrow_mut()=pid.clone();let weak=Rc::downgrade(self);
-        self.client.rpc("load_project_data",json!({"projectId":pid,"kind":"settings"}),move|reply|{let Some(a)=weak.upgrade()else{return;};if a.desk.is_closed()||*a.pid.borrow()!=pid||a.desktop_preferences.generation.get()!=generation{return;}
-            match reply.and_then(|saved|NativeDeskPreferences::from_project_settings(&saved["payload"])){Ok(preferences)=>{*a.desktop_preferences.value.borrow_mut()=preferences.clone();a.desktop_preferences.loaded.set(true);apply(&a,&preferences);},Err(e)=>a.error(&format!("Could not load writing view. {e}")),}
+    pub(super) fn desktop_preferences_notice(&self)->Option<String>{if *self.desktop_preferences.project_id.borrow()==*self.pid.borrow(){self.desktop_preferences.warning.borrow().clone()}else{None}}
+    pub(super) fn reload_desktop_preferences(self:&Rc<Self>){let pid=self.pid.borrow().clone();let generation=self.desktop_preferences.generation.get()+1;self.desktop_preferences.generation.set(generation);self.desktop_preferences.loaded.set(false);*self.desktop_preferences.project_id.borrow_mut()=pid.clone();*self.desktop_preferences.warning.borrow_mut()=None;let defaults=NativeDeskPreferences::default();*self.desktop_preferences.value.borrow_mut()=defaults.clone();apply(self,&defaults);if pid.is_empty(){self.desktop_preferences.loaded.set(true);return;}let weak=Rc::downgrade(self);
+        self.client.rpc("load_project_data_unambiguous",json!({"projectId":pid,"kind":"settings"}),move|reply|{let Some(a)=weak.upgrade()else{return;};if a.desk.is_closed()||*a.pid.borrow()!=pid||a.desktop_preferences.generation.get()!=generation{return;}
+            match reply.and_then(|saved|NativeDeskPreferences::from_project_settings(&saved["payload"])){Ok(preferences)=>{*a.desktop_preferences.value.borrow_mut()=preferences.clone();a.desktop_preferences.loaded.set(true);apply(&a,&preferences);},Err(e)=>{a.desktop_preferences.loaded.set(true);let notice=format!("Using the built-in writing view; custom settings are unavailable. Resolve settings conflicts or reload after recovery. {e}");*a.desktop_preferences.warning.borrow_mut()=Some(notice.clone());a.error(&notice);},}
         });
     }
     pub(super) fn apply_desktop_to_pane(&self,pane:&EditorPane){

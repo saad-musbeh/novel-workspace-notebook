@@ -6,14 +6,15 @@ pub(super) struct ShortcutRuntime {
     settings:RefCell<NativeShortcutSettings>,
     project_id:RefCell<String>,
     generation:Cell<u64>,
+    warning:RefCell<Option<String>>,
     pub loaded:Cell<bool>,
 }
 impl Default for ShortcutRuntime {
-    fn default()->Self{Self{settings:RefCell::new(NativeShortcutSettings::default()),project_id:RefCell::new(String::new()),generation:Cell::new(0),loaded:Cell::new(false)}}
+    fn default()->Self{Self{settings:RefCell::new(NativeShortcutSettings::default()),project_id:RefCell::new(String::new()),generation:Cell::new(0),warning:RefCell::new(None),loaded:Cell::new(false)}}
 }
 impl ShortcutRuntime {
     fn action(&self,pid:&str,scope:&str,binding:&NativeShortcutBinding)->Option<String>{
-        if !self.loaded.get()||*self.project_id.borrow()!=pid{return None;}
+        if !self.loaded.get()||*self.project_id.borrow()!=pid{return NativeShortcutSettings::default().action(scope,binding).map(str::to_owned);}
         self.settings.borrow().action(scope,binding).map(str::to_owned)
     }
 }
@@ -36,7 +37,7 @@ fn key_binding(key:gdk::keys::Key,state:gdk::ModifierType)->Option<NativeShortcu
 }
 pub(super) fn publish(pid:&str,settings:&NativeShortcutSettings){
     WINDOWS.with(|windows|for owner in windows.borrow().iter().filter(|a|*a.pid.borrow()==pid&&!a.desk.is_closed()){
-        owner.shortcuts.generation.set(owner.shortcuts.generation.get()+1);*owner.shortcuts.project_id.borrow_mut()=pid.into();*owner.shortcuts.settings.borrow_mut()=settings.clone();owner.shortcuts.loaded.set(true);
+        owner.shortcuts.generation.set(owner.shortcuts.generation.get()+1);*owner.shortcuts.project_id.borrow_mut()=pid.into();*owner.shortcuts.settings.borrow_mut()=settings.clone();*owner.shortcuts.warning.borrow_mut()=None;owner.shortcuts.loaded.set(true);
     });
 }
 pub(super) struct ShortcutsPage {
@@ -65,11 +66,11 @@ impl ShortcutsPage {
     fn restore(&self,settings:&NativeShortcutSettings){self.updating.set(true);for (id,entry) in &self.entries{entry.set_text(&settings.bindings[id].iter().map(NativeShortcutBinding::display).collect::<Vec<_>>().join(", "));}self.updating.set(false);self.dirty.set(false);}
     pub fn discard(&self){self.restore(&self.confirmed.borrow());self.status.set_text("Shortcut changes discarded.");}
     fn load(self:&Rc<Self>,owner:&Rc<Workspace>){
-        let weak=Rc::downgrade(self);owner.client.rpc("load_project_data",json!({"projectId":self.project_id,"kind":"settings"}),move|reply|{
+        let weak=Rc::downgrade(self);owner.client.rpc("load_project_data_unambiguous",json!({"projectId":self.project_id,"kind":"settings"}),move|reply|{
             let Some(p)=weak.upgrade()else{return;};if p.owner().is_none(){return;}
             match reply.and_then(|saved|{let value=if saved.is_null(){json!({"schemaVersion":1})}else{saved["payload"].clone()};let settings=NativeShortcutSettings::from_project_settings(&value)?;Ok((saved["revisionId"].clone(),value,settings))}){
                 Ok((parent,value,settings))=>{*p.parent.borrow_mut()=parent;*p.value.borrow_mut()=value;*p.confirmed.borrow_mut()=settings.clone();p.restore(&settings);p.loaded.set(true);p.controls.set_sensitive(true);p.status.set_text("Saved locally · Shortcuts apply to this novel's windows");},
-                Err(e)=>p.status.set_text(&format!("Could not load shortcuts. {e}")),
+                Err(e)=>p.status.set_text(&format!("Shortcut editing unavailable; resolve settings conflicts or reload after recovery. Built-in shortcuts remain available. {e}")),
             }
         });
     }
@@ -91,15 +92,19 @@ impl ShortcutsPage {
     }
 }
 impl Workspace {
+    pub(super) fn optional_preferences_notice(&self)->Option<String>{
+        let shortcut=if *self.shortcuts.project_id.borrow()==*self.pid.borrow(){self.shortcuts.warning.borrow().clone()}else{None};
+        let notices=shortcut.into_iter().chain(self.desktop_preferences_notice()).collect::<Vec<_>>();if notices.is_empty(){None}else{Some(notices.join("\n"))}
+    }
     pub(super) fn fullscreen(&self){
         if self.window.window().is_some_and(|window|window.state().contains(gdk::WindowState::FULLSCREEN)){self.window.unfullscreen();}else{self.window.fullscreen();}
     }
     pub(super) fn reload_shortcuts(self:&Rc<Self>){
-        let pid=self.pid.borrow().clone();if pid.is_empty(){return;}let generation=self.shortcuts.generation.get()+1;self.shortcuts.generation.set(generation);self.shortcuts.loaded.set(false);*self.shortcuts.project_id.borrow_mut()=pid.clone();let weak=Rc::downgrade(self);
-        self.client.rpc("load_project_data",json!({"projectId":pid,"kind":"settings"}),move|reply|{
+        let pid=self.pid.borrow().clone();let generation=self.shortcuts.generation.get()+1;self.shortcuts.generation.set(generation);self.shortcuts.loaded.set(false);*self.shortcuts.project_id.borrow_mut()=pid.clone();*self.shortcuts.settings.borrow_mut()=NativeShortcutSettings::default();*self.shortcuts.warning.borrow_mut()=None;if pid.is_empty(){self.shortcuts.loaded.set(true);return;}let weak=Rc::downgrade(self);
+        self.client.rpc("load_project_data_unambiguous",json!({"projectId":pid,"kind":"settings"}),move|reply|{
             let Some(a)=weak.upgrade()else{return;};if a.desk.is_closed()||*a.pid.borrow()!=pid||a.shortcuts.generation.get()!=generation{return;}
             match reply.and_then(|saved|NativeShortcutSettings::from_project_settings(&saved["payload"])){
-                Ok(settings)=>{*a.shortcuts.settings.borrow_mut()=settings;a.shortcuts.loaded.set(true);},Err(e)=>a.error(&format!("Could not load keyboard shortcuts. {e}")),
+                Ok(settings)=>{*a.shortcuts.settings.borrow_mut()=settings;a.shortcuts.loaded.set(true);},Err(e)=>{a.shortcuts.loaded.set(true);let notice=format!("Using built-in keyboard shortcuts; custom settings are unavailable. Resolve settings conflicts or reload after recovery. {e}");*a.shortcuts.warning.borrow_mut()=Some(notice.clone());a.error(&notice);},
             }
         });
     }
@@ -114,6 +119,11 @@ impl Workspace {
     }
 }
 #[cfg(test)]mod tests{use super::*;
+    #[test]fn built_in_shortcuts_work_without_a_project_and_during_preference_loading(){
+        let runtime=ShortcutRuntime::default();let save=NativeShortcutSettings::default().bindings["workspace.save"][0].clone();let new=NativeShortcutSettings::default().bindings["workspace.newTab"][0].clone();
+        assert_eq!(runtime.action("","workspace.",&new),Some("workspace.newTab".into()));assert_eq!(runtime.action("project","workspace.",&save),Some("workspace.save".into()));
+        runtime.settings.borrow_mut().bindings.insert("workspace.save".into(),vec![]);*runtime.project_id.borrow_mut()="project".into();runtime.loaded.set(true);assert_eq!(runtime.action("project","workspace.",&save),None);assert_eq!(runtime.action("other","workspace.",&save),Some("workspace.save".into()));runtime.loaded.set(false);assert_eq!(runtime.action("project","workspace.",&save),Some("workspace.save".into()));
+    }
     #[test]fn only_alt_arrows_enter_shortcut_dispatch_and_editor_navigation_is_preserved(){
         for key in [gdk::keys::constants::Left,gdk::keys::constants::Right]{for modifiers in [gdk::ModifierType::empty(),gdk::ModifierType::CONTROL_MASK,gdk::ModifierType::SHIFT_MASK,gdk::ModifierType::CONTROL_MASK|gdk::ModifierType::SHIFT_MASK,gdk::ModifierType::CONTROL_MASK|gdk::ModifierType::MOD1_MASK]{assert!(key_binding(key,modifiers).is_none());}}
         let defaults=NativeShortcutSettings::default();let back=key_binding(gdk::keys::constants::Left,gdk::ModifierType::MOD1_MASK).unwrap();assert_eq!(defaults.action("workspace.",&back),Some("workspace.back"));assert_eq!(defaults.action("editor.",&back),None);let next=key_binding(gdk::keys::constants::Right,gdk::ModifierType::MOD1_MASK).unwrap();assert_eq!(defaults.action("workspace.",&next),Some("workspace.forward"));let full=key_binding(gdk::keys::constants::F11,gdk::ModifierType::empty()).unwrap();assert_eq!(defaults.action("workspace.",&full),Some("workspace.fullscreen"));

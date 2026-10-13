@@ -220,6 +220,8 @@ impl Workspace {
         self.link(&pages,"Scene details",|a|a.details());
         self.link(&pages,"Scene references",|a|a.scene_references());self.link(&pages,"Character cut",|a|a.character_cut());
         self.link(&pages,"Writing view",|a|a.writing_view());self.link(&pages,"Keyboard shortcuts",|a|a.keyboard_shortcuts());
+        self.link(&pages,"Choose hold comparison version",|a|a.choose_peek_revision());
+        let peek_hint=gtk::Label::new(Some("On the writing page: hold F6 for saved references, F7 for changes."));peek_hint.set_line_wrap(true);peek_hint.set_xalign(0.);pages.pack_start(&peek_hint,false,false,0);
         self.link(&pages,"Paragraph alternatives",|a|a.alternatives());
         for kind in ["exportProfile","writingSystems","sceneTranslations"]{self.link(&pages,data_title(kind),move|a|a.open_data(kind,data_title(kind)));}
         self.link(&pages,"New translation draft",|a|a.new_translation());
@@ -283,6 +285,12 @@ impl Workspace {
         });
         let weak=Rc::downgrade(self);self.window.connect_delete_event(move|_,_|{if let Some(a)=weak.upgrade(){a.close();}glib::Propagation::Stop});
         let weak=Rc::downgrade(self);self.window.connect_key_press_event(move|_,event|weak.upgrade().map(|a|a.workspace_shortcut(event)).unwrap_or(glib::Propagation::Proceed));
+        let weak=Rc::downgrade(self);self.window.connect_key_release_event(move|_,event|{
+            if let Some(a)=weak.upgrade(){let pane=a.active.borrow().clone();if let Some(pane)=pane{if let Some(result)=peek::key_release(&pane,event){return result;}}}
+            glib::Propagation::Proceed
+        });
+        let weak=Rc::downgrade(self);self.window.connect_focus_out_event(move|_,_|{if let Some(a)=weak.upgrade(){a.cancel_peek();}glib::Propagation::Proceed});
+        let weak=Rc::downgrade(self);self.window.connect_unmap(move|_|{if let Some(a)=weak.upgrade(){a.cancel_peek();}});
         let weak=Rc::downgrade(self);glib::timeout_add_local(Duration::from_millis(250),move||{
             let Some(a)=weak.upgrade()else{return glib::ControlFlow::Break;};if a.desk.closed.get(){return glib::ControlFlow::Break;}a.refresh_titles();glib::ControlFlow::Continue
         });
@@ -333,6 +341,7 @@ impl Workspace {
         }
     }
     pub(super) fn navigate(self:&Rc<Self>,action:impl FnOnce()+'static) {
+        self.cancel_peek();
         if self.desk.busy.replace(true){return;}
         self.window.set_sensitive(false);let a=self.clone();let widget=self.current_widget();
         let done=move|accepted:bool|{
@@ -342,6 +351,7 @@ impl Workspace {
         if let Some(draft)=widget.and_then(|w|self.draft(&w)){self.confirm(draft,std::time::Instant::now(),Box::new(done));}else{done(true);}
     }
     pub(super) fn confirm_all(self:&Rc<Self>,callback:impl FnOnce(bool)+'static) {
+        self.cancel_peek();
         if self.desk.busy.replace(true){callback(false);return;}
         self.window.set_sensitive(false);
         let started=std::time::Instant::now();let failures=self.notebook_failures.get();
@@ -378,9 +388,11 @@ impl Workspace {
         if let Some(draft)=self.current_widget().and_then(|w|self.draft(&w)){self.save_draft(draft,callback);}else{callback(Ok(()));}
     }
     pub(super) fn clear_tabs(&self) {
+        self.cancel_peek();
         self.desk.suppress.set(true);while self.pages.n_pages()!=0{self.pages.remove_page(Some(0));}*self.desk.selected.borrow_mut()=None;self.desk.bindings.borrow_mut().clear();self.desk.titles.borrow_mut().clear();self.desk.board_views.borrow_mut().clear();for w in self.desk.board_controls.children(){self.desk.board_controls.remove(&w);}self.desk.suppress.set(false);
     }
     pub(super) fn install(self:&Rc<Self>,widget:&impl IsA<gtk::Widget>,title:&str,replace:bool) {
+        self.cancel_peek();
         let widget=widget.as_ref();if self.desk.closed.get(){return;}
         self.desk.suppress.set(true);self.desk.titles.borrow_mut().insert(widget.clone(),title.into());
         if self.pages.page_num(widget).is_none(){
@@ -417,6 +429,7 @@ impl Workspace {
         });
     }
     pub(super) fn close_tab(self:&Rc<Self>,widget:&gtk::Widget) {
+        self.cancel_peek();
         if self.pages.page_num(widget).is_none() || self.desk.busy.replace(true){return;}
         self.window.set_sensitive(false);let a=self.clone();let widget=widget.clone();let draft=self.draft(&widget);
         let done=move|accepted:bool|{
@@ -464,6 +477,7 @@ impl Workspace {
         }
     }
     fn release_view(&self,widget:&gtk::Widget){
+        self.cancel_peek();
         self.ripple_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.knowledge_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.scene_arrangement_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
@@ -534,6 +548,7 @@ impl Workspace {
         window.confirm_all(move|ok|{window_.window.set_sensitive(false);if ok{a.confirm_windows(windows,i+1,callback);}else{callback(false);}});
     }
     fn transfer_ownership(self:&Rc<Self>,widget:&gtk::Widget,child:&Rc<Self>) {
+        self.cancel_peek();
         if let Some(draft)=self.draft(widget){match draft{
             Draft::Scene(p)=>{self.panes.borrow_mut().remove(&p.scene_id);child.apply_desktop_to_pane(&p);child.panes.borrow_mut().insert(p.scene_id.clone(),p.clone());*child.active.borrow_mut()=Some(p);},
             Draft::Shortcuts(p)=>{self.shortcut_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.shortcut_pages.borrow_mut().push(p);},
@@ -566,6 +581,7 @@ impl Workspace {
         *self.desk.selected.borrow_mut()=self.current_widget();if let Some(w)=self.current_widget(){self.activate_widget(&w);}else{*self.active.borrow_mut()=None;self.blank_tab();}
     }
     pub(super) fn finish_close(self:&Rc<Self>) {
+        self.cancel_peek();
         self.desk.closed.set(true);self.desk.generation.set(self.desk.generation.get()+1);
         for p in self.panes.borrow().values(){p.process.stop();}self.panes.borrow_mut().clear();self.window.hide();unsafe{self.window.destroy();}
         let last=WINDOWS.with(|windows|{windows.borrow_mut().retain(|a|!Rc::ptr_eq(a,self));windows.borrow().is_empty()});
@@ -574,7 +590,7 @@ impl Workspace {
     fn refresh_titles(&self) {
         for i in 0..self.pages.n_pages(){if let Some(w)=self.pages.nth_page(Some(i)){if let Some(draft)=self.draft(&w){if let Some(tab)=self.pages.tab_label(&w).and_then(|w|w.downcast::<gtk::Box>().ok()){if let Some(label)=tab.children().first().and_then(|w|w.clone().downcast::<gtk::Label>().ok()){let title=match &draft{Draft::Scene(p)=>p.title.borrow().clone(),_=>self.desk.titles.borrow().get(&w).cloned().unwrap_or_else(||draft.title())};label.set_text(&format!("{}{}",title,if draft.dirty(){" *"}else{""}));}}}}}
         let dirty=self.current_widget().and_then(|w|self.draft(&w)).is_some_and(|d|d.dirty());
-        if self.desk.dirty_state.replace(dirty)!=dirty{self.status.set_text(if dirty{"Unsaved changes · Ctrl+S to save"}else{"Saved locally · Manual saving"});}
+        if self.desk.dirty_state.replace(dirty)!=dirty{self.normal_status(if dirty{"Unsaved changes · Ctrl+S to save"}else{"Saved locally · Manual saving"});}
     }
 }
 

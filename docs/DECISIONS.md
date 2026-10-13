@@ -274,3 +274,8 @@ Capture window navigation from the acknowledged rich document/frame after manual
 ## October 13 — Dedicated authored knowledge and reader order
 
 Use explicit frozen fact capture and author decisions rather than arbitrary snapshot fields. Keep character interpretation, approved knows and scene/event scopes distinct. Reader reveal positions are declared disclosure order, independent of occurrence dates. Capture planning, manuscript order and details atomically; reject newly referenced unavailable scenes before submitting and verify captured live revision dependencies at Save. Preserve unchanged historical rows. Both forms participate in normal manual draft and detached ownership handling.
+
+
+## October 13 — Temporary frozen peeks and optional preference conflicts
+
+Freeze the acknowledged editor frame at hold time, label unsaved writing and compare only to an explicitly selected immutable saved revision. Do not reintroduce superseded autosave for comparisons. Cancel by token and current widget owner on release, focus/composition/navigation/transfer; late replies cannot reopen a hold. Keep references saved and authored. Read custom view/shortcut preferences unambiguously; use visible built-in runtime defaults on refusal and keep conflicting author forms disabled. Preserve the fallback notice across ordinary status updates.
