@@ -127,7 +127,7 @@ pub(crate) fn run(binaries:&Path) {
     // that arrived after the author's project approval.
     let late=d.path().join("late.json");DESTINATIONS.with(|q|q.borrow_mut().push_back(Some(late.clone())));
     let delivered=Rc::new(Cell::new(false));let out=delivered.clone();let owner=a.clone();let typed=pane.clone();let generation=a.desk.generation.get();let parent=pane.parent.borrow().clone();let before=pane.frame.borrow()["document"].clone();
-    BEFORE_DELIVERY.with(|hook|*hook.borrow_mut()=Some(Box::new(move||{typed.operation(json!({"type":"text","text":"After export approval مِ 中文"}),true);owner.desk.generation.set(generation+1);out.set(true);}))); 
+    BEFORE_DELIVERY.with(|hook|*hook.borrow_mut()=Some(Box::new(move||{typed.operation(json!({"type":"text","text":"After export approval مِ 中文"}),true);owner.desk.generation.set(generation+1);out.set(true);})));
     answer(true,gtk::ResponseType::Accept);a.alphabet_export();pump_until(||delivered.get()&&pane.pending.get()==0);
     assert!(!late.exists());assert!(pane.dirty.get());assert_eq!(*pane.parent.borrow(),parent);assert!(novel_storage::plain_text(&pane.frame.borrow()["document"]).contains("After export approval"));
     assert_eq!(rpc(&a.client,"sync_cursor",json!({})),marker);assert_eq!(rpc(&a.client,"load_scene",json!({"sceneId":sid})),saved);
