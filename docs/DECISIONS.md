@@ -289,3 +289,8 @@ Capture projected rich writing, actual scene/tombstone leaves and placement in o
 ## October 13 — Validate newly authored fictional time
 
 Validate only new or changed present event-time values at the author transition, including finite dates, ordered ranges and distinct retained relative anchors. Keep unchanged historical malformed/absent times and acknowledged recovery compatible. Preserve negative/fractional dates and unresolved cycles; validation must not manufacture feasibility or dates. This closes a reproduced backend/native bypass without backfilling legacy rows or broadening core-shape constraints.
+
+
+## October 13 — Project-scoped private asset read
+
+Expose the existing bounded/checksummed single-asset storage read through inherited private stdio for local font staging. Require explicit project and asset identities, return null for absent scope, and keep it read-only. Do not list/read every project BLOB or introduce a listener to obtain one font.

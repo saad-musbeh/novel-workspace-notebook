@@ -14,7 +14,7 @@ OPERATIONS = (
     'restore_scene', 'export_archive', 'import_archive', 'load_project_data',
     'review_sources_check', 'planning_read_snapshot', 'load_project_data_unambiguous', 'load_entity_revision', 'project_data_history', 'load_project_data_revision',
     'save_project_data', 'move_scene', 'load_revision', 'snapshot_scene',
-    'scene_conflict_index', 'scene_conflict_snapshot', 'resolve_scene_conflict_checked', 'conflicts', 'resolve_scene', 'put_asset', 'list_assets', 'deleted_scenes',
+    'scene_conflict_index', 'scene_conflict_snapshot', 'resolve_scene_conflict_checked', 'conflicts', 'resolve_scene', 'get_asset', 'put_asset', 'list_assets', 'deleted_scenes',
     'project_time_points', 'project_time_preview', 'recover_time_piece',
     'create_project_branch', 'list_project_branches', 'compare_project_branch', 'bring_back_branch_piece',
 )

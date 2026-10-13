@@ -1679,6 +1679,7 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   resolve_scene_conflict_checked: {args: {snapshot: SceneConflictSnapshot<TScene>; scene: (TScene | null);}; result: SceneConflictSnapshot<TScene>};
   conflicts: {args: {sceneId: string;}; result: Array<Revision>};
   resolve_scene: {args: {sceneId: string; scene: TScene; parent: string; conflictIds: Array<string>;}; result: Snapshot<TScene>};
+  get_asset: {args: {projectId: string; assetId: string;}; result: (ProjectAsset | null)};
   put_asset: {args: {projectId: string; asset: ProjectAsset;}; result: null};
   list_assets: {args: {projectId: string;}; result: Array<ProjectAsset>};
   deleted_scenes: {args: {projectId: string;}; result: Array<SceneRecord<TScene>>};
@@ -1737,6 +1738,7 @@ export const storageRpcCoverage = {
     "resolve_scene_conflict_checked",
     "conflicts",
     "resolve_scene",
+    "get_asset",
     "put_asset",
     "list_assets",
     "deleted_scenes",

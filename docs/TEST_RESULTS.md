@@ -1,3 +1,9 @@
+# Private companion asset-read bridge — October 13, 2026
+
+The locked offline focused companion test passed **1 test** for `get_asset`: exact synthetic bytes/metadata, foreign-project and missing-asset null results, required argument refusal and unchanged revision cursor. It delegates to the existing bounded/checksummed `load_asset` storage operation. Generated contract drift/check and whitespace passed; no font files or dependencies were added. Log: `/tmp/novel-asset-read-rpc.log`. Font staging/rendering and native resource controls remain separate tests.
+
+---
+
 # Authored fictional time transition regression — October 13, 2026
 
 The new transaction regression reproduced storage accepting `{kind:interval,start:10,end:1}` before the fix. After adding only the new/changed-present event-time guard, **156 storage tests passed, 0 failures** offline and locked. Cases refuse reversed interval/bounds, malformed numbers/variants and missing/self relative anchors without creating revisions or changing projections; preserve negative/fractional dates, exact unchanged historical malformed/missing times and immutable revisions; distinguish retained acknowledged recovery from an invalid new recovery claim; and retain the existing deletion guard for relative dependents. Focused planning validation/resolution checks also passed 11 tests. Log: `/tmp/novel-event-time-storage.log`. This source/backend check does not qualify packaged or physical input.

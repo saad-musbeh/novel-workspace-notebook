@@ -93,6 +93,7 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "resolve_scene_conflict_checked" => encode(storage.resolve_scene_conflict_checked(&argument::<SceneConflictSnapshot>(&args,"snapshot")?,argument::<Option<Scene>>(&args,"scene")?).await?),
         "conflicts" => encode(storage.conflicts(&argument::<String>(&args,"sceneId")?).await?),
         "resolve_scene" => encode(storage.resolve_scene(&argument::<String>(&args,"sceneId")?,argument::<Scene>(&args,"scene")?,&argument::<String>(&args,"parent")?,argument::<Vec<String>>(&args,"conflictIds")?).await?),
+        "get_asset" => encode(storage.load_asset(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"assetId")?).await?),
         "put_asset" => encode(storage.put_asset(&argument::<String>(&args,"projectId")?,argument::<ProjectAsset>(&args,"asset")?).await?),
         "list_assets" => encode(storage.list_assets(&argument::<String>(&args,"projectId")?).await?),
         "sync_cursor" => encode(storage.sync_cursor().await?),
@@ -330,5 +331,31 @@ mod scene_recovery_rpc_tests {
         let visible=execute(&storage,&recovery,&sync,&listener,&peer,"resolve_scene_conflict_checked",json!({"snapshot":hidden,"scene":scene})).await.unwrap();
         assert_eq!(visible["deleted"],false);assert_eq!(visible["projectedScene"],serde_json::to_value(&scene).unwrap());assert_eq!(visible["chapterId"],other.id);
         assert_eq!(storage.load_revision(&original.id,&original.revision_id).await.unwrap().scene,scene);
+    }
+}
+
+#[cfg(test)]
+mod asset_read_rpc_tests {
+    use super::*;
+    #[tokio::test]
+    async fn asset_read_rpc_is_scoped_checked_readonly_and_nullable() {
+        let dir=tempfile::tempdir().unwrap();
+        let storage=Storage::open(&dir.path().join("asset-read.sqlite")).await.unwrap();
+        let recovery=Err("Synthetic unavailable backup service".to_owned());
+        let sync=Err("Synthetic unavailable sync service".to_owned());
+        let peer=Err("Synthetic unavailable peer service".to_owned());
+        let listener=Arc::new(tokio::sync::Mutex::new(None));
+        let project=storage.create_project("Synthetic assets").await.unwrap();
+        let other=storage.create_project("Other synthetic assets").await.unwrap();
+        let asset=ProjectAsset{id:"synthetic-resource".into(),path:"assets/synthetic.txt".into(),mime_type:"text/plain".into(),content:b"abc".to_vec(),checksum:"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".into()};
+        storage.put_asset(&project.id,asset.clone()).await.unwrap();
+        let marker=storage.sync_cursor().await.unwrap();
+        let args=json!({"projectId":project.id,"assetId":asset.id});
+        let read=execute(&storage,&recovery,&sync,&listener,&peer,"get_asset",args.clone()).await.unwrap();
+        assert_eq!(read,serde_json::to_value(&asset).unwrap());
+        assert_eq!(execute(&storage,&recovery,&sync,&listener,&peer,"get_asset",json!({"projectId":other.id,"assetId":asset.id})).await.unwrap(),Value::Null);
+        assert_eq!(execute(&storage,&recovery,&sync,&listener,&peer,"get_asset",json!({"projectId":project.id,"assetId":"missing-resource"})).await.unwrap(),Value::Null);
+        assert!(execute(&storage,&recovery,&sync,&listener,&peer,"get_asset",json!({"projectId":project.id})).await.unwrap_err().contains("Missing assetId"));
+        assert_eq!(storage.sync_cursor().await.unwrap(),marker);
     }
 }

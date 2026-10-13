@@ -1,3 +1,9 @@
+# Unreleased checked local asset read — October 13, 2026
+
+The private stdio companion now exposes `get_asset {projectId, assetId}` through the existing bounded checksum-verifying single-asset storage read. It returns one project-scoped asset or null without writing history. This supplies the missing read bridge for forthcoming private font staging; alphabet/font UI integration remains separately qualified. The focused companion regression passed **1 test**, covering exact bytes, foreign/missing scope, missing arguments and unchanged revision cursor. Generated contracts/check and whitespace pass. No new dependency, listener or asset is added to Git.
+
+---
+
 # Unreleased authored fictional-time validation — October 13, 2026
 
 New or changed explicit event times now validate supported variants, finite numbers, ordered interval/bounds ranges and distinct retained relative anchors. Negative and fractional fictional dates remain valid. Unchanged historical malformed or absent times remain exact; acknowledged recovery versions retain the existing compatibility policy. This fixes the reproduced Save of a reversed interval that native chronology displayed as Days 10–1. It does not infer chronology or add complete planning core-shape/feasibility enforcement.
