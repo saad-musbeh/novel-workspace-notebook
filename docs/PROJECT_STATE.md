@@ -1,3 +1,13 @@
+# Unreleased alphabet, private font and licensed pack controls — October 14, 2026
+
+Alphabets now provides immutable saved mapping versions, explicit scene assignment, literal symbol insertion, glossary/notes and manual draft choices. Ordinary committed typing alone uses the saved scalar mapping; paste, drop, palette insertion, replacement, stored writing and Undo remain literal. New writing sessions capture checked alphabet history and saved scene identity, then reread the manuscript before opening. Cached sessions retain their profile and Undo until explicit close/reopen after manual Save or Discard. Conflicting/unavailable resources retain literal/default-font writing capability with a visible notice.
+
+Licensed fonts & dictionaries previews selected local TTF/OTF or supported pack JSON, requires explicit source/license/transfer permission and Save, and checks schema, identity, SFNT bounds/family and checksums. Font Save stores the licensed asset before publishing a new immutable alphabet version; scene assignment stays explicit. Verified fonts stage only into each private editor directory (0700 directory / 0600 file). Registration failure retries default-font open only before input or explicit Discard. Historical pack IDs/versions are enforced atomically through both save APIs, resolution, archive validation/import and sync; unchanged legacy records and exact repeated versions remain compatible.
+
+Observed: locked offline workspace excluding retained Tauri passed **394 tests, 0 failures, 3 ignored**; storage passed **166 tests** and native units **132 tests**. Complete real GTK passed **1 test / 52.63 s**. Targeted palette, editor mapping/private-font/fallback and licensed imports passed; the additional real-worker headless bridge passed **1 test / 0.56 s**. Synthetic palette and font-preview captures were inspected; non-test build is warning-free. Testing fixed stale fixture response shapes and a Discard completion race by waiting for viewport acknowledgement before the next navigation capture. No dependency/model/font download, system font install, migration, personal-store access or external listener occurred. These are unreleased source results; physical IME, supplied-font shaping and published packages remain separate.
+
+---
+
 # Unreleased review decisions and translation preview — October 14, 2026
 
 Review decisions now retains local-provider proposals and explicit author choices. Apply validates every ordered saved source atomically, checks exact Unicode evidence/scalar boundaries and replaces only the captured paragraph as one unsaved undoable edit. Decision records use checked metadata/source dependencies; failure after Apply visibly retains the draft/Undo and states that the decision was not accepted. Proposals never become manuscript or canon automatically. Existing Local review and New translation draft routes use the dedicated controls.
@@ -60,7 +70,7 @@ Desktop testing found and fixed a double-allocation resize loop and a missed ini
 
 Observed: locked offline workspace excluding the retained Tauri member passed **296 tests, 0 failures, 2 opt-in tests ignored**; the complete real GTK/worker workflow passed **1 test**, with fatal criticals and disposable synthetic stores. Storage alone passed **150 tests**. Forty cached Rust serde wire shapes, generated contract drift and whitespace checks passed. Actual bounded RTL writing and labelled multilingual board captures were inspected. The SHA-256 library is an additional direct native dependency on the same already pinned/cached version used by the workers; no dependency was installed. No migration, model download, persistent service, personal-store access or external private listener activation occurred.
 
-These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Formatting sequences and local alphabet/font/pack controls remain the next integration slices; their delegated pure tests do not qualify the running notebook.
+These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Formatting sequences remain the next integration slice; their delegated pure tests do not qualify the running notebook.
 
 ---
 

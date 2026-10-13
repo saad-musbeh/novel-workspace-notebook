@@ -24,6 +24,8 @@ mod chapter_forms;
 mod paragraph_forms;
 #[path="data_conflicts_tests.rs"]
 mod project_data_conflicts;
+#[path="alphabet_editor_tests.rs"]
+mod alphabet_editor_forms;
 use super::*;
 use std::time::Instant;
 fn wait(condition:impl Fn()->bool) {
@@ -60,7 +62,7 @@ fn edit(p:&Rc<EditorPane>,text:&str) {p.operation(json!({"type":"text","text":te
 fn select(a:&Workspace,choice:SaveChoice) {a.desk.choices.borrow_mut().push_back(choice);}
 fn last_window()->Rc<Workspace> {WINDOWS.with(|windows|windows.borrow().last().unwrap().clone())}
 fn windows()->usize {WINDOWS.with(|windows|windows.borrow().len())}
-fn capture(a:&Workspace,name:&str) {
+pub(crate) fn capture(a:&Workspace,name:&str) {
     eprintln!("Capturing synthetic UI: {name}");
     pump(Duration::from_millis(120));a.window.check_resize();let path=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../work").join(name);
     let surface=cairo::ImageSurface::create(cairo::Format::ARgb32,a.window.allocated_width(),a.window.allocated_height()).unwrap();let context=cairo::Context::new(&surface).unwrap();a.window.draw(&context);surface.write_to_png(&mut std::fs::File::create(path).unwrap()).unwrap();
@@ -232,6 +234,9 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "scene-recovery"=>super::super::scene_conflicts::tests::run(&binaries),
             "review-decisions"|"translations"|"review-translations"=>review_translation_workflows(&binaries),
             "review-host"=>super::super::review_host::tests::run(&binaries),
+            "alphabets"=>super::super::alphabet_host::tests::run(&binaries),
+            "alphabet-editor"=>alphabet_editor_forms::run(&binaries),
+            "licensed-imports"=>super::super::licensed_imports::tests::run(&binaries),
             _=>panic!("Unknown native test section: {section}"),
         }
         assert_eq!(windows(),0); return;
@@ -256,6 +261,9 @@ fn notebook_navigation_manual_save_and_multi_window() {
     super::super::scene_conflicts::tests::run(&binaries);
     review_translation_workflows(&binaries);
     super::super::review_host::tests::run(&binaries);
+    super::super::alphabet_host::tests::run(&binaries);
+    alphabet_editor_forms::run(&binaries);
+    super::super::licensed_imports::tests::run(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));
     let first=rpc(&client,"create_scene",json!({"chapterId":chapter["id"],"scene":{"schemaVersion":1,"title":"The first morning","document":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The room was quiet. مِ 中文 👩🏽‍🚀"}]}]}}}));

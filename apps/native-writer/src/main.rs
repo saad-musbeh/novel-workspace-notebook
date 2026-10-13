@@ -5,6 +5,8 @@ mod tools;
 mod app;
 mod export;
 mod planning;
+mod alphabets;
+mod local_resources;
 use std::path::PathBuf;
 fn main(){
     if let Err(error)=run(){

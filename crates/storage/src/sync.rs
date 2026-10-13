@@ -354,6 +354,7 @@ impl Storage {
         let mut pending=vec![];
         let mut duplicates=0;
         let mut affected=HashSet::new();
+        let mut pack_versions=None;
         for r in incoming {
             if !valid_id(&r.id)||r.project_id!=pid||r.schema_version!=1||r.parents.len()>64||r.parents.iter().collect::<HashSet<_>>().len()!=r.parents.len()||r.parents.contains(&r.id)||r.created_at.is_empty()||r.created_at.len()>64||!valid_id(&r.origin_epoch)||!valid_id(&r.origin_device)||r.sequence<1||!seen.insert(r.id.clone())||hash(serde_json::to_string(&r.payload).unwrap().as_bytes())!=r.checksum{
                 return Err("Invalid revision envelope, origin, duplicate identity or payload hash.".into())
@@ -379,6 +380,10 @@ impl Storage {
                     validate_data(&r.operation,&r.payload)?;
                     if chapter_ids.contains(&r.entity_id)||scene_ids.contains(&r.entity_id)||r.entity_id!=format!("{pid}:{}",r.operation){
                         return Err("Project data identity is outside the authorized project.".into())
+                    }
+                    if r.operation=="languagePacks"{
+                        if pack_versions.is_none(){pack_versions=Some(crate::native_pack_versions::checked_history(&mut tx,pid).await?);}
+                        pack_versions.as_mut().unwrap().observe(&r.payload)?;
                     }
                     if ["planning","writingSystems","sceneMetadata","paragraphAlternatives","notebookTools"].contains(&r.operation.as_str()){
                         validate_scene_links(&r.payload,&scene_ids)?;
@@ -599,6 +604,7 @@ impl Storage {
             let scenes:Vec<String>=sqlx::query_scalar("SELECT s.id FROM manuscript_scene s JOIN chapter c ON c.id=s.chapter_id WHERE c.project_id=?").bind(pid).fetch_all(&mut *tx).await.map_err(err)?;
             validate_scene_links(&payload,&scenes.into_iter().collect())?;
         }
+        if kind=="languagePacks"{crate::native_pack_versions::validate_candidate(&mut tx,pid,&payload).await?;}
         let mut previous=vec![];
         for head in &expected_heads{
             let (old,checksum):(String,String)=sqlx::query_as("SELECT payload,checksum FROM revision_envelope WHERE id=? AND project_id=? AND entity_id=? AND entity_type='projectData'").bind(head).bind(pid).bind(&entity).fetch_one(&mut *tx).await.map_err(err)?;

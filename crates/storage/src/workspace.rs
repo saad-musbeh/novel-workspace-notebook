@@ -972,6 +972,7 @@ impl Storage {
         if current!=parent{
             return Err("Conflict: another window saved this project data. Pending changes remain local.".into())
         }
+        if kind=="languagePacks"{crate::native_pack_versions::validate_authoring(&mut tx,pid,current.as_deref(),&payload).await?;}
         if kind=="exportProfile"{export_profile_state(&mut tx,pid).await?;}
         if kind=="chapterNumbering"&&chapter_numbering_state(&mut tx,pid).await?.2{return Err("Conflict: resolve competing chapter numbering before saving.".into())}
         if kind=="universeCatalogue"{
@@ -1142,6 +1143,7 @@ impl Storage {
         }
         // Parents precede children, while imported revision origins remain provenance only.
         data.revisions.sort_by_key(|r|r.sequence);
+        let mut imported_pack_versions=crate::native_pack_versions::VersionIndex::default();
         for r in &mut data.revisions {
             let entity=if r.entity_type=="projectData"{
                 format!("{}:{}",pid,r.operation)
@@ -1150,6 +1152,7 @@ impl Storage {
                 ids.get(&r.entity_id).cloned().ok_or("Archive references an unknown entity.")?
             };
             remap_payload(&mut r.payload,&ids);
+            if r.entity_type=="projectData"&&r.operation=="languagePacks"{imported_pack_versions.observe(&r.payload)?;}
             let payload=serde_json::to_string(&r.payload).unwrap();
             let parents=r.parents.iter().map(|p|ids[p].clone()).collect::<Vec<_>>();
             sqlx::query("INSERT INTO revision_envelope(id,project_id,entity_id,entity_type,parents,payload,operation,schema_version,checksum,created_at,origin_epoch,origin_device) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(&ids[&r.id]).bind(&pid).bind(entity).bind(&r.entity_type).bind(serde_json::to_string(&parents).unwrap()).bind(&payload).bind(&r.operation).bind(r.schema_version as i64).bind(hash(payload.as_bytes())).bind(&r.created_at).bind(&r.origin_epoch).bind(&r.origin_device).execute(&mut *tx).await.map_err(err)?;
@@ -1535,6 +1538,7 @@ String>{
     let asset_checksums=data.assets.iter().map(|a|(a.id.as_str(),a.checksum.as_str())).collect::<HashMap<_,_>>();
     let mut revs=HashMap::new();
     let mut sequences=HashSet::new();
+    let mut pack_versions=crate::native_pack_versions::VersionIndex::default();
     for r in &data.revisions{
         if !valid_id(&r.id)||entities.contains(&r.id)||revs.insert(r.id.clone(),r).is_some()||r.schema_version!=1||r.project_id!=b.project.id||!entities.contains(&r.entity_id)||r.sequence<=0||!sequences.insert(r.sequence)||!valid_id(&r.origin_epoch)||!valid_id(&r.origin_device)||r.created_at.is_empty()||r.created_at.len()>64||hash(serde_json::to_string(&r.payload).unwrap().as_bytes())!=r.checksum{
             return Err("Invalid revision identity, schema, origin or checksum.".into())
@@ -1555,6 +1559,7 @@ String>{
                 if r.entity_id!=format!("{}:{}",b.project.id,r.operation){
                     return Err("Invalid project data revision identity.".into())
                 }
+                if r.operation=="languagePacks"{pack_versions.observe(&r.payload)?;}
                 if ["planning","writingSystems","sceneMetadata","paragraphAlternatives","notebookTools"].contains(&r.operation.as_str()){
                     validate_scene_links(&r.payload,&scenes)?;
                 }

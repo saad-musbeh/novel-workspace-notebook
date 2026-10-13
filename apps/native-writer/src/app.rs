@@ -38,6 +38,12 @@ mod navigation;
 #[path="ripple.rs"]
 mod ripple;
 use ripple::RipplePage;
+#[path="alphabet_host.rs"]
+pub(crate) mod alphabet_host;
+#[path="licensed_imports.rs"]
+mod licensed_imports;
+use crate::alphabets::AlphabetPage;
+use licensed_imports::LicensedImportsPage;
 #[path="review_host.rs"]
 mod review_host;
 #[path="review_decisions.rs"]
@@ -98,6 +104,8 @@ pub struct Workspace {
     desktop_preference_pages:RefCell<Vec<Rc<DesktopPreferencesPage>>>,
     ripple_pages:RefCell<Vec<Rc<RipplePage>>>,
     knowledge_pages:RefCell<Vec<Rc<KnowledgePage>>>,
+    alphabet_pages:RefCell<Vec<Rc<AlphabetPage>>>,
+    licensed_import_pages:RefCell<Vec<Rc<LicensedImportsPage>>>,
     review_decision_pages:RefCell<Vec<Rc<ReviewDecisionsPage>>>,
     translation_preview_pages:RefCell<Vec<Rc<TranslationPreviewPage>>>,
     peek:peek::PeekRuntime,
@@ -244,7 +252,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),alphabet_pages:RefCell::new(Vec::new()),licensed_import_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -326,7 +334,7 @@ impl Workspace {
             a.cancel_review_generations();
             a.clear_tabs();
             for pane in a.panes.borrow().values(){pane.process.stop();}
-            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();a.review_decision_pages.borrow_mut().clear();a.translation_preview_pages.borrow_mut().clear();
+            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();a.alphabet_pages.borrow_mut().clear();a.licensed_import_pages.borrow_mut().clear();a.review_decision_pages.borrow_mut().clear();a.translation_preview_pages.borrow_mut().clear();
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
             *a.index.borrow_mut()=Value::Null;a.populate_outline();a.populate_book();
             a.pages.set_group_name(Some(a.group_name()));
@@ -477,36 +485,41 @@ impl Workspace {
         });
     }
     fn ensure_pane(self:&Rc<Self>,id:&str,callback:impl FnOnce(Result<Rc<EditorPane>,String>)+'static){
-        if let Some(pane)=self.panes.borrow().get(id).cloned(){
-            callback(Ok(pane));
-            return;
-        }if self.panes.borrow().len()>=16{
-            let evict=self.panes.borrow().iter().find(|(_,p)|p.widget.parent().is_none() && !p.dirty.get() && p.pending.get()==0 && !p.saving.get()).map(|(id,_)|id.clone());
+        if let Some(pane)=self.panes.borrow().get(id).cloned(){callback(Ok(pane));return;}
+        if self.panes.borrow().len()>=16{
+            let evict=self.panes.borrow().iter().find(|(_,p)|p.widget.parent().is_none()&&!p.dirty.get()&&p.pending.get()==0&&!p.saving.get()).map(|(id,_)|id.clone());
             if let Some(id)=evict{if let Some(p)=self.panes.borrow_mut().remove(&id){p.process.stop();}}
         }
-        if self.panes.borrow().len()>=16{
-            callback(Err("Close a writing tab before opening another. Up to 16 scenes may be open at once.".into()));
-            return;
-        }let weak=Rc::downgrade(self);
-        let selected=self.pid.borrow().clone();
-        self.client.rpc("load_project_scene",json!({
-            "projectId":selected,"sceneId":id
-        }),move|reply|if let Some(a)=weak.upgrade(){
-            if *a.pid.borrow()!=selected || a.desk.is_closed(){return;}match reply{
-                Ok(record)=>match EditorPane::new(&a.editor_executable,&a.cache,&record){
-                    Ok(pane)=>{
-                        if let Some(existing)=a.panes.borrow().get(&pane.scene_id).cloned(){
-                            pane.process.stop();
-                            callback(Ok(existing));
-                            return;
-                        }
-                        a.apply_desktop_to_pane(&pane);
-                        a.panes.borrow_mut().insert(pane.scene_id.clone(),pane.clone());
-                        desk::bind_pane(&pane);
-                        callback(Ok(pane));
-                    },Err(e)=>callback(Err(e))
-                },Err(e)=>callback(Err(e))
-            }
+        if self.panes.borrow().len()>=16{callback(Err("Close a writing tab before opening another. Up to 16 scenes may be open at once.".into()));return;}
+        let weak=Rc::downgrade(self);let selected=self.pid.borrow().clone();let generation=self.desk.generation.get();let scene_id=id.to_owned();
+        self.client.rpc("load_project_scene",json!({"projectId":selected,"sceneId":scene_id}),move|reply|{
+            let Some(a)=weak.upgrade()else{return;};
+            if *a.pid.borrow()!=selected||a.desk.is_closed()||a.desk.generation.get()!=generation{return;}
+            let record=match reply{Ok(record)=>record,Err(error)=>{callback(Err(error));return;}};
+            if let Some(existing)=a.panes.borrow().get(&scene_id).cloned(){callback(Ok(existing));return;}
+            let weak=Rc::downgrade(&a);let client=a.client.clone();
+            alphabet_host::load_editor_profile(&client,selected.clone(),record.clone(),move|loaded|{
+                let Some(a)=weak.upgrade()else{return;};
+                if *a.pid.borrow()!=selected||a.desk.is_closed()||a.desk.generation.get()!=generation{return;}
+                if let Some(existing)=a.panes.borrow().get(&scene_id).cloned(){callback(Ok(existing));return;}
+                // Resource capture failure supplies literal/default options.
+                // Recheck saved manuscript state independently before spawning.
+                let weak=Rc::downgrade(&a);
+                a.client.rpc("load_project_scene",json!({"projectId":selected,"sceneId":scene_id}),move|reply|{
+                    let Some(a)=weak.upgrade()else{return;};
+                    if *a.pid.borrow()!=selected||a.desk.is_closed()||a.desk.generation.get()!=generation{return;}
+                    if let Some(existing)=a.panes.borrow().get(&scene_id).cloned(){callback(Ok(existing));return;}
+                    let current=match reply{Ok(value)=>value,Err(error)=>{callback(Err(error));return;}};
+                    if current!=record{callback(Err("The saved scene changed while its alphabet profile loaded. Open the writing scene again; every saved version remains intact.".into()));return;}
+                    if a.panes.borrow().len()>=16{callback(Err("Close a writing tab before opening another. Up to 16 scenes may be open at once.".into()));return;}
+                    match EditorPane::new_with_profile(&a.editor_executable,&a.cache,&record,loaded){
+                        Ok(pane)=>{
+                            if let Some(existing)=a.panes.borrow().get(&pane.scene_id).cloned(){pane.process.stop();callback(Ok(existing));return;}
+                            a.apply_desktop_to_pane(&pane);a.panes.borrow_mut().insert(pane.scene_id.clone(),pane.clone());desk::bind_pane(&pane);callback(Ok(pane));
+                        },Err(error)=>callback(Err(error))
+                    }
+                });
+            });
         });
     }
     fn show_pane(self:&Rc<Self>,pane:Rc<EditorPane>,_beside:bool){

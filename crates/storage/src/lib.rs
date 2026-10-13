@@ -44,6 +44,7 @@ pub fn validate(scene: &Scene) -> Result<(), String> {
     validate_node(&scene.document, 0)
 }
 mod recovery;
+pub mod native_pack_versions;
 #[cfg(test)] mod release_tests;
 mod workspace;
 mod scene_conflict_snapshot;

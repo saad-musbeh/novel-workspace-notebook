@@ -299,3 +299,12 @@ Expose the existing bounded/checksummed single-asset storage read through inheri
 ## October 14 — Revision-bound review and translation decisions
 
 Keep explicit provider proposals separate from author acceptance. Before Apply, atomically verify the ordered complete saved-source manifest, then exact paragraph anchors; record acceptance only with final checked metadata/source CAS. If the record write fails after editor mutation, retain the unsaved draft and Undo and say acceptance failed. Translation sources stay immutable historical captures; optional generation is a cancellable page activity rather than a saving barrier. Resolve callbacks through current widget ownership, cancel only accepted actual release, and preserve generation through transfer. Use weak widget callbacks to avoid retaining closed controls. Choice dialogs hide/destroy after response and follow the parent focus policy.
+
+
+## October 14 — Immutable alphabets and licensed private resources
+
+Bind alphabet authoring to checked immutable history and explicit live scene sources. Publish mapping corrections as new versions and assign scenes explicitly; cached editor sessions retain their checked profile and Undo until close/reopen after manual draft decisions. Map committed ordinary typing once; literal input and stored text bypass mapping. Capture/reread the saved scene before spawning an editor.
+
+Import only explicitly selected bounded resources with declared source/license and storage/transfer permission. Validate SFNT/pack schemas, family and checksum; stage fonts into the private helper directory, never install them globally. A font asset can remain licensed history after a later metadata CAS failure; retain the exact pending candidate for explicit retry/discard. Fall back visibly to default-font/literal editing without reopening typed content. Complete open/Discard only after viewport acknowledgement so ordinary navigation captures a settled frame.
+
+Enforce pack version identities against checksum/ownership-verified complete retained history inside the same transaction as save/resolution and across archive/sync batches. Preserve unchanged partial legacy records without inventing identities. Bound history memory and scan every row with explicit keyset pagination; refuse corrupt or conflicting history rather than choosing a version.
