@@ -6,21 +6,9 @@ use tokio::sync::{oneshot, Semaphore};
 
 /// Fixed ASCII object keys/identities and preserved array ordering match assistance/facts.ts.
 pub fn canonical_fact_text(document:&Value)->Result<String,String> {
- if document["schemaVersion"]!=1 {return Err("Unsupported story-fact snapshot.".into())}
- let input=document["facts"].as_array().ok_or("Missing saved facts.")?;let all_records=document["records"].as_array().ok_or("Missing saved fact subjects.")?;
- let mut facts=Vec::new();let mut seen=HashSet::new();let mut subjects=HashSet::new();
- for fact in input.iter().filter(|fact|fact["status"]=="fact"&&fact["confirmed"]==true) {
-  let id=fact["id"].as_str().ok_or("Invalid confirmed fact identity.")?;let subject=fact["subjectId"].as_str().ok_or("Invalid confirmed fact subject.")?;
-  for identity in [id,subject] {if identity.is_empty()||identity.len()>200||!identity.bytes().all(|byte|byte.is_ascii_alphanumeric()||b"._:-".contains(&byte)){return Err("Confirmed fact identities must be stable ASCII IDs.".into())}}
-  if !seen.insert(id) {return Err("Duplicate confirmed fact identity.".into())}subjects.insert(subject);
-  let mut entry=serde_json::Map::new();for key in ["id","subjectId","property","value","eventId","untilEventId"] {let value=fact.get(key).ok_or("Missing confirmed fact property.")?;if !value.is_string()&&!(matches!(key,"eventId"|"untilEventId")&&value.is_null()){return Err("Invalid confirmed fact property.".into())}entry.insert(key.to_owned(),value.clone());}facts.push(Value::Object(entry));
- }
- if facts.len()>1000{return Err("Confirmed fact context exceeds its supported record limit.".into())}facts.sort_by(|a,b|a["id"].as_str().cmp(&b["id"].as_str()));
- let mut records=Vec::new();let mut seen_records=HashSet::new();for record in all_records.iter().filter(|record|record["id"].as_str().is_some_and(|id|subjects.contains(id))) {let id=record["id"].as_str().ok_or("Invalid fact subject identity.")?;let name=record["name"].as_str().ok_or("Invalid fact subject name.")?;if !seen_records.insert(id){return Err("Duplicate fact subject identity.".into())}records.push(json!({"id":id,"name":name}));}records.sort_by(|a,b|a["id"].as_str().cmp(&b["id"].as_str()));
- let value=json!({"schemaVersion":1,"records":records,"facts":facts});
- fn ordered(value:&Value)->Value {match value {Value::Object(object)=>{let mut keys:Vec<_>=object.keys().collect();keys.sort();let mut map=serde_json::Map::new();for key in keys {map.insert(key.clone(),ordered(&object[key]));}Value::Object(map)},Value::Array(array)=>Value::Array(array.iter().map(ordered).collect()),_=>value.clone()}}
- let text=serde_json::to_string(&ordered(&value)).map_err(|_|"Invalid canonical fact snapshot.")?;if text.len()>30000{return Err("Confirmed facts exceed the 30 KB context limit.".into())}Ok(text)
+    novel_storage::canonical_review_fact_text(document)
 }
+
 
 const MAX_RESPONSE:usize=2_000_000;
 const MAX_TOMBSTONES:usize=1024;

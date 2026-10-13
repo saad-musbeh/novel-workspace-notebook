@@ -1,3 +1,9 @@
+# Optional scoped consistency review — October 14, 2026
+
+Consistency operates only on one explicitly previewed saved scene and a canonical confirmed-fact projection with full planning-head provenance. No temporal context is inferred, and context omissions remain visible. Store provisional questions as author review notes through existing checked settings decisions. Require both scene and projectData dependencies for final acceptance; absent planning cannot be made safely revision-bound, so refuse consistency until the author saves planning. Normal editing/saving and wording review remain independent.
+
+---
+
 # Shared universe references and grouping — October 14, 2026
 
 Derive one novel membership only from complete checked catalogue claims. Unknown/corrupt history cannot silently authorize a chosen universe; keep every existing project selectable through fallback groups. Universe/series headings have no project identity. Read shared notes directly from the verified source universe, with exact revision provenance, and retain local references independently when either source is unavailable.

@@ -1,3 +1,9 @@
+# Scoped consistency review integration — October 14, 2026
+
+Focused checks passed **7 storage, 19 native review and 2 canonical projection tests**; generated contract drift/whitespace checks passed. Root real GTK consistency passed **1 test / 1.24 s** with fatal criticals and actual synthetic-store workers. Scope includes one exact saved scene plus bounded canonical approved-fact bytes, labels all excluded scenes/facts and warns temporal applicability is unknown. Missing/conflicting/corrupt planning refuses, empty facts retain revision dependency, changed scene/planning source or final CAS refuses stale decisions, and provisional question acceptance never changes manuscript/canon. Validated proofreading exceptions preserve malformed-result refusal. Log: `/tmp/novel-consistency-final-gtk.log`. Test-only provider replies qualify orchestration, not model accuracy.
+
+---
+
 # Canonical universe selection and shared notes — October 14, 2026
 
 Eight storage and six native pure checks passed. Root real GTK passed **1 test / 0.92 s** with rebuilt workers/fatal criticals. It verifies installed grouped multilingual selector labels and IDs, insensitive header renderers, heading activation restoring selection without changing pane/generation, sole saved universe/series source and unchanged writing/cursor. Notes refresh clears stale source and handles detached current ownership. Catalogue corruption, duplicate/competing membership and checksum/head/parent errors preserve independent selectable fallbacks. Log: `/tmp/novel-universe-final-gtk.log`.

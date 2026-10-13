@@ -232,6 +232,61 @@ fn post_apply_failure_explicitly_denies_acceptance_and_retains_undo_guidance() {
     assert!(!save_failure(false, "conflict").contains("Applied to"));
 }
 
+fn question_basis() -> (Value, Value) {
+    let scene = saved();
+    let scene_source = json!({"sceneId":scene["id"],"revisionId":scene["revisionId"],"hash":"a".repeat(64),"kind":"scene","text":novel_storage::plain_text(&scene["scene"]["document"])});
+    let facts_source = json!({"sceneId":"planning:project-fixture","revisionId":"planning-head","hash":"b".repeat(64),"kind":"facts","text":"Confirmed مِ 中文 𠀀"});
+    let mut question = proposal(&scene, &scene_source["hash"]);
+    question["reviewOperation"] = json!("consistency");
+    question["sources"] = json!([scene_source, facts_source]);
+    question["action"] = json!({"kind":"question"});
+    let context = json!({"scene":scene,"sources":[scene_source,facts_source]});
+    (question, context)
+}
+#[test]
+fn consistency_note_has_exact_scene_and_planning_dependencies_without_a_text_edit() {
+    let (question, context) = question_basis();
+    let deps = checked_consistency_basis(&question, "project-fixture", &context).unwrap();
+    assert_eq!(deps,json!([{"entityId":"scene-fixture","entityType":"scene","revisionId":"revision-fixture"},{"entityId":"project-fixture:planning","entityType":"projectData","revisionId":"planning-head"}]).as_array().unwrap().clone());
+    assert!(
+        checked_replacement(&question, &context["scene"], &context["sources"][0]["hash"]).is_err()
+    );
+    let mut settings = crate::tools::initial("settings");
+    settings["assistance"]["suggestions"] = json!([question]);
+    let accepted = decided(&settings, "fixture-proposal", "accepted").unwrap();
+    assert_eq!(
+        accepted["assistance"]["suggestions"][0]["action"]["kind"],
+        "question"
+    );
+    assert!(accepted.get("planning").is_none());
+}
+#[test]
+fn stale_planning_equal_text_new_head_wrong_quote_and_fact_only_evidence_refuse_notes() {
+    let (question, context) = question_basis();
+    for (field, value) in [
+        ("revisionId", json!("new-head-same-text")),
+        ("hash", json!("c".repeat(64))),
+    ] {
+        let mut newer = context.clone();
+        newer["sources"][1][field] = value;
+        assert!(checked_consistency_basis(&question, "project-fixture", &newer).is_err());
+    }
+    assert!(checked_consistency_basis(&question, "foreign-project", &context).is_err());
+    let mut bad = question.clone();
+    bad["evidence"][0]["quote"] = json!("BAD");
+    assert!(checked_consistency_basis(&bad, "project-fixture", &context).is_err());
+    let mut fact_only = question;
+    let mut anchor = context["sources"][1].clone();
+    anchor["offsetUnit"] = json!("utf16");
+    anchor["start"] = json!(0);
+    anchor["end"] = json!(9);
+    anchor["quote"] = json!("Confirmed");
+    anchor["prefix"] = json!("");
+    anchor["suffix"] = json!("");
+    fact_only["evidence"] = json!([anchor]);
+    assert!(checked_consistency_basis(&fact_only, "project-fixture", &context).is_err());
+}
+
 fn wait(condition: impl Fn() -> bool) {
     let start = std::time::Instant::now();
     let context = glib::MainContext::default();

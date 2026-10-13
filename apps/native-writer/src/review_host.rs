@@ -120,6 +120,195 @@ fn frozen_request(
             "language":language,"text":text,"kind":"scene"}],"contextBudget":4096,"timeoutMs":120000,"createdAt":created_at}),
     )
 }
+// Backend snapshot owns the source projection and hashes; no local fact inference
+// or filtering may replace it. Exactly one scene plus one planning source is sent.
+fn consistency_request(
+    project: &str,
+    scene: &str,
+    context: &Value,
+    language: &str,
+    id: &str,
+    created: &str,
+) -> Result<Value, String> {
+    let sources = context["sources"]
+        .as_array()
+        .filter(|s| s.len() == 2)
+        .ok_or("Consistency context requires exactly one scene and one saved fact projection.")?;
+    if sources[0]["kind"] != "scene"
+        || sources[0]["sceneId"] != scene
+        || sources[0]["revisionId"] != context["scene"]["revisionId"]
+        || sources[0]["text"].as_str()
+            != Some(novel_storage::plain_text(&context["scene"]["scene"]["document"]).as_str())
+        || sources[1]["kind"] != "facts"
+        || sources[1]["sceneId"] != format!("planning:{project}")
+        || context["scope"]["includedSceneId"] != scene
+        || context["scope"]["timingIncluded"] != false
+        || !context["scope"]["includedFactIds"]
+            .as_array()
+            .is_some_and(|ids| ids.len() <= 1000)
+    {
+        return Err(
+            "The authoritative saved scene/fact context or included scope is invalid.".into(),
+        );
+    }
+    let facts_text = sources[1]["text"]
+        .as_str()
+        .ok_or("Missing saved canonical projection.")?;
+    let facts: Value =
+        serde_json::from_str(facts_text).map_err(|_| "Invalid saved canonical projection.")?;
+    let ids = facts["facts"]
+        .as_array()
+        .filter(|f| f.len() <= 1000)
+        .ok_or("Invalid confirmed fact scope.")?
+        .iter()
+        .map(|f| f["id"].clone())
+        .collect::<Vec<_>>();
+    if facts["schemaVersion"] != 1
+        || facts_text.len() > 30000
+        || context["scope"]["includedFactIds"] != json!(ids)
+    {
+        return Err("Included facts differ from the authoritative canonical projection.".into());
+    }
+    let mut total = 0;
+    for source in sources {
+        let text = source["text"]
+            .as_str()
+            .ok_or("Missing exact saved context text.")?;
+        total += text.encode_utf16().count();
+        if !source["revisionId"].as_str().is_some_and(|s| !s.is_empty())
+            || !source["hash"].as_str().is_some_and(|s| {
+                s.len() == 64
+                    && s.bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            })
+        {
+            return Err("Saved context requires exact revision/hash identities.".into());
+        }
+    }
+    if total > 50000 {
+        return Err(
+            "Complete consistency context exceeds the review limit. No source was truncated."
+                .into(),
+        );
+    }
+    let mut request = frozen_request(
+        project,
+        scene,
+        &context["scene"],
+        sources[0]["hash"].clone(),
+        "llm",
+        language,
+        id,
+        created,
+    )?;
+    request["operation"] = json!("consistency");
+    request["scope"] = context["scope"].clone();
+    request["sources"] = json!(sources
+        .iter()
+        .map(|s| {
+            let mut s = s.clone();
+            s["language"] = json!(if s["kind"] == "facts" {
+                "und"
+            } else {
+                language
+            });
+            s
+        })
+        .collect::<Vec<_>>());
+    Ok(request)
+}
+fn confirm_consistency(a: &Workspace, context: &Value) -> bool {
+    let dialog = gtk::Dialog::with_buttons(
+        Some("Confirm one-scene consistency scope"),
+        Some(&a.window),
+        gtk::DialogFlags::MODAL,
+        &[
+            ("Cancel", gtk::ResponseType::Cancel),
+            ("Review this saved scope", gtk::ResponseType::Accept),
+        ],
+    );
+    dialog.set_default_size(900, 600);
+    dialog.set_accept_focus(a.window.accepts_focus());
+    dialog.set_focus_on_map(a.window.accepts_focus());
+    let scope = &context["scope"];
+    let summary=gtk::Label::new(Some(&format!("Included: this one saved scene and {} explicitly confirmed canonical facts. Excluded: {} other scenes and {} unconfirmed, belief, rumor, proposal or unknown rows. Whole-book review is excluded. Event timing is unknown or unprovided: eventId/untilEventId scopes remain attached to facts and must not be treated as universal truths or contradictions without timing evidence. Findings remain provisional questions; accepting a review note never changes canon or writing.",scope["includedFactIds"].as_array().map_or(0,Vec::len),scope["excludedSceneCount"],scope["excludedFacts"].as_array().map_or(0,Vec::len))));
+    summary.set_line_wrap(true);
+    summary.set_xalign(0.);
+    dialog.content_area().pack_start(&summary, false, false, 8);
+    let panes = gtk::Paned::new(gtk::Orientation::Horizontal);
+    let facts: Value = serde_json::from_str(context["sources"][1]["text"].as_str().unwrap_or(""))
+        .unwrap_or(Value::Null);
+    let text = facts["facts"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|f| {
+            let name = facts["records"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|r| r["id"] == f["subjectId"])
+                .and_then(|r| r["name"].as_str())
+                .unwrap_or("Subject");
+            format!(
+                "{} · {}: {}\nAuthored temporal scope: eventId={}, untilEventId={} (timing unknown or unprovided)",
+                name,
+                f["property"].as_str().unwrap_or(""),
+                f["value"].as_str().unwrap_or(""),
+                f["eventId"],
+                f["untilEventId"]
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let exclusions = scope["excludedFacts"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|f| {
+            format!(
+                "{} · {}",
+                f["id"].as_str().unwrap_or(""),
+                f["reason"].as_str().unwrap_or("Excluded")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    for (title, text, left) in [
+        (
+            "Exact saved scene",
+            context["sources"][0]["text"]
+                .as_str()
+                .unwrap_or("")
+                .to_owned(),
+            true,
+        ),
+        (
+            "Confirmed facts and excluded rows",
+            format!("{text}\n\nExcluded fact rows:\n{exclusions}"),
+            false,
+        ),
+    ] {
+        let column = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        column.pack_start(&gtk::Label::new(Some(title)), false, false, 0);
+        let view = gtk::TextView::new();
+        view.set_editable(false);
+        view.set_cursor_visible(false);
+        view.set_wrap_mode(gtk::WrapMode::WordChar);
+        view.buffer().unwrap().set_text(&text);
+        column.pack_start(&scroll(&view), true, true, 0);
+        if left {
+            panes.pack1(&column, true, false);
+        } else {
+            panes.pack2(&column, true, false);
+        }
+    }
+    dialog.content_area().pack_start(&panes, true, true, 8);
+    dialog.show_all();
+    let accepted = dialog.run() == gtk::ResponseType::Accept;
+    dialog.close();
+    accepted
+}
 fn result_within_scope(result: &Value, request: &Value) -> Result<(), String> {
     let sources = request["sources"]
         .as_array()
@@ -134,6 +323,23 @@ fn result_within_scope(result: &Value, request: &Value) -> Result<(), String> {
         .filter(|items| items.len() <= 100)
         .ok_or("The local provider returned an invalid suggestion list.")?;
     for suggestion in suggestions {
+        super::review_decisions::validate_provider_evidence(suggestion, &request["sources"])?;
+        if request["operation"] == "consistency" {
+            let expected = sources.iter().map(source_ref).collect::<Vec<_>>();
+            let actual = suggestion["sources"]
+                .as_array()
+                .map(|s| s.iter().map(source_ref).collect::<Vec<_>>());
+            if suggestion["action"]["kind"] != "question"
+                || actual.as_ref() != Some(&expected)
+                || !suggestion["evidence"].as_array().is_some_and(|anchors| {
+                    anchors
+                        .iter()
+                        .any(|a| a["sceneId"] == sources[0]["sceneId"])
+                })
+            {
+                return Err("Consistency output must be a provisional question with manuscript evidence and the complete saved scene/fact basis.".into());
+            }
+        }
         if suggestion["status"] != "pending"
             || !suggestion["sources"]
                 .as_array()
@@ -148,6 +354,34 @@ fn result_within_scope(result: &Value, request: &Value) -> Result<(), String> {
     Ok(())
 }
 
+/// Original evidence/scope must be checked before author exceptions are applied.
+/// Uses root's separately-owned exact quote/language proofreading-only helper.
+fn filter_validated_result(
+    result: &Value,
+    settings: &Value,
+    language: &str,
+) -> Result<Value, String> {
+    let retained = super::proofreading_exceptions::filter(
+        result["suggestions"]
+            .as_array()
+            .ok_or("Invalid validated review result.")?,
+        settings,
+        language,
+    )?;
+    let mut next = result.clone();
+    next["suggestions"] = json!(retained);
+    Ok(next)
+}
+
+fn checked_provider_result(
+    result: &Value,
+    request: &Value,
+    settings: &Value,
+) -> Result<Value, String> {
+    result_within_scope(result, request)?;
+    filter_validated_result(result, settings, request["language"].as_str().unwrap_or(""))
+}
+
 struct ReviewRun {
     page: Weak<ReviewDecisionsPage>,
     pane: RefCell<Weak<EditorPane>>,
@@ -159,6 +393,8 @@ struct ReviewRun {
     request: RefCell<Value>,
     result: RefCell<Option<Value>>,
     binding: Cell<bool>,
+    operation: String,
+    settings: RefCell<Value>,
 }
 impl ReviewRun {
     fn mounted(&self) -> Option<(Rc<Workspace>, Rc<ReviewDecisionsPage>)> {
@@ -254,9 +490,12 @@ impl ReviewRun {
         let run = self.clone();
         self.client.rpc("load_project_data_unambiguous",json!({"projectId":self.project,"kind":"settings"}),move|reply|{
             if run.owner().is_none(){run.cancel(None);return;}
-            let config=match reply.and_then(|snapshot|configuration(&snapshot,&provider)){Ok(v)=>v,Err(e)=>{run.fail(&e);return;}};
+            let settings=match reply{Ok(v)=>v,Err(e)=>{run.fail(&e);return;}};
+            let config=match configuration(&settings,&provider){Ok(v)=>v,Err(e)=>{run.fail(&e);return;}};
+            *run.settings.borrow_mut()=if settings.is_null(){crate::tools::initial("settings")}else{settings["payload"].clone()};
             let Some(pane)=run.pane.borrow().upgrade()else{run.fail("The captured writing session closed before review. Open the scene and request review again.");return;};
             if !pane_ready(&pane){run.fail("Save the scene and finish pending input before requesting a review. No provider request was sent.");return;}
+            if run.operation=="consistency" {run.prepare_consistency(pane,config,language);return;}
             let out=run.clone();run.client.rpc("load_project_scene",json!({"projectId":run.project,"sceneId":pane.scene_id}),move|reply|{
                 if out.owner().is_none(){out.cancel(None);return;}
                 let saved=match reply{Ok(v)if exact_pane(&pane,&v)=>v,Ok(_)=>{out.fail("The saved scene or current writing changed during review capture. No provider request was sent.");return;},Err(e)=>{out.fail(&e);return;}};
@@ -274,6 +513,25 @@ impl ReviewRun {
                         *out.request.borrow_mut()=request.clone();out.dispatch(request,config);
                     });
                 });
+            });
+        });
+    }
+    fn prepare_consistency(self: &Rc<Self>, pane: Rc<EditorPane>, config: Value, language: String) {
+        let run = self.clone();
+        self.client.rpc("review_context_snapshot",json!({"projectId":self.project,"sceneId":pane.scene_id}),move|reply|{
+            let Some((a,_))=run.owner()else{run.cancel(None);return;};
+            let context=match reply{Ok(v)if exact_pane(&pane,&v["scene"])=>v,Ok(_)=>{run.fail("Saved scene changed during consistency capture. No provider request was sent.");return;},Err(e)=>{run.fail(&e);return;}};
+            let created=match glib::DateTime::now_utc().and_then(|t|t.format("%Y-%m-%dT%H:%M:%SZ")){Ok(v)=>v,Err(_)=>{run.fail("Could not timestamp review.");return;}};
+            let request=match consistency_request(&run.project,&pane.scene_id,&context,&language,&run.id,&created){Ok(v)=>v,Err(e)=>{run.fail(&e);return;}};
+            if !confirm_consistency(&a,&context){run.cancel(Some("Consistency review cancelled; no provider request was sent."));return;}
+            if run.owner().is_none(){run.cancel(None);return;}
+            let refs=json!(request["sources"].as_array().unwrap().iter().map(source_ref).collect::<Vec<_>>());let out=run.clone();
+            run.client.rpc("review_context_check",json!({"projectId":run.project,"sources":refs}),move|reply|{
+                if out.owner().is_none(){out.cancel(None);return;}
+                match reply{Ok(v)if v["sources"]==refs=>(),Ok(_)=>{out.fail("The consistency basis changed; no provider request was sent.");return;},Err(e)=>{out.fail(&e);return;}}
+                if !exact_pane(&pane,&context["scene"]){out.fail("Writing changed after scope confirmation. No provider request was sent.");return;}
+                if let Some((_,page))=out.owner(){page.bind_scene(&pane);page.status.set_text("Reviewing one saved scene with the explicitly confirmed fact scope. Findings remain provisional questions; editing and manual Save remain available.");}
+                *out.request.borrow_mut()=request.clone();out.dispatch(request,config);
             });
         });
     }
@@ -310,8 +568,8 @@ impl ReviewRun {
             return;
         }
         let result = match reply.and_then(|result| {
-            result_within_scope(&result, &self.request.borrow())?;
-            Ok(result)
+            let request = self.request.borrow();
+            checked_provider_result(&result, &request, &self.settings.borrow())
         }) {
             Ok(v) => v,
             Err(e) => {
@@ -319,6 +577,26 @@ impl ReviewRun {
                 return;
             }
         };
+        let mut result = result;
+        if self.request.borrow()["operation"] == "consistency" {
+            let request = self.request.borrow();
+            for suggestion in result["suggestions"].as_array_mut().unwrap() {
+                suggestion["reviewOperation"] = json!("consistency");
+                suggestion["reviewScope"] = request["scope"].clone();
+                for key in ["sources", "evidence"] {
+                    for source in suggestion[key].as_array_mut().unwrap() {
+                        let kind = request["sources"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .find(|s| s["sceneId"] == source["sceneId"])
+                            .unwrap()["kind"]
+                            .clone();
+                        source["kind"] = kind;
+                    }
+                }
+            }
+        }
         *self.result.borrow_mut() = Some(result);
         self.deliver();
     }
@@ -380,6 +658,7 @@ impl ReviewRun {
         page.bind_scene(&pane);
         let result = self.result.borrow_mut().take().unwrap();
         if let Err(e) = page.append_result(&a, &result) {
+            // The exact validated result and source-kind manifest are retained.
             *self.result.borrow_mut() = Some(result);
             page.status.set_text(&format!(
                 "Review result retained; proposals were not saved. {e}"
@@ -395,8 +674,14 @@ fn attach_review_controls(page: &Rc<ReviewDecisionsPage>) {
     let widget = page.widget.downgrade();
     let target = widget.clone();
     button(&row, "Cancel local review", move || {
-        let Some(target) = target.upgrade() else { return; };
-        let run = REVIEW_RUNS.with(|runs| runs.borrow().get(target.upcast_ref::<gtk::Widget>()).cloned());
+        let Some(target) = target.upgrade() else {
+            return;
+        };
+        let run = REVIEW_RUNS.with(|runs| {
+            runs.borrow()
+                .get(target.upcast_ref::<gtk::Widget>())
+                .cloned()
+        });
         if let Some(run) = run {
             run.cancel(Some(
                 "Local review cancelled. Retained proposals and writing are unchanged.",
@@ -404,8 +689,14 @@ fn attach_review_controls(page: &Rc<ReviewDecisionsPage>) {
         }
     });
     button(&row, "Receive review result", move || {
-        let Some(widget) = widget.upgrade() else { return; };
-        let run = REVIEW_RUNS.with(|runs| runs.borrow().get(widget.upcast_ref::<gtk::Widget>()).cloned());
+        let Some(widget) = widget.upgrade() else {
+            return;
+        };
+        let run = REVIEW_RUNS.with(|runs| {
+            runs.borrow()
+                .get(widget.upcast_ref::<gtk::Widget>())
+                .cloned()
+        });
         if let Some(run) = run {
             run.deliver();
         }
@@ -431,11 +722,12 @@ fn mount_review(a: &Rc<Workspace>, pane: &Rc<EditorPane>) -> Option<Rc<ReviewDec
     page.load(a);
     Some(page)
 }
-fn begin_review(
+fn begin_review_operation(
     a: &Rc<Workspace>,
     pane: &Rc<EditorPane>,
     provider: String,
     language: String,
+    operation: String,
 ) -> Option<Rc<ReviewRun>> {
     let page = mount_review(a, pane)?;
     let run = Rc::new(ReviewRun {
@@ -449,10 +741,26 @@ fn begin_review(
         request: RefCell::new(Value::Null),
         result: RefCell::new(None),
         binding: Cell::new(false),
+        operation,
+        settings: RefCell::new(crate::tools::initial("settings")),
     });
     REVIEW_RUNS.with(|runs| runs.borrow_mut().insert(run.widget.clone(), run.clone()));
     run.wait_loaded(provider, language, Instant::now());
     Some(run)
+}
+#[cfg(test)]
+fn begin_review(
+    a: &Rc<Workspace>,
+    pane: &Rc<EditorPane>,
+    provider: String,
+    language: String,
+) -> Option<Rc<ReviewRun>> {
+    let operation = if provider == "llm" {
+        "wording"
+    } else {
+        "grammar"
+    };
+    begin_review_operation(a, pane, provider, language, operation.into())
 }
 fn pending_review(project: &str) -> bool {
     let runs = REVIEW_RUNS.with(|runs| runs.borrow().values().cloned().collect::<Vec<_>>());
@@ -566,6 +874,26 @@ impl Workspace {
         ) else {
             return;
         };
+        let operation = if provider == "llm" {
+            let Some(operation) = choose_option(
+                &a.window,
+                "Local review operation",
+                &[
+                    ("wording", "Wording"),
+                    ("consistency", "One-scene consistency"),
+                ],
+                "wording",
+            ) else {
+                return;
+            };
+            if !matches!(operation.as_str(), "wording" | "consistency") {
+                a.error("Choose Wording or One-scene consistency.");
+                return;
+            }
+            operation
+        } else {
+            "grammar".into()
+        };
         let Some(language) = choose_option(&a.window, "Review language", LANGUAGES, "en") else {
             return;
         };
@@ -580,7 +908,7 @@ impl Workspace {
             if !live(&out,&project){return;}if let Err(e)=reply{out.error(&e);return;}
             if !pane_ready(&pane)||!out.context_pane().is_some_and(|current|Rc::ptr_eq(&current,&pane)){out.error("The scene context changed during manual drain. Request review again from its writing page.");return;}
             if pending_review(&project){out.error("This novel already has a pending local review.");return;}
-            begin_review(&out,&pane,provider,language);
+            begin_review_operation(&out,&pane,provider,language,operation);
         });
     }
     /// Root calls only after accepting release, before registry removal. A

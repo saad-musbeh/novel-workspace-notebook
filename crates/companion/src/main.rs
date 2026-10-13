@@ -76,6 +76,8 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "statistics" => encode(storage.statistics(&argument::<String>(&args,"projectId")?).await?),
         "export_archive" => encode(storage.export_archive(&argument::<String>(&args,"projectId")?).await?),
         "import_archive" => encode(storage.import_archive(&argument::<String>(&args,"archive")?).await?),
+        "review_context_snapshot" => encode(storage.review_context_snapshot(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"sceneId")?).await?),
+        "review_context_check" => encode(storage.review_context_check(&argument::<String>(&args,"projectId")?,&argument::<Vec<ReviewSource>>(&args,"sources")?).await?),
         "review_sources_check" => encode(storage.review_sources_check(&argument::<String>(&args,"projectId")?,&argument::<Vec<ReviewSource>>(&args,"sources")?).await?),
         "planning_read_snapshot" => encode(storage.planning_read_snapshot(&argument::<String>(&args,"projectId")?).await?),
         "alphabet_export_snapshot" => encode(storage.alphabet_export_snapshot(&argument::<String>(&args,"projectId")?).await?),

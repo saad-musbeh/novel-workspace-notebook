@@ -110,6 +110,33 @@ export interface ChapterEditSnapshot {
   chapterNumberStart: number;
 }
 
+export interface ReviewContextSource {
+  sceneId: string;
+  revisionId: string;
+  hash: string;
+  kind: string;
+  text: string;
+}
+
+export interface ExcludedReviewFact {
+  id: string;
+  reason: string;
+}
+
+export interface ReviewContextScope {
+  includedSceneId: string;
+  excludedSceneCount: number;
+  includedFactIds: Array<string>;
+  excludedFacts: Array<ExcludedReviewFact>;
+  timingIncluded: boolean;
+}
+
+export interface ReviewContextSnapshot {
+  scene: SceneRecord;
+  sources: Array<ReviewContextSource>;
+  scope: ReviewContextScope;
+}
+
 export interface ReviewSource {
   sceneId: string;
   revisionId: string;
@@ -765,6 +792,105 @@ export const workspaceWireSchema = {
         "rustName": "chapter_number_start",
         "name": "chapterNumberStart",
         "rustType": "i64"
+      }
+    ]
+  },
+  "ReviewContextSource": {
+    "source": "crates/storage/src/review_context.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "scene_id",
+        "name": "sceneId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "revision_id",
+        "name": "revisionId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "hash",
+        "name": "hash",
+        "rustType": "String"
+      },
+      {
+        "rustName": "kind",
+        "name": "kind",
+        "rustType": "String"
+      },
+      {
+        "rustName": "text",
+        "name": "text",
+        "rustType": "String"
+      }
+    ]
+  },
+  "ExcludedReviewFact": {
+    "source": "crates/storage/src/review_context.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "id",
+        "name": "id",
+        "rustType": "String"
+      },
+      {
+        "rustName": "reason",
+        "name": "reason",
+        "rustType": "String"
+      }
+    ]
+  },
+  "ReviewContextScope": {
+    "source": "crates/storage/src/review_context.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "included_scene_id",
+        "name": "includedSceneId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "excluded_scene_count",
+        "name": "excludedSceneCount",
+        "rustType": "i64"
+      },
+      {
+        "rustName": "included_fact_ids",
+        "name": "includedFactIds",
+        "rustType": "Vec<String>"
+      },
+      {
+        "rustName": "excluded_facts",
+        "name": "excludedFacts",
+        "rustType": "Vec<ExcludedReviewFact>"
+      },
+      {
+        "rustName": "timing_included",
+        "name": "timingIncluded",
+        "rustType": "bool"
+      }
+    ]
+  },
+  "ReviewContextSnapshot": {
+    "source": "crates/storage/src/review_context.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "scene",
+        "name": "scene",
+        "rustType": "SceneRecord"
+      },
+      {
+        "rustName": "sources",
+        "name": "sources",
+        "rustType": "Vec<ReviewContextSource>"
+      },
+      {
+        "rustName": "scope",
+        "name": "scope",
+        "rustType": "ReviewContextScope"
       }
     ]
   },
@@ -1831,6 +1957,8 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   export_archive: {args: {projectId: string;}; result: string};
   import_archive: {args: {archive: string;}; result: ProjectBundle<TScene>};
   load_project_data: {args: {projectId: string; kind: string;}; result: (ProjectDataSnapshot | null)};
+  review_context_snapshot: {args: {projectId: string; sceneId: string;}; result: ReviewContextSnapshot};
+  review_context_check: {args: {projectId: string; sources: Array<ReviewSource>;}; result: ReviewSourcesCheck};
   review_sources_check: {args: {projectId: string; sources: Array<ReviewSource>;}; result: ReviewSourcesCheck};
   planning_read_snapshot: {args: {projectId: string;}; result: PlanningReadSnapshot};
   alphabet_export_snapshot: {args: {projectId: string;}; result: AlphabetExportSnapshot};
@@ -1893,6 +2021,8 @@ export const storageRpcCoverage = {
     "export_archive",
     "import_archive",
     "load_project_data",
+    "review_context_snapshot",
+    "review_context_check",
     "review_sources_check",
     "planning_read_snapshot",
     "alphabet_export_snapshot",

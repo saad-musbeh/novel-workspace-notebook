@@ -111,6 +111,86 @@ fn save_failure(applied: bool, error: &str) -> String {
     };
     format!("{prefix} Retry Save review records or discard pending decisions. {error}")
 }
+fn consistency(s: &Value) -> bool {
+    s["reviewOperation"] == "consistency"
+        || s["sources"].as_array().is_some_and(|sources| {
+            sources.iter().any(|source| {
+                source["kind"] == "facts"
+                    || source["sceneId"]
+                        .as_str()
+                        .is_some_and(|id| id.starts_with("planning:"))
+            })
+        })
+}
+fn consistency_refs(s: &Value, project: &str) -> Result<Value, String> {
+    validate_suggestion(s)?;
+    let sources = apply_sources(s)?;
+    if s["action"]["kind"] != "question"
+        || sources.as_array().map_or(0, Vec::len) != 2
+        || sources[0]["sceneId"]
+            .as_str()
+            .is_some_and(|s| s.starts_with("planning:"))
+        || sources[1]["sceneId"] != format!("planning:{project}")
+    {
+        return Err("Consistency decisions require a provisional question, one manuscript scene and this project's saved fact context.".into());
+    }
+    Ok(sources)
+}
+fn checked_consistency_basis(
+    s: &Value,
+    project: &str,
+    context: &Value,
+) -> Result<Vec<Value>, String> {
+    let expected = consistency_refs(s, project)?;
+    let actual = context["sources"]
+        .as_array()
+        .filter(|s| s.len() == 2)
+        .ok_or("Missing checked saved consistency basis.")?;
+    if actual[0]["kind"] != "scene" || actual[1]["kind"] != "facts" {
+        return Err("Fact context cannot be treated as editable manuscript.".into());
+    }
+    for (source, reference) in actual.iter().zip(expected.as_array().unwrap()) {
+        if !same_source(source, reference) {
+            return Err("The reviewed manuscript or saved planning context changed. No decision was accepted.".into());
+        }
+    }
+    let mut manuscript = false;
+    for anchor in s["evidence"].as_array().unwrap() {
+        let source = actual
+            .iter()
+            .find(|source| same_source(source, anchor))
+            .ok_or("Evidence is outside the checked consistency scope.")?;
+        let text = string(source, "text")?;
+        let start = scalar_at(text, offset(&anchor["start"])?)?;
+        let end = scalar_at(text, offset(&anchor["end"])?)?;
+        let chars = text.chars().collect::<Vec<_>>();
+        if chars[start..end].iter().collect::<String>() != string(anchor, "quote")?
+            || !chars[..start]
+                .iter()
+                .collect::<String>()
+                .ends_with(string(anchor, "prefix")?)
+            || !chars[end..]
+                .iter()
+                .collect::<String>()
+                .starts_with(string(anchor, "suffix")?)
+        {
+            return Err(
+                "Consistency evidence quote or context differs from its exact saved projection."
+                    .into(),
+            );
+        }
+        manuscript |= source["kind"] == "scene";
+    }
+    if !manuscript {
+        return Err(
+            "Consistency questions require manuscript evidence, not fact context alone.".into(),
+        );
+    }
+    Ok(vec![
+        json!({"entityId":expected[0]["sceneId"],"entityType":"scene","revisionId":expected[0]["revisionId"]}),
+        json!({"entityId":format!("{project}:planning"),"entityType":"projectData","revisionId":expected[1]["revisionId"]}),
+    ])
+}
 fn validate_suggestion(s: &Value) -> Result<(), String> {
     for (key, max) in [("id", 300), ("title", 300), ("explanation", 5000)] {
         let text = string(s, key)?;
@@ -179,6 +259,43 @@ fn validate_suggestion(s: &Value) -> Result<(), String> {
     }
     Ok(())
 }
+/// Validate the ORIGINAL provider records before any spelling-exception filter.
+/// Scope filtering cannot turn malformed evidence into an empty valid result.
+pub(super) fn validate_provider_evidence(s: &Value, sources: &Value) -> Result<(), String> {
+    validate_suggestion(s)?;
+    let sources = sources.as_array().ok_or("Missing provider scope.")?;
+    if s["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| !sources.iter().any(|source| same_source(source, r)))
+    {
+        return Err("Provider source is outside its captured manifest.".into());
+    }
+    for anchor in s["evidence"].as_array().unwrap() {
+        let source = sources
+            .iter()
+            .find(|source| same_source(source, anchor))
+            .ok_or("Provider evidence is outside its captured manifest.")?;
+        let text = string(source, "text")?;
+        let start = scalar_at(text, offset(&anchor["start"])?)?;
+        let end = scalar_at(text, offset(&anchor["end"])?)?;
+        let chars = text.chars().collect::<Vec<_>>();
+        if chars[start..end].iter().collect::<String>() != string(anchor, "quote")?
+            || !chars[..start]
+                .iter()
+                .collect::<String>()
+                .ends_with(string(anchor, "prefix")?)
+            || !chars[end..]
+                .iter()
+                .collect::<String>()
+                .starts_with(string(anchor, "suffix")?)
+        {
+            return Err("Provider evidence does not match its exact captured source text.".into());
+        }
+    }
+    Ok(())
+}
 /// Returns one rich paragraph replacement. Hash is computed by the existing
 /// text_hash RPC from the freshly loaded saved document, never from model claims.
 fn checked_replacement(
@@ -187,6 +304,9 @@ fn checked_replacement(
     verified_hash: &Value,
 ) -> Result<(usize, Value), String> {
     validate_suggestion(s)?;
+    if consistency(s) {
+        return Err("Consistency context is supporting evidence only; no manuscript or fact replacement is allowed.".into());
+    }
     if s["status"] != "pending" || s["action"]["kind"] != "replace" {
         return Err(
             "Choose a pending text replacement. Questions and facts remain proposals.".into(),
@@ -328,6 +448,7 @@ pub(super) struct ReviewDecisionsPage {
     details: gtk::TextView,
     apply_button: gtk::Button,
     reject_button: gtk::Button,
+    accept_question_button: gtk::Button,
     updating: Cell<bool>,
     applied_pending: Cell<bool>,
     dependencies: RefCell<Vec<Value>>,
@@ -361,6 +482,9 @@ impl ReviewDecisionsPage {
         widget.pack_start(&row, false, false, 0);
         let apply_button = button(&row, "Apply selected replacement to draft", || {});
         let reject_button = button(&row, "Reject selected proposal", || {});
+        let question_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        widget.pack_start(&question_row, false, false, 0);
+        let accept_question_button = button(&question_row, "Accept question as review note", || {});
         let retry = button(&row, "Save review records", || {});
         let open_scene = button(&row, "Open reviewed scene", || {});
         let discard = button(&row, "Discard pending decisions", || {});
@@ -377,6 +501,7 @@ impl ReviewDecisionsPage {
             details,
             apply_button,
             reject_button,
+            accept_question_button,
             project_id,
             scene_pane: RefCell::new(std::rc::Weak::new()),
             value: RefCell::new(initial.clone()),
@@ -408,6 +533,7 @@ impl ReviewDecisionsPage {
             (&retry, 2),
             (&discard, 3),
             (&open_scene, 4),
+            (&p.accept_question_button, 5),
         ] {
             let weak = Rc::downgrade(&p);
             b.connect_clicked(move |_| {
@@ -422,6 +548,7 @@ impl ReviewDecisionsPage {
                                     p.discard();
                                 }
                             }
+                            5 => p.question_decision(&a, "accepted"),
                             _ => {
                                 if let Some(s) = p.selected() {
                                     if let Some(id) = s["evidence"][0]["sceneId"].as_str() {
@@ -483,12 +610,12 @@ impl ReviewDecisionsPage {
                 format!(
                     "{}\n{}\n\nQuoted original:\n{}\n\nProposed action:\n{}",
                     s["title"].as_str().unwrap_or("Proposal"),
-                    s["explanation"].as_str().unwrap_or(""),
+                    format!("{}{}",s["explanation"].as_str().unwrap_or(""),if consistency(s){"\nProvisional one-scene consistency question. Accept records a review note; it never establishes canon or timing."}else{""}),
                     s["evidence"]
                         .as_array()
                         .into_iter()
                         .flatten()
-                        .filter_map(|e| e["quote"].as_str())
+                        .filter_map(|e| e["quote"].as_str().map(|quote|format!("{}:\n{}",if e["kind"]=="facts"||e["sceneId"].as_str().is_some_and(|id|id.starts_with("planning:")){"Supporting confirmed fact context"}else{"Saved manuscript"},quote)))
                         .collect::<Vec<_>>()
                         .join("\n\n"),
                     serde_json::to_string_pretty(&s["action"]).unwrap_or_default()
@@ -502,9 +629,15 @@ impl ReviewDecisionsPage {
         self.choices.set_sensitive(ready);
         self.apply_button.set_sensitive(
             ready
-                && selected
-                    .as_ref()
-                    .is_some_and(|s| s["status"] == "pending" && s["action"]["kind"] == "replace"),
+                && selected.as_ref().is_some_and(|s| {
+                    s["status"] == "pending" && s["action"]["kind"] == "replace" && !consistency(s)
+                }),
+        );
+        self.accept_question_button.set_sensitive(
+            ready
+                && selected.as_ref().is_some_and(|s| {
+                    s["status"] == "pending" && s["action"]["kind"] == "question" && consistency(s)
+                }),
         );
         self.reject_button
             .set_sensitive(ready && selected.is_some_and(|s| s["status"] == "pending"));
@@ -623,6 +756,10 @@ impl ReviewDecisionsPage {
         let Some(s) = self.selected() else {
             return;
         };
+        if consistency(&s) {
+            self.question_decision(a, "rejected");
+            return;
+        }
         let decision = decided(
             &self.value.borrow(),
             s["id"].as_str().unwrap_or(""),
@@ -637,6 +774,52 @@ impl ReviewDecisionsPage {
             Err(e) => self.status.set_text(&e),
         }
     }
+    /// Accept is a provisional review note, never a canonical fact or scene edit.
+    /// Consistency Reject also verifies both heads, preserving stale questions for
+    /// comparison instead of silently recording a decision on a different basis.
+    fn question_decision(self: &Rc<Self>, a: &Rc<Workspace>, decision: &str) {
+        if !self.loaded.get() || self.dirty.get() || self.saving.get() || self.composing.get() {
+            return;
+        }
+        let Some(s) = self.selected() else {
+            return;
+        };
+        if s["status"] != "pending" {
+            return;
+        }
+        let refs = match consistency_refs(&s, &self.project_id) {
+            Ok(v) => v,
+            Err(e) => {
+                self.status.set_text(&e);
+                return;
+            }
+        };
+        if !matches!(decision, "accepted" | "rejected") {
+            return;
+        }
+        let decision = decision.to_owned();
+        self.saving.set(true);
+        self.render_details();
+        self.status.set_text("Checking the saved scene and confirmed planning context before recording this review note…");
+        let p = self.clone();
+        let owner = a.clone();
+        a.client.rpc("review_context_snapshot",json!({"projectId":self.project_id,"sceneId":refs[0]["sceneId"]}),move|reply|{
+            if p.owner().is_none(){p.fail("The review page closed before its decision.");return;}
+            let context=match reply{Ok(v)=>v,Err(e)=>{p.fail(&e);return;}};
+            let dependencies=match checked_consistency_basis(&s,&p.project_id,&context){Ok(v)=>v,Err(e)=>{p.fail(&e);return;}};
+            #[cfg(test)]{let action=p.before_sources_check.borrow_mut().take();if let Some(action)=action{action();}}
+            let out=p.clone();owner.client.rpc("review_context_check",json!({"projectId":p.project_id,"sources":refs}),move|reply|{
+                if out.owner().is_none(){out.fail("The review page closed before its decision.");return;}
+                match reply{Ok(v)if v["sources"]==refs=>(),Ok(_)=>{out.fail("The saved consistency basis changed; no decision was accepted.");return;},Err(e)=>{out.fail(&e);return;}}
+                let candidate=decided(&out.value.borrow(),s["id"].as_str().unwrap(),&decision);
+                let candidate=match candidate{Ok(v)=>v,Err(e)=>{out.fail(&e);return;}};
+                *out.value.borrow_mut()=candidate;*out.dependencies.borrow_mut()=dependencies;out.dirty.set(true);out.saving.set(false);
+                #[cfg(test)]{let action=out.before_decision_save.borrow_mut().take();if let Some(action)=action{action();}}
+                let p=out.clone();let Some(current)=out.owner()else{out.fail("The review decision was not accepted; candidate retained.");return;};
+                out.save(&current,move|reply|match reply{Ok(())=>p.status.set_text("Provisional review note decision saved. Manuscript and canonical facts unchanged."),Err(e)=>p.status.set_text(&format!("The review decision was not accepted; candidate retained. Writing and canon are unchanged. {e}"))});
+            });
+        });
+    }
     fn apply(self: &Rc<Self>, a: &Rc<Workspace>) {
         if self.dirty.get() || self.saving.get() || !self.loaded.get() {
             return;
@@ -648,17 +831,29 @@ impl ReviewDecisionsPage {
             self.status.set_text(&e);
             return;
         }
-        if s["status"] != "pending" || s["action"]["kind"] != "replace" {
+        if s["status"] != "pending" || s["action"]["kind"] != "replace" || consistency(&s) {
             return;
         }
         if let Err(e) = apply_sources(&s) {
             self.status.set_text(&e);
             return;
         }
-        let sid=s["evidence"][0]["sceneId"].as_str().unwrap_or("");
-        let target=self.scene_pane.borrow().upgrade().filter(|pane|pane.scene_id==sid).or_else(||a.panes.borrow().get(sid).cloned());
-        let Some(target)=target else{self.fail("Open the reviewed scene in this window before Apply.");return;};
-        let Some(permit)=sequence_host::tool_input_permit(a,&target)else{self.fail("Finish the current scene operation before Apply.");return;};let input=Rc::new((target,permit));
+        let sid = s["evidence"][0]["sceneId"].as_str().unwrap_or("");
+        let target = self
+            .scene_pane
+            .borrow()
+            .upgrade()
+            .filter(|pane| pane.scene_id == sid)
+            .or_else(|| a.panes.borrow().get(sid).cloned());
+        let Some(target) = target else {
+            self.fail("Open the reviewed scene in this window before Apply.");
+            return;
+        };
+        let Some(permit) = sequence_host::tool_input_permit(a, &target) else {
+            self.fail("Finish the current scene operation before Apply.");
+            return;
+        };
+        let input = Rc::new((target, permit));
         self.saving.set(true);
         self.render_details();
         self.status
@@ -672,9 +867,12 @@ impl ReviewDecisionsPage {
         index: usize,
         dependencies: Vec<Value>,
         target: Option<(Value, Value)>,
-        input: Rc<(Rc<EditorPane>,sequence_host::InputPermit)>,
+        input: Rc<(Rc<EditorPane>, sequence_host::InputPermit)>,
     ) {
-        if !sequence_host::tool_input_allowed(&input.0,&input.1){self.fail("Apply authorization changed; proposal and writing retained.");return;}
+        if !sequence_host::tool_input_allowed(&input.0, &input.1) {
+            self.fail("Apply authorization changed; proposal and writing retained.");
+            return;
+        }
         if self.owner().is_none() {
             self.fail("Review page closed before Apply.");
             return;
@@ -710,9 +908,12 @@ impl ReviewDecisionsPage {
         dependencies: Vec<Value>,
         saved: Value,
         hash: Value,
-        input: Rc<(Rc<EditorPane>,sequence_host::InputPermit)>,
+        input: Rc<(Rc<EditorPane>, sequence_host::InputPermit)>,
     ) {
-        if !sequence_host::tool_input_allowed(&input.0,&input.1){self.fail("Apply authorization changed; proposal and writing retained.");return;}
+        if !sequence_host::tool_input_allowed(&input.0, &input.1) {
+            self.fail("Apply authorization changed; proposal and writing retained.");
+            return;
+        }
         let (index, replacement) = match checked_replacement(&s, &saved, &hash) {
             Ok(v) => v,
             Err(e) => {
@@ -744,7 +945,11 @@ impl ReviewDecisionsPage {
                     return;
                 }
             };
-            if !Rc::ptr_eq(&pane,&input.0) || !sequence_host::tool_input_allowed(&pane,&input.1) || p.owner().is_none() || !pane_matches(&pane, &saved) {
+            if !Rc::ptr_eq(&pane, &input.0)
+                || !sequence_host::tool_input_allowed(&pane, &input.1)
+                || p.owner().is_none()
+                || !pane_matches(&pane, &saved)
+            {
                 p.fail("Open and save the current scene; finish pending input before Apply.");
                 return;
             }

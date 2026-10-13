@@ -244,13 +244,14 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "scene-recovery"=>super::super::scene_conflicts::tests::run(&binaries),
             "review-decisions"|"translations"|"review-translations"=>review_translation_workflows(&binaries),
             "review-host"=>super::super::review_host::tests::run(&binaries),
+            "consistency"=>super::super::review_host::tests::run_consistency(&binaries),
             "alphabets"=>super::super::alphabet_host::tests::run(&binaries),
             "alphabet-editor"=>alphabet_editor_forms::run(&binaries),
             "licensed-imports"=>super::super::licensed_imports::tests::run(&binaries),
             "alphabet-export"=>super::super::alphabet_export::tests::run(&binaries),
-            "custom-fields"=>crate::tools::custom_fields::tests::run_gtk(&binaries),
             "statistics"=>super::super::statistics::tests::run(&binaries),
             "continuity"=>super::super::continuity::tests::run(&binaries),
+            "custom-fields"=>crate::tools::custom_fields::tests::run_gtk(&binaries),
             "universe"=>super::super::universe_views::tests::run(&binaries),
             "sequences"=>sequence_workflows(&binaries),
             _=>panic!("Unknown native test section: {section}"),
@@ -280,13 +281,14 @@ fn notebook_navigation_manual_save_and_multi_window() {
     super::super::scene_conflicts::tests::run(&binaries);
     review_translation_workflows(&binaries);
     super::super::review_host::tests::run(&binaries);
+    super::super::review_host::tests::run_consistency(&binaries);
     super::super::alphabet_host::tests::run(&binaries);
     alphabet_editor_forms::run(&binaries);
     super::super::licensed_imports::tests::run(&binaries);
     super::super::alphabet_export::tests::run(&binaries);
-    crate::tools::custom_fields::tests::run_gtk(&binaries);
     super::super::statistics::tests::run(&binaries);
     super::super::continuity::tests::run(&binaries);
+    crate::tools::custom_fields::tests::run_gtk(&binaries);
     super::super::universe_views::tests::run(&binaries);
     sequence_workflows(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();

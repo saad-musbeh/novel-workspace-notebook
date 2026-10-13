@@ -1,3 +1,13 @@
+# Unreleased optional one-scene consistency review — October 14, 2026
+
+Local review now offers wording or explicit consistency operation. Consistency previews the selected saved scene and exact confirmed fact projection, shows included/excluded scope and unknown/unprovided timing, and requires a saved checked planning head. Beliefs, rumors and unconfirmed proposals are excluded. Questions remain provisional; accepting a review note edits neither manuscript nor canon.
+
+Atomic snapshot/check APIs bind both saved scene and full planning revision, including saved empty fact context. Final decision Save carries both dependencies so an unrelated planning change cannot authorize a stale question. Exact spelling exceptions apply only to validated proofreading results.
+
+Observed: seven storage, nineteen focused native review and two canonical projection tests passed. Root actual GTK consistency passed **1 test / 1.24 s**, covering explicit scope, stale scene/facts, decisions and cancellation with actual workers and test-only delayed provider replies. No actual model/provider accuracy is claimed; wording remains available without planning.
+
+---
+
 # Unreleased universe grouping and shared World notes — October 14, 2026
 
 Novel selection now groups canonical projects under their saved universe/series. Headings are nonselectable; independent or uncertain memberships keep selectable fallbacks. Shared World notes and scene references read the sole checked source universe planning snapshot with source universe/series/revision labels, never copied canon. Complete catalogue checks reject ambiguous claims while preserving access to writing.
