@@ -1,3 +1,9 @@
+# Native board view and authored grouping — October 14, 2026
+
+Keep zoom, scroll and pan local to the current board page. Convert pointer positions through the exact displayed scale and scroll state before proposing an authored coordinate change; reject stale view/data captures. Named group titles and member labels are author-owned planning metadata, saved through existing registered draft/CAS controls. They never create or replace canonical story links.
+
+---
+
 # Ready-to-write novel creation — October 10, 2026
 
 **ADR-053 — Implemented novel startup:** New novel must produce a usable writing page. Add a create_novel storage/RPC operation that commits the project, first chapter, blank scene, placement and revision/order records together. Reuse the existing atomic universe manuscript initializer while preserving create_project semantics and universe wire responses. There is no schema migration or new dependency. Generate the additive wire contract from Rust.

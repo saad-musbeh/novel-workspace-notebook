@@ -1,3 +1,11 @@
+# Unreleased board view controls — October 14, 2026
+
+Board now offers local zoom, scrolling/panning, reset, named groups and member labels. Coordinate inversion follows the displayed scale and scroll position; stale filtered or changed-data drags refuse. Groups/labels remain registered unsaved planning drafts until explicit checked Save, preserving canonical links and history.
+
+Observed: six pure board checks passed; actual GTK board workflow passed **1 test / 1.82 s** against the current guarded backend with fatal criticals. The synthetic workflow covers view-only controls without writes, scaled/scrolled drag, stale replies, group creation/rename/ungroup and checked Save. These are unreleased source results.
+
+---
+
 # Unreleased core planning author-transition guards — October 14, 2026
 
 Existing Save, checked Save and author-resolution transactions now refuse newly introduced/increased planning identity collisions, unsupported supplied variants, invalid owned applicability and wrongly typed custom values/links. Field-kind/record-kind changes and removal refuse while incompatible stored values remain. Sparse native omissions and exact unchanged historical partial/stale data remain compatible. Scene-link membership continues through existing scoped source/reference checks; date fields stay textual and choice membership stays at the authoring interface boundary.

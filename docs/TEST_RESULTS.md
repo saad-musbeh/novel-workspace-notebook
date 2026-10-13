@@ -1,3 +1,9 @@
+# Native board view integration — October 14, 2026
+
+Six board pure checks and the real GTK board section passed; final GTK result **1 test / 1.82 s**. Actual controls exercise zoom/pan/reset without storage writes, inverse scaled/scrolled drag, stale filter/data refusal, named group labels and explicit CAS/history/link-preserving saves. Actual workers and disposable synthetic stores were used with fatal GTK criticals. Log: `/tmp/novel-board-final-gtk.log`. Package and physical input qualification remain separate.
+
+---
+
 # Integrated core planning author guards — October 14, 2026
 
 `cargo test -p novel-storage --offline --locked -j 2 -- --test-threads=1` passed **204 tests, 0 failures**. New planning_authoring covers **10 operation regressions** including actual Save, checked Save and author resolution: duplicate/board/evidence identity collisions, supplied invalid status/kind/boolean/numeric variants, typed values, field ownership and incompatible definition changes/removal. Each refusal preserves heads/history/projection/cursor/manuscript. Unicode fixtures retain Arabic diacritics, Chinese, supplementary/private-use characters, emoji and decomposed combining sequences.
