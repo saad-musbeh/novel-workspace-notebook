@@ -49,6 +49,8 @@ pub(crate) mod alphabet_host;
 pub(crate) mod alphabet_export;
 #[path="statistics.rs"]
 pub(crate) mod statistics;
+#[path="continuity.rs"]
+pub(crate) mod continuity;
 #[path="licensed_imports.rs"]
 mod licensed_imports;
 use crate::alphabets::AlphabetPage;

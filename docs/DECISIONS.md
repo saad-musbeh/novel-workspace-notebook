@@ -1,3 +1,9 @@
+# Deterministic authored continuity and lanes — October 14, 2026
+
+Continuity derives questions only from existing explicitly confirmed story semantics. Knowledge snapshots are not evidence of use; dedicated author facts distinguish learn/use. Numerical feasibility comes from the shared chronology analysis, and uncertain bounds cannot imply exclusive overlap. Findings remain read-only; exact intentional/dismissed canonical issue annotations remain author notes. Main/subplots are memberships of one canonical event rather than copied worlds.
+
+---
+
 # Saved manuscript statistics — October 14, 2026
 
 Expose saved-text units separately; whitespace tokens and CJK scalars are descriptive measures, never comparable language-aware word counts. Statistics must use the same coherent checked manuscript read as alphabet export and refuse ambiguous metadata/content rather than choose a projection. Read-only refresh keeps author drafts and manual saving independent.

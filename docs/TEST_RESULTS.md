@@ -1,3 +1,9 @@
+# Authored continuity and shared occurrence lanes — October 14, 2026
+
+Fifteen new pure checks cover declared prerequisite links, knowledge learn/use facts, sufficiently definite exclusive presence/state intervals, payoff/scope reminders, exact manual annotations, shared canonical lane identity, missing evidence and bounded refusal. Actual GTK passed **1 test / 0.78 s** with rebuilt workers/fatal criticals and synthetic stores. Saved snapshot/source changes, local rule selection, checked scene navigation and detached ownership are exercised without canon/issue writes. Log: `/tmp/novel-continuity-final-gtk.log`.
+
+---
+
 # Saved text measures and checked manuscript reads — October 14, 2026
 
 Eight manuscript-read storage regressions, six alphabet-export regressions and two native measure checks passed. Actual GTK statistics passed **1 test / 0.73 s** against rebuilt workers with fatal criticals. Coverage includes exact multilingual counting, exclusion of unsaved/title/planning/deleted text, concurrent head/order/placement and corrupt snapshot refusal, stale refresh clearing, unchanged draft/Undo/storage and detached current ownership. Log: `/tmp/novel-statistics-final-gtk.log`. Full integration results follow separately.

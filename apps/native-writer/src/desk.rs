@@ -235,6 +235,8 @@ impl Workspace {
         self.link(&checks,"Read like a stranger",|a|a.reader());
         self.link(&checks,"Passages to revisit",|a|a.attention());
         self.link(&checks,"Dictionary and synonyms",|a|a.dictionary());
+        self.link(&checks,"Authored continuity checks",|a|a.continuity_checks());
+        self.link(&checks,"Occurrence chronology and lanes",|a|a.occurrence_lanes());
         self.link(&checks,"Review decisions",|a|a.review_decisions());self.link(&checks,"Translation preview",|a|a.translation_preview());
         self.link(&checks,"Local review",|a|a.review());self.link(&checks,"Review settings",|a|a.open_data("settings","Review settings"));
         let versions=self.menu(&review,"Saved versions",false);self.link(&versions,"Scene history",|a|a.history());self.link_routes(&versions,"Scene conflicts",Rc::new(|a|a.conflicts()),Rc::new(|a|a.open_conflicts_window()));

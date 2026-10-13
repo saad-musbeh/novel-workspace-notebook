@@ -1,3 +1,13 @@
+# Unreleased authored continuity checks and occurrence lanes — October 14, 2026
+
+Review offers six bounded deterministic checks: confirmed chronology contradictions, missing prerequisites, knowledge used before learning, exclusive presence, conflicting confirmed states and required payoff reminders. Only explicitly authored semantics and sufficiently definite timing produce findings. Unknown, approximate, malformed or over-budget evidence remains unresolved. Exact canonical manual issue annotations can show intentional/dismissed author notes; page rule toggles remain local.
+
+Occurrence chronology displays main/subplot lanes, including empty lanes, with one canonical event repeated where authored memberships require it. Missing/unassigned/timing evidence stays visible and scene navigation is checked. Both views consume one coherent saved planning/manuscript snapshot and never write canon or findings.
+
+Observed: fifteen new pure continuity/lane tests passed; final actual GTK passed **1 test / 0.78 s**, covering checks, source refresh, lane/navigation and detached ownership. Durable per-record rule exception settings were not introduced.
+
+---
+
 # Unreleased saved manuscript statistics — October 14, 2026
 
 Saved manuscript counts exposes exact Unicode scalars/grapheme clusters, whitespace tokens and CJK scalars as distinct measures with explicit definitions. It reads saved scene text only; dirty editor/form drafts remain untouched. Refresh clears stale counts and respects current page/project/owner and request generation.
