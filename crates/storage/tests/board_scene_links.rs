@@ -20,7 +20,7 @@ fn card(id: &str, reference: Value) -> Value {
     json!({"id":id,"kind":"scene","title":"نور 明","body":"مِ 中文 e\u{301} \u{e000} 𠀀 👩🏽‍🚀","reference":reference,"x":50,"y":-25.5,"groupId":"group","labels":["مِ","中文"]})
 }
 fn planning(sid: &str) -> Value {
-    json!({"schemaVersion":1,"fields":[],"records":[{"id":"hero","kind":"character","name":"نور 明","aliases":[],"notes":"Synthetic author notes","links":[{"kind":"scene","id":sid}],"values":{"custom":[{"kind":"scene","id":sid}]}}],"facts":[{"id":"fact","subjectId":"hero","property":"Goal","value":"مِ 中文","status":"fact","confirmed":true,"observerId":null,"source":"Synthetic author","eventId":null,"untilEventId":null}],"plotPoints":[],"boards":[{"id":"board","name":"Synthetic board","cards":[card(sid,json!({"kind":"scene","id":sid})),{"id":"card-b","kind":"note","title":"Garden 中文","body":"Second","reference":null,"x":400,"y":220,"groupId":null,"labels":[]}],"groups":[{"id":"group","name":"Synthetic group"}],"edges":[{"id":"edge","fromId":sid,"toId":"card-b","kind":"custom","label":"يَكشف 中文 e\u{301} \u{e000} 👩🏽‍🚀","confirmed":false}]}],"lanes":[],"events":[{"id":"event","title":"Synthetic occurrence","notes":"","laneIds":[],"sceneIds":[sid],"time":{"kind":"unknown"}}],"constraints":[],"issues":[],"readerReveals":[{"id":"reveal","factId":"fact","eventId":null,"scene":{"kind":"scene","id":sid},"position":0,"notes":"Synthetic reveal"}]})
+    json!({"schemaVersion":1,"fields":[{"id":"custom","label":"Explicit scene links","kind":"links","recordKind":"character","hidden":false,"options":[]}],"records":[{"id":"hero","kind":"character","name":"نور 明","aliases":[],"notes":"Synthetic author notes","links":[{"kind":"scene","id":sid}],"values":{"custom":[{"kind":"scene","id":sid}]}}],"facts":[{"id":"fact","subjectId":"hero","property":"Goal","value":"مِ 中文","status":"fact","confirmed":true,"observerId":null,"source":"Synthetic author","eventId":null,"untilEventId":null}],"plotPoints":[],"boards":[{"id":"board","name":"Synthetic board","cards":[card(sid,json!({"kind":"scene","id":sid})),{"id":"card-b","kind":"note","title":"Garden 中文","body":"Second","reference":null,"x":400,"y":220,"groupId":null,"labels":[]}],"groups":[{"id":"group","name":"Synthetic group"}],"edges":[{"id":"edge","fromId":sid,"toId":"card-b","kind":"custom","label":"يَكشف 中文 e\u{301} \u{e000} 👩🏽‍🚀","confirmed":false}]}],"lanes":[],"events":[{"id":"event","title":"Synthetic occurrence","notes":"","laneIds":[],"sceneIds":[sid],"time":{"kind":"unknown"}}],"constraints":[],"issues":[],"readerReveals":[{"id":"reveal","factId":"fact","eventId":null,"scene":{"kind":"scene","id":sid},"position":0,"notes":"Synthetic reveal"}]})
 }
 fn copied(original: &Value, old: &str, new: &str) -> Value {
     let mut out = original.clone();
@@ -151,38 +151,35 @@ async fn actual_foreign_missing_links_and_malformed_card_camouflage_refuse_atomi
     for target in [foreign_id.as_str(), "missing-scene"] {
         let mut v = good.clone();
         v["boards"][0]["cards"][0]["reference"]["id"] = json!(target);
-        invalid.push(v);
+        invalid.push((v, "scene"));
         let mut v = good.clone();
         v["readerReveals"][0]["scene"]["id"] = json!(target);
-        invalid.push(v);
+        invalid.push((v, "scene"));
         let mut v = good.clone();
         v["records"][0]["links"][0] = json!({"kind":"scene","id":target,"reference":null});
-        invalid.push(v);
+        invalid.push((v, "scene"));
         let mut v = good.clone();
         v["records"][0]["links"][0] = card(target, Value::Null);
-        invalid.push(v);
+        invalid.push((v, "scene"));
         let mut v = good.clone();
         v["boards"][0]["cards"][0] = json!({"kind":"scene","id":target,"reference":null});
-        invalid.push(v);
+        invalid.push((v, "scene"));
         let mut v = good.clone();
         v["boards"][0]["cards"][0]["reference"] =
             json!({"kind":"scene","id":target,"reference":null});
-        invalid.push(v);
+        invalid.push((v, "scene"));
     }
     let mut malformed = good.clone();
     malformed["boards"][0]["cards"][0] = card("not-an-owned-scene", Value::Null);
     malformed["boards"][0]["cards"][0]["x"] = json!("50");
-    invalid.push(malformed);
+    invalid.push((malformed, "x"));
     let mut malformed = good.clone();
     malformed["boards"][0]["cards"][0] = card("not-an-owned-scene", Value::Null);
     malformed["boards"][0]["cards"][0]["labels"] = json!([1]);
-    invalid.push(malformed);
-    for value in invalid {
-        assert!(s
-            .save_project_data(&pid, "planning", value, Some(saved.revision_id.clone()))
-            .await
-            .unwrap_err()
-            .contains("scene"));
+    invalid.push((malformed, "labels"));
+    for (value, expected) in invalid {
+        let error=s.save_project_data(&pid, "planning", value, Some(saved.revision_id.clone())).await.unwrap_err();
+        assert!(error.contains(expected), "Expected {expected} refusal: {error}");
         assert_eq!(s.sync_cursor().await.unwrap(), marker);
         assert_eq!(
             s.project_data_history(&pid, "planning")

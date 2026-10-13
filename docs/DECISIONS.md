@@ -325,3 +325,8 @@ Use a separate bounded JSON manuscript copy for exact rich originals and immutab
 ## October 14 — Shared bounded confirmed chronology analysis
 
 Analyze authored ranges and signed relative equalities together with confirmed constraints, retaining contributor identities. Do not infer absolute dates or mutate canon. Propagate only qualified order into references; mark infeasible components, duplicate/unsupported evidence and work-limit exhaustion explicitly. Track representable arithmetic uncertainty so cancellation/rounding cannot create a confident order or contradiction; exact strict-zero statements remain meaningful. A path proving both directions never resolves to Before. Expose range uncertainty to future deterministic overlap checks rather than treating rounded endpoints as definite presence.
+
+
+## October 14 — Core planning author transitions and typed values
+
+Validate new/changed authored identities, supplied variants, owned applicability and custom field values at existing transaction hooks. Retain exact acknowledged historical rows, sparse omissions and legacy unavailable choices/links; do not backfill or rewrite them during load/import/recovery. Compare field ownership/kind against stored values before allowing definition changes/removal. Preserve canonical typed links and existing project-scene membership checks; unrelated literal strings remain text. Increased collisions and new malformed claims cannot inherit permission from an unacknowledged ancestor. Fix synthetic fixtures to express valid owned identities rather than weaken guards.

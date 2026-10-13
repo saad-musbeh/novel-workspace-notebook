@@ -1,3 +1,13 @@
+# Integrated core planning author guards — October 14, 2026
+
+`cargo test -p novel-storage --offline --locked -j 2 -- --test-threads=1` passed **204 tests, 0 failures**. New planning_authoring covers **10 operation regressions** including actual Save, checked Save and author resolution: duplicate/board/evidence identity collisions, supplied invalid status/kind/boolean/numeric variants, typed values, field ownership and incompatible definition changes/removal. Each refusal preserves heads/history/projection/cursor/manuscript. Unicode fixtures retain Arabic diacritics, Chinese, supplementary/private-use characters, emoji and decomposed combining sequences.
+
+The pre-fix tests reproduced the bypass; unchanged historical malformed/sparse choices/links remain readable/saveable where acknowledged, explicit time-machine recovery/archive import preserve checked legacy data, and newly authored resolution cannot borrow an unacknowledged malformed ancestor. Root fixture repairs add valid field definitions/IDs rather than weaken identity or owned-scene checks; malformed x/labels cases assert the new precise core type refusal while foreign/missing/camouflaged scene cases still assert scene refusal. Existing transactional pack, scene deletion, chapter order, archive/sync and new checked manuscript/universe tests remain passing.
+
+Log: `/tmp/novel-planning-core-storage.log`. No dependency/schema/system/network/personal-store change occurred. Sparse omissions remain supported; this is an author-transition guard, not complete enforcement of the retained frontend's required shape or proof of timeline feasibility.
+
+---
+
 # Native confirmed chronology and reference feasibility — October 14, 2026
 
 Focused native pure checks passed **18 chronology tests** and **8 reference tests**, offline/locked. The final real GTK projections section passed **1 test / 2.70 s** with fatal criticals, actual workers and synthetic stores. It covers saved references, pin/follow ownership, reader rehearsal and canonical character-cut navigation against the shared analysis.

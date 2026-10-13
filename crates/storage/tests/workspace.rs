@@ -162,10 +162,10 @@ async fn archive_roundtrip_keeps_formatting_all_history_assets_and_remaps_planni
     s.save_scene(&sid,scene("revised 😀"),Some(first.revision_id)).await.unwrap();
     let planning=json!({
         "schemaVersion":1,"fields":[{
-            "id":"f","kind":"links"
+            "id":"f","kind":"links","recordKind":"character"
         }
         ],"records":[{
-            "id":"character","links":[{
+            "id":"character","kind":"character","links":[{
                 "kind":"scene","id":sid
             }
             ],"values":{
@@ -187,10 +187,12 @@ async fn archive_roundtrip_keeps_formatting_all_history_assets_and_remaps_planni
             "id":"event","sceneIds":[sid]
         }
         ],"constraints":[],"issues":[{
+            "id":"issue",
             "links":[{
                 "kind":"scene","id":sid
             }
             ],"evidence":[{
+                "id":"evidence",
                 "link":{
                     "kind":"scene","id":sid
                 }
@@ -262,6 +264,7 @@ async fn project_data_cas_invalid_scene_links_and_asset_paths(){
     ),None).await.is_err());
     assert!(s.save_project_data(&p,"planning",json!({
         "schemaVersion":1,"events":[{
+            "id":"event",
             "sceneIds":["nonexistent"]
         }
         ]
@@ -269,6 +272,7 @@ async fn project_data_cas_invalid_scene_links_and_asset_paths(){
     ),None).await.is_err());
     assert!(s.save_project_data(&p,"planning",json!({
         "schemaVersion":1,"events":[{
+            "id":"event",
             "sceneIds":[sid]
         }
         ]

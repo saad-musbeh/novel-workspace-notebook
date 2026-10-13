@@ -1,3 +1,11 @@
+# Unreleased core planning author-transition guards — October 14, 2026
+
+Existing Save, checked Save and author-resolution transactions now refuse newly introduced/increased planning identity collisions, unsupported supplied variants, invalid owned applicability and wrongly typed custom values/links. Field-kind/record-kind changes and removal refuse while incompatible stored values remain. Sparse native omissions and exact unchanged historical partial/stale data remain compatible. Scene-link membership continues through existing scoped source/reference checks; date fields stay textual and choice membership stays at the authoring interface boundary.
+
+Observed: complete locked/offline storage passed **204 tests, 0 failures** in the integrated source. The new **10 authoring regressions** first reproduced duplicate fact IDs, unsupported status and string arrays in link fields accepted by actual Save/checked Save/resolution, then passed with rollback checks for heads/history/projections/cursor/manuscript. Checked legacy archive/recovery and acknowledged resolution cases preserve exact multilingual values; unacknowledged malformed ancestors cannot authorize a new claim. Fixtures now supply stable IDs/owned field definitions and distinguish semantic coordinate/type refusals from scene-ownership refusals. No migration, history cleanup or production sync/save-hook change occurred.
+
+---
+
 # Unreleased confirmed chronology feasibility — October 14, 2026
 
 Chronology and scene references now share a bounded read-only feasibility analysis of authored ranges, signed relative offsets and confirmed ordering constraints. Strict same-day conflicts, positive/strict cycles, unknown intermediary constraints and incompatible fixed bounds expose contributor identities instead of reporting satisfied/applicable. Relative relationships remain meaningful without absolute dates. Duplicate, malformed, incomplete or over-budget evidence stays unresolved; no dates, canon or histories are rewritten.
