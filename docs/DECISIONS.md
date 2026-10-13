@@ -1,3 +1,9 @@
+# Shared universe references and grouping — October 14, 2026
+
+Derive one novel membership only from complete checked catalogue claims. Unknown/corrupt history cannot silently authorize a chosen universe; keep every existing project selectable through fallback groups. Universe/series headings have no project identity. Read shared notes directly from the verified source universe, with exact revision provenance, and retain local references independently when either source is unavailable.
+
+---
+
 # Local synonym passage previews and exact spelling exceptions — October 14, 2026
 
 Lookup source meanings remain local licensed or author-owned dictionaries. Literal passage replacement binds the original rich pane and exact selection; it never infers inflection or automatically saves. Exception authoring reuses registered Review settings lifecycle and original input permits. Apply exact language/quote proofreading exceptions only after validating unfiltered source/evidence/offsets; LLM and deterministic questions remain visible.

@@ -8,7 +8,7 @@ import json
 
 # Coverage selection only: field names and types are derived, never hand copied.
 OPERATIONS = (
-    'create_universe','create_universe_novel','create_novel','load', 'save', 'list_projects', 'create_project', 'open_project',
+    'universe_catalogue_snapshot', 'universe_notes_snapshot', 'create_universe','create_universe_novel','create_novel','load', 'save', 'list_projects', 'create_project', 'open_project',
     'metadata_resolution_snapshot', 'resolve_metadata_checked', 'scene_arrangement_snapshot', 'arrange_scene', 'chapter_edit_snapshot', 'edit_chapter', 'rename_project', 'create_chapter', 'rename_chapter', 'reorder_chapters',
     'open_project_index', 'load_project_scene', 'create_scene', 'load_scene', 'rename_scene', 'reorder_scenes', 'history',
     'restore_scene', 'export_archive', 'import_archive', 'load_project_data',
@@ -41,7 +41,7 @@ def comma_parts(text):
 
 def derive(root, rust_type, uncomment):
     source = uncomment((root / 'crates/companion/src/main.rs').read_text(encoding='utf-8'))
-    storage = uncomment('\n'.join((root / path).read_text(encoding='utf-8') for path in ['crates/storage/src/workspace.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs','crates/storage/src/scene_conflict_snapshot.rs','crates/storage/src/alphabet_export.rs']))
+    storage = uncomment('\n'.join((root / path).read_text(encoding='utf-8') for path in ['crates/storage/src/workspace.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs','crates/storage/src/scene_conflict_snapshot.rs','crates/storage/src/alphabet_export.rs','crates/storage/src/universe_read.rs']))
     contracts = {}
     for operation in OPERATIONS:
         arms = re.findall(r'"' + operation + r'"\s*=>\s*encode\(storage\.([a-z_]+)\((.*?)\)\.await\?\),', source, re.S)

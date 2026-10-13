@@ -151,6 +151,7 @@ struct ReferencePage {
     scenes: RefCell<Vec<(String,String)>>, planning: RefCell<Value>, metadata: RefCell<Value>,
     scene: gtk::ComboBoxText, pin: gtk::CheckButton, buffer: gtk::TextBuffer,
     status: gtk::Label, changing: Cell<bool>, loading: Cell<bool>, loaded: Cell<bool>,
+    generation: Cell<u64>, local_error: RefCell<Option<String>>, world: RefCell<Option<novel_storage::UniverseNotesSnapshot>>, world_error: RefCell<Option<String>>, world_filter: gtk::Entry,
 }
 impl ReferencePage {
     fn owner(&self) -> Option<Rc<Workspace>> {
@@ -164,19 +165,23 @@ impl ReferencePage {
         self.scene.set_active_id(Some(id)); self.changing.set(false); self.render();
     }
     fn render(&self) {
-        if self.loading.get() || self.changing.get() || !self.loaded.get() { return; }
+        if self.changing.get() { return; }
         let selected = self.scene.active_id();
-        self.status.set_text(if self.pin.is_active() { "Pinned scene · Saved authored reference snapshot" } else { "Following active writing scenes in this novel · Saved authored reference snapshot" });
-        self.buffer.set_text(&references(&self.planning.borrow(), &self.metadata.borrow(), &self.scenes.borrow(), selected.as_deref().unwrap_or("")));
+        let local=if self.loading.get(){"Loading saved scene references…".to_owned()}else if let Some(error)=self.local_error.borrow().as_ref(){format!("Saved scene references unavailable. {error}")}else if self.loaded.get(){references(&self.planning.borrow(), &self.metadata.borrow(), &self.scenes.borrow(), selected.as_deref().unwrap_or(""))}else{"No saved scene reference snapshot is available.".to_owned()};
+        self.status.set_text(if self.loading.get(){"Loading saved scene references…"}else if !self.loaded.get(){"Scene references unavailable · Shared sources remain separate"}else if self.pin.is_active() { "Pinned scene · Saved authored reference snapshot" } else { "Following active writing scenes in this novel · Saved authored reference snapshot" });
+        let world=if let Some(snapshot)=self.world.borrow().as_ref(){super::universe_views::notes_text(snapshot,self.world_filter.text().as_str())}else if let Some(error)=self.world_error.borrow().as_ref(){format!("Shared World notes\nUnavailable: {error}\n")}else{"Shared World notes\nLoading checked saved source…\n".to_owned()};
+        self.buffer.set_text(&format!("{local}\n\n{world}"));
     }
     fn load(self: &Rc<Self>, origin: &Rc<Workspace>) {
-        if self.loading.replace(true) { return; } self.loaded.set(false); self.status.set_text("Loading saved references…"); self.buffer.set_text("");
+        if self.loading.replace(true) { return; } self.loaded.set(false); let generation=self.generation.get()+1;self.generation.set(generation);*self.local_error.borrow_mut()=None;*self.world.borrow_mut()=None;*self.world_error.borrow_mut()=None;self.render();
+        let page=self.clone();let project=self.project.clone();origin.client.rpc("universe_notes_snapshot",json!({"projectId":project}),move|reply|{if page.generation.get()!=generation||page.owner().is_none(){return;}match reply{Ok(value)=>match serde_json::from_value::<novel_storage::UniverseNotesSnapshot>(value){Ok(snapshot)if snapshot.project_id==page.project=>*page.world.borrow_mut()=Some(snapshot),_=>*page.world_error.borrow_mut()=Some("Shared source response did not match this project.".into())},Err(error)=>*page.world_error.borrow_mut()=Some(error)}page.render();});
         let page = self.clone(); let project = self.project.clone();
         origin.client.rpc("planning_read_snapshot", json!({"projectId":project}), move |reply| {
-            if page.owner().is_none() { return; }
+            if page.generation.get()!=generation||page.owner().is_none() { return; }
             page.loading.set(false);
-            let snapshot = match reply { Ok(snapshot) => snapshot, Err(error) => { page.status.set_text(&format!("Could not load saved references. {error}")); return; } };
+            let snapshot = match reply { Ok(snapshot) => snapshot, Err(error) => { *page.local_error.borrow_mut()=Some(error);page.render(); return; } };
             let index = &snapshot["index"];
+            if index["project"]["id"].as_str()!=Some(page.project.as_str()){*page.local_error.borrow_mut()=Some("Saved scene reference response did not match this project.".into());page.render();return;}
             let planning = if snapshot["planning"].is_null() { crate::tools::initial("planning") } else { snapshot["planning"]["payload"].clone() };
             let metadata = if snapshot["sceneMetadata"].is_null() { crate::tools::initial("sceneMetadata") } else { snapshot["sceneMetadata"]["payload"].clone() };
             let selected = if !page.pin.is_active() { page.followed.borrow().clone().or_else(|| page.scene.active_id().map(|id| id.to_string())) } else { page.scene.active_id().map(|id| id.to_string()) }; page.changing.set(true); page.scene.remove_all();
@@ -200,9 +205,11 @@ impl Workspace {
             let scene = gtk::ComboBoxText::new(); scene.set_tooltip_text(Some("Reference scene")); if let Some(id) = selected.as_deref() { scene.append(Some(id), "Active scene"); scene.set_active_id(Some(id)); } body.pack_start(&scene, false, false, 0);
             let controls = gtk::Box::new(gtk::Orientation::Vertical, 6); body.pack_start(&controls, false, false, 0);
             let pin = gtk::CheckButton::with_label("Pin scene"); controls.pack_start(&pin, false, false, 0);
+            let world_filter=gtk::Entry::new();world_filter.set_placeholder_text(Some("Find shared World notes"));world_filter.set_max_length(1000);world_filter.set_tooltip_text(Some("Filter shared World notes in references"));body.pack_start(&world_filter,false,false,0);
             let status = gtk::Label::new(None); status.set_xalign(0.); status.set_line_wrap(true); body.pack_start(&status, false, false, 0);
             let view = gtk::TextView::new(); view.set_editable(false); view.set_cursor_visible(false); view.set_wrap_mode(gtk::WrapMode::WordChar); view.set_left_margin(12); view.set_right_margin(12); body.pack_start(&scroll(&view), true, true, 0);
-            let page = Rc::new(ReferencePage { origin: origin.clone(), project, panel: panel.clone(), followed: RefCell::new(selected), scenes: RefCell::new(Vec::new()), planning: RefCell::new(Value::Null), metadata: RefCell::new(Value::Null), scene, pin, buffer: view.buffer().unwrap(), status, changing: Cell::new(false), loading: Cell::new(false), loaded: Cell::new(false) });
+            let page = Rc::new(ReferencePage { origin: origin.clone(), project, panel: panel.clone(), followed: RefCell::new(selected), scenes: RefCell::new(Vec::new()), planning: RefCell::new(Value::Null), metadata: RefCell::new(Value::Null), scene, pin, buffer: view.buffer().unwrap(), status, changing: Cell::new(false), loading: Cell::new(false), loaded: Cell::new(false), generation:Cell::new(0),local_error:RefCell::new(None),world:RefCell::new(None),world_error:RefCell::new(None),world_filter:world_filter.clone() });
+            let weak=Rc::downgrade(&page);world_filter.connect_changed(move|_|{if let Some(page)=weak.upgrade(){if page.owner().is_some(){page.render();}}});
             FOLLOWERS.with(|pages| pages.borrow_mut().push(Rc::downgrade(&page)));
             let weak = Rc::downgrade(&page); page.scene.connect_changed(move |_| if let Some(p) = weak.upgrade() { if !p.changing.get() { p.pin.set_active(true); p.render(); } });
             let weak = Rc::downgrade(&page); page.pin.connect_toggled(move |_| if let Some(p) = weak.upgrade() { p.render(); });

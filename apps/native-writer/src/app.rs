@@ -49,6 +49,8 @@ pub(crate) mod alphabet_host;
 pub(crate) mod alphabet_export;
 #[path="statistics.rs"]
 pub(crate) mod statistics;
+#[path="universe_views.rs"]
+pub(crate) mod universe_views;
 #[path="continuity.rs"]
 pub(crate) mod continuity;
 #[path="synonym_context.rs"]
@@ -130,6 +132,7 @@ pub struct Workspace {
     loading:Cell<bool>,
     notebook_pending:Cell<usize>,
     notebook_failures:Cell<u64>,
+    project_refresh_epoch:Cell<u64>,
     trail:RefCell<Vec<navigation::TrailEntry>>,
     trail_index:Cell<usize>,
     desk:Desk,
@@ -268,7 +271,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),sequence_host:SequenceHost::default(),alphabet_pages:RefCell::new(Vec::new()),licensed_import_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),sequence_host:SequenceHost::default(),alphabet_pages:RefCell::new(Vec::new()),licensed_import_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),project_refresh_epoch:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -315,25 +318,22 @@ impl Workspace {
         if let Some(notice)=self.optional_preferences_notice(){self.status.set_text(&format!("{message}\n{notice}"));}else{self.status.set_text(message);}
     }
     fn refresh_projects(self:&Rc<Self>,selection:Option<String>){
-        let weak=Rc::downgrade(self);
-        self.client.rpc("list_projects",json!({
-        }),move|reply|if let Some(a)=weak.upgrade(){
-            if a.desk.is_closed(){return;}
-            match reply{
-                Ok(projects)=>{
-                    a.changing.set(true);
-                    a.projects.remove_all();
-                    for p in projects.as_array().into_iter().flatten(){
-                        a.projects.append(p["id"].as_str(),p["title"].as_str().unwrap_or("Novel"));
-                    }a.changing.set(false);
-                    if let Some(id)=selection{
-                        a.projects.set_active_id(Some(&id));
-                    }else{
-                        a.projects.set_active(Some(0));
-                    }if projects.as_array().is_none_or(Vec::is_empty){
-                        a.status.set_text("Choose New novel to start writing.");
-                    }
-                },Err(e)=>a.error(&e)
+        let epoch=self.project_refresh_epoch.get()+1;self.project_refresh_epoch.set(epoch);
+        let captured=self.pid.borrow().clone();let weak=Rc::downgrade(self);
+        self.client.rpc("universe_catalogue_snapshot",json!({}),move|reply|if let Some(a)=weak.upgrade(){
+            if a.desk.is_closed()||a.project_refresh_epoch.get()!=epoch{return;}
+            match reply.and_then(|value|serde_json::from_value::<novel_storage::UniverseCatalogueSnapshot>(value).map_err(|e|e.to_string())){
+                Ok(snapshot)=>{
+                    let rows=universe_views::selector_rows(&snapshot);
+                    let current=a.pid.borrow().clone();
+                    let wanted=if current!=captured&&!current.is_empty(){Some(current)}else{selection.or_else(||(!current.is_empty()).then_some(current))};
+                    let first=rows.iter().find_map(|row|row.project_id.clone());
+                    a.changing.set(true);a.projects.remove_all();
+                    for row in &rows{a.projects.append(row.project_id.as_deref(),&row.label);}
+                    a.changing.set(false);
+                    if let Some(id)=wanted.filter(|id|rows.iter().any(|row|row.project_id.as_ref()==Some(id))).or(first){a.projects.set_active_id(Some(&id));}
+                    if snapshot.projects.is_empty(){a.status.set_text("Choose New novel to start writing.");}
+                },Err(error)=>a.error(&format!("Novel catalogue could not be refreshed. Existing writing stays open. {error}"))
             }
         });
     }

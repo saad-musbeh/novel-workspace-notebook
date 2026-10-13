@@ -79,6 +79,8 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "review_sources_check" => encode(storage.review_sources_check(&argument::<String>(&args,"projectId")?,&argument::<Vec<ReviewSource>>(&args,"sources")?).await?),
         "planning_read_snapshot" => encode(storage.planning_read_snapshot(&argument::<String>(&args,"projectId")?).await?),
         "alphabet_export_snapshot" => encode(storage.alphabet_export_snapshot(&argument::<String>(&args,"projectId")?).await?),
+        "universe_catalogue_snapshot" => encode(storage.universe_catalogue_snapshot().await?),
+        "universe_notes_snapshot" => encode(storage.universe_notes_snapshot(&argument::<String>(&args,"projectId")?).await?),
         "load_project_data_unambiguous" => encode(storage.load_project_data_unambiguous(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"kind")?).await?),
         "load_project_data" => encode(storage.load_project_data(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"kind")?).await?),
         "load_entity_revision" => encode(storage.load_entity_revision(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"entityId")?,&argument::<String>(&args,"entityType")?,&argument::<String>(&args,"revisionId")?).await?),

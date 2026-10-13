@@ -235,15 +235,15 @@ impl Workspace {
         self.link(&checks,"Read like a stranger",|a|a.reader());
         self.link(&checks,"Passages to revisit",|a|a.attention());
         self.link(&checks,"Dictionary and synonyms",|a|a.dictionary());
-        self.link(&checks,"Spelling exceptions",|a|a.proofreading_exceptions());
         self.link(&checks,"Authored continuity checks",|a|a.continuity_checks());
+        self.link(&checks,"Spelling exceptions",|a|a.proofreading_exceptions());
         self.link(&checks,"Occurrence chronology and lanes",|a|a.occurrence_lanes());
         self.link(&checks,"Review decisions",|a|a.review_decisions());self.link(&checks,"Translation preview",|a|a.translation_preview());
         self.link(&checks,"Local review",|a|a.review());self.link(&checks,"Review settings",|a|a.open_data("settings","Review settings"));
         let versions=self.menu(&review,"Saved versions",false);self.link(&versions,"Scene history",|a|a.history());self.link_routes(&versions,"Scene conflicts",Rc::new(|a|a.conflicts()),Rc::new(|a|a.open_conflicts_window()));
         self.control(&versions,"Create scene snapshot",Self::snapshot);
         let project=self.group("Project");let library=self.menu(&project,"Novels & files",true);
-        self.link(&library,"Library",|a|a.library());self.control(&library,"New novel",Self::new_project);self.control(&library,"Import project",Self::import);self.control(&library,"Export manuscript",Self::export);self.control(&library,"Export alphabet manuscript",Self::alphabet_export);self.control(&library,"Saved manuscript counts",Self::manuscript_statistics);
+        self.link(&library,"Library",|a|a.library());self.control(&library,"New novel",Self::new_project);self.control(&library,"Import project",Self::import);self.control(&library,"Export manuscript",Self::export);self.control(&library,"Export alphabet manuscript",Self::alphabet_export);self.control(&library,"Saved manuscript counts",Self::manuscript_statistics);self.control(&library,"Shared World notes",Self::universe_world_notes);
         let recovery=self.menu(&project,"History & recovery",false);self.link(&recovery,"What-if branches",|a|a.branches());self.control(&recovery,"New what-if branch",Self::new_branch);self.link(&recovery,"Project time machine",|a|a.time_machine());self.link(&recovery,"Deleted scenes",|a|a.deleted());
         self.link(&recovery,"Backup now",|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,"Private sync",|a|a.private_sync());
         self.link(&recovery,"Project data conflicts",|a|a.data_conflicts());
@@ -260,7 +260,10 @@ impl Workspace {
     }
     pub(super) fn connect_desk(self:&Rc<Self>) {
         let weak=Rc::downgrade(self);self.desk.area.connect_changed(move|_|if let Some(a)=weak.upgrade(){a.update_area();});
-        let weak=Rc::downgrade(self);self.projects.connect_changed(move|c|if let Some(a)=weak.upgrade(){if !a.changing.get(){if let Some(pid)=c.active_id(){a.switch_project(pid.into());}}});
+        // All renderers of a heading are insensitive, so mouse/key selection
+        // cannot treat a universe/series label as a project identity.
+        for renderer in self.projects.cells(){self.projects.set_cell_data_func(&renderer,Some(Box::new(|_,cell,model,iter|{let identity=model.value(iter,1).get::<Option<String>>().ok().flatten();cell.set_sensitive(identity.is_some());})));}
+        let weak=Rc::downgrade(self);self.projects.connect_changed(move|c|if let Some(a)=weak.upgrade(){if !a.changing.get(){if let Some(pid)=c.active_id(){a.switch_project(pid.into());}else{a.changing.set(true);let current=a.pid.borrow().clone();if !current.is_empty(){c.set_active_id(Some(&current));}a.changing.set(false);}}});
         let weak=Rc::downgrade(self);self.tree.connect_row_activated(move|_,path,_|if let Some(a)=weak.upgrade(){if let Some(i)=a.outline.iter(path){a.open_outline_row(&i,false);}});
         let weak=Rc::downgrade(self);self.tree.connect_button_press_event(move|tree,event|{
             if event.button()==2{

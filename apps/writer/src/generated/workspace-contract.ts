@@ -47,6 +47,36 @@ export interface UniverseCatalogue {
   novels: Array<UniverseNovel>;
 }
 
+export interface UniverseCatalogueView {
+  projectId: string;
+  title: string;
+  catalogueRevisionId: (string | null);
+  catalogue: (UniverseCatalogue | null);
+  unavailable: (string | null);
+}
+
+export interface UniverseMembership {
+  projectId: string;
+  universeId: (string | null);
+  seriesId: (string | null);
+  status: string;
+  reason: (string | null);
+}
+
+export interface UniverseCatalogueSnapshot {
+  projects: Array<Project>;
+  universes: Array<UniverseCatalogueView>;
+  memberships: Array<UniverseMembership>;
+}
+
+export interface UniverseNotesSnapshot {
+  projectId: string;
+  membership: UniverseMembership;
+  universe: (UniverseCatalogueView | null);
+  planning: (ProjectDataSnapshot | null);
+  unavailable: (string | null);
+}
+
 export interface NovelCreated<TScene extends Scene = Scene> {
   project: Project;
   scene: SceneRecord<TScene>;
@@ -501,6 +531,120 @@ export const workspaceWireSchema = {
         "rustName": "novels",
         "name": "novels",
         "rustType": "Vec<UniverseNovel>"
+      }
+    ]
+  },
+  "UniverseCatalogueView": {
+    "source": "crates/storage/src/universe_read.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "project_id",
+        "name": "projectId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "title",
+        "name": "title",
+        "rustType": "String"
+      },
+      {
+        "rustName": "catalogue_revision_id",
+        "name": "catalogueRevisionId",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "catalogue",
+        "name": "catalogue",
+        "rustType": "Option<UniverseCatalogue>"
+      },
+      {
+        "rustName": "unavailable",
+        "name": "unavailable",
+        "rustType": "Option<String>"
+      }
+    ]
+  },
+  "UniverseMembership": {
+    "source": "crates/storage/src/universe_read.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "project_id",
+        "name": "projectId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "universe_id",
+        "name": "universeId",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "series_id",
+        "name": "seriesId",
+        "rustType": "Option<String>"
+      },
+      {
+        "rustName": "status",
+        "name": "status",
+        "rustType": "String"
+      },
+      {
+        "rustName": "reason",
+        "name": "reason",
+        "rustType": "Option<String>"
+      }
+    ]
+  },
+  "UniverseCatalogueSnapshot": {
+    "source": "crates/storage/src/universe_read.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "projects",
+        "name": "projects",
+        "rustType": "Vec<Project>"
+      },
+      {
+        "rustName": "universes",
+        "name": "universes",
+        "rustType": "Vec<UniverseCatalogueView>"
+      },
+      {
+        "rustName": "memberships",
+        "name": "memberships",
+        "rustType": "Vec<UniverseMembership>"
+      }
+    ]
+  },
+  "UniverseNotesSnapshot": {
+    "source": "crates/storage/src/universe_read.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "project_id",
+        "name": "projectId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "membership",
+        "name": "membership",
+        "rustType": "UniverseMembership"
+      },
+      {
+        "rustName": "universe",
+        "name": "universe",
+        "rustType": "Option<UniverseCatalogueView>"
+      },
+      {
+        "rustName": "planning",
+        "name": "planning",
+        "rustType": "Option<ProjectDataSnapshot>"
+      },
+      {
+        "rustName": "unavailable",
+        "name": "unavailable",
+        "rustType": "Option<String>"
       }
     ]
   },
@@ -1656,6 +1800,8 @@ export const workspaceWireSchema = {
 // Not a Rust typed request enum. Complex/dynamic operations are uncovered.
 // Opaque document and payload Values retain their existing external validation.
 export interface StorageRpcContract<TScene extends Scene = Scene> {
+  universe_catalogue_snapshot: {args: {}; result: UniverseCatalogueSnapshot};
+  universe_notes_snapshot: {args: {projectId: string;}; result: UniverseNotesSnapshot};
   create_universe: {args: {title: string;}; result: Project};
   create_universe_novel: {args: {universeId: string; seriesId: (string | null); title: string; parent: string;}; result: UniverseNovelCreated<TScene>};
   create_novel: {args: {title: string;}; result: NovelCreated<TScene>};
@@ -1716,6 +1862,8 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
 
 export const storageRpcCoverage = {
   "covered": [
+    "universe_catalogue_snapshot",
+    "universe_notes_snapshot",
     "create_universe",
     "create_universe_novel",
     "create_novel",

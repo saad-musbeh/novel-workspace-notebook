@@ -1,3 +1,9 @@
+# Canonical universe selection and shared notes — October 14, 2026
+
+Eight storage and six native pure checks passed. Root real GTK passed **1 test / 0.92 s** with rebuilt workers/fatal criticals. It verifies installed grouped multilingual selector labels and IDs, insensitive header renderers, heading activation restoring selection without changing pane/generation, sole saved universe/series source and unchanged writing/cursor. Notes refresh clears stale source and handles detached current ownership. Catalogue corruption, duplicate/competing membership and checksum/head/parent errors preserve independent selectable fallbacks. Log: `/tmp/novel-universe-final-gtk.log`.
+
+---
+
 # Contextual dictionary and spelling author controls — October 14, 2026
 
 Six pure checks passed. Final actual GTK dictionary passed **1 test / 2.37 s** and exceptions **1 test / 0.62 s** with rebuilt workers and fatal criticals. Dictionary exercises exact multilingual rich marks, cancellation, unsaved Apply/one Undo, stale selection/rich formatting, cached panes and independent detached owners without implicit scene saving. Exceptions exercises exact case/normalization/language distinctions, original authorization invalidated by a completed sequence, explicit settings Save, unrelated-field retention and failed CAS/Cancel/Discard. Logs: `/tmp/novel-dictionary-final-gtk.log`, `/tmp/novel-exceptions-final-gtk.log`. Test provider-result integration is recorded with review.

@@ -1,3 +1,11 @@
+# Unreleased universe grouping and shared World notes — October 14, 2026
+
+Novel selection now groups canonical projects under their saved universe/series. Headings are nonselectable; independent or uncertain memberships keep selectable fallbacks. Shared World notes and scene references read the sole checked source universe planning snapshot with source universe/series/revision labels, never copied canon. Complete catalogue checks reject ambiguous claims while preserving access to writing.
+
+Observed: eight storage and six native pure checks passed. Final real GTK passed **1 test / 0.92 s**, including actual selector model/renderer sensitivity, programmatic heading refusal, retained current project/pane, shared notes and detached ownership. No manuscript or catalogue writes are caused by reads.
+
+---
+
 # Unreleased contextual synonyms and exact spelling exceptions — October 14, 2026
 
 Dictionary alternatives can preview one exact selected passage from the original live rich draft, retaining sense/part-of-speech provenance and a manual inflection notice. Apply is one literal unsaved undoable replacement with original owner/selection/rich-document/parent/input guards; Cancel edits nothing. Saved dictionaries use sole-head checked reads.
