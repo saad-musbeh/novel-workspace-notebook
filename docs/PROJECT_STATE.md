@@ -1,3 +1,11 @@
+# Unreleased authored knowledge and reader timeline — October 13, 2026
+
+Story now exposes dedicated Character knowledge and Reader learns timeline pages. Knowledge captures exact frozen facts, author sources, explicit interpretations and scene/event scopes; approved knows requires approved canon. Reader reveals retain authored scene position independently of occurrence dates. Both pages use atomic saved planning/index/details reads, manual draft decisions, checked dependencies and detached ownership. Missing or deleted newly referenced scenes refuse Save while preserving the form; unchanged historical claims remain retained.
+
+Observed: all **60 native pure tests passed** with the desktop test ignored. The real GTK knowledge section passed **1 test** with fatal criticals and actual workers, covering valid authoring, exact multilingual snapshots, stale canon/scopes, explicit reader ordering, concurrent Save refusal, deleted source dependencies and detached ownership. Character knowledge capture was visually inspected. This is unreleased source qualification; published binaries, physical input and private transport remain separate.
+
+---
+
 # Unreleased native writing and planning continuation — October 13, 2026
 
 The native notebook now exposes checked scene movement/reordering; reader rehearsal; canonical character-cut navigation; pinned/following saved scene references; local dictionary/sense/synonym lookup; labelled multilingual board connections; exact Back/Forward reading locations; saved writing width/interface direction and keyboard shortcuts; explicit fact/event-time ripple preview; and private-peer pairing, approval, revocation and manual-sync controls. Each uses existing immutable project history and manual author decisions. Reading projections bind planning, scene details and manuscript order in one body-free transaction and refuse conflicting or deferred order/data sources. Character cuts use authored links, never manuscript names or inferred presence.
@@ -8,7 +16,7 @@ Desktop testing found and fixed a double-allocation resize loop and a missed ini
 
 Observed: locked offline workspace excluding the retained Tauri member passed **296 tests, 0 failures, 2 opt-in tests ignored**; the complete real GTK/worker workflow passed **1 test**, with fatal criticals and disposable synthetic stores. Storage alone passed **150 tests**. Forty cached Rust serde wire shapes, generated contract drift and whitespace checks passed. Actual bounded RTL writing and labelled multilingual board captures were inspected. The SHA-256 library is an additional direct native dependency on the same already pinned/cached version used by the workers; no dependency was installed. No migration, model download, persistent service, personal-store access or external private listener activation occurred.
 
-These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Dedicated knowledge/reader-timeline authoring, temporary peeks, review/translation decisions, formatting sequences and local alphabet/font/pack controls remain the next integration slices; their delegated pure tests do not qualify the running notebook.
+These are source changes after 0.4.0. Published binaries and physical/clean-host/private-Tailscale qualification remain separate. Temporary peeks, review/translation decisions, formatting sequences and local alphabet/font/pack controls remain the next integration slices; their delegated pure tests do not qualify the running notebook.
 
 ---
 

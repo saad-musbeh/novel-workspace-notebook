@@ -36,6 +36,9 @@ mod navigation;
 #[path="ripple.rs"]
 mod ripple;
 use ripple::RipplePage;
+#[path="knowledge.rs"]
+mod knowledge;
+use knowledge::KnowledgePage;
 #[path="rehearsal.rs"]
 mod rehearsal;
 #[path="character_cut.rs"]
@@ -82,6 +85,7 @@ pub struct Workspace {
     desktop_preferences:DesktopRuntime,
     desktop_preference_pages:RefCell<Vec<Rc<DesktopPreferencesPage>>>,
     ripple_pages:RefCell<Vec<Rc<RipplePage>>>,
+    knowledge_pages:RefCell<Vec<Rc<KnowledgePage>>>,
     changing:Cell<bool>,
     closing:Cell<bool>,
     loading:Cell<bool>,
@@ -224,7 +228,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -302,7 +306,7 @@ impl Workspace {
             }
             a.clear_tabs();
             for pane in a.panes.borrow().values(){pane.process.stop();}
-            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();
+            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
             *a.index.borrow_mut()=Value::Null;a.populate_outline();a.populate_book();
             a.pages.set_group_name(Some(a.group_name()));

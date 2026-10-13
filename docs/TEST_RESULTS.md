@@ -1,3 +1,9 @@
+# Native authored knowledge and reader timeline — October 13, 2026
+
+Locked offline native units passed **60 tests, 0 failures, 1 ignored**, including eight knowledge/reader-order pure checks. The targeted real GTK knowledge workflow passed **1 test** in 2.76 seconds with fatal criticals, disposable synthetic stores and actual debug workers. It checks exact frozen rich multilingual fact values, author approval/source/interpretation semantics, scene/event ranges, explicit reader positions, stale planning and deleted-scope/reveal Save refusal retaining drafts, manual Save / Discard / Cancel and current detached ownership. No personal database or external listener was used. Capture `work/notebook-character-knowledge.png` was inspected. Logs: `/tmp/novel-native-knowledge-unit.log`, `/tmp/novel-native-knowledge-gui.log`. Published packages and physical input are not qualified by this source test.
+
+---
+
 # Native continuation integration — October 13, 2026 (unreleased source)
 
 The locked offline Rust workspace excluding the retained Tauri UI passed **296 tests, 0 failures, 2 ignored**: 69 companion, 13 DOCX, 12 editor, 52 native and 150 storage. The complete opt-in GTK workflow separately passed **1 test** in 33.39 seconds with fatal criticals, actual debug workers and disposable synthetic stores. Source generation/contract drift and Git whitespace checks passed; the cached Rust serde fixture compiled and emitted **40 wire shapes**. Node/Vitest/Tauri frontend checks were not rerun because their dependencies/assets remain absent.
