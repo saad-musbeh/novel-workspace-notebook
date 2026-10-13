@@ -235,6 +235,7 @@ impl Workspace {
         self.link(&checks,"Read like a stranger",|a|a.reader());
         self.link(&checks,"Passages to revisit",|a|a.attention());
         self.link(&checks,"Dictionary and synonyms",|a|a.dictionary());
+        self.link(&checks,"Spelling exceptions",|a|a.proofreading_exceptions());
         self.link(&checks,"Authored continuity checks",|a|a.continuity_checks());
         self.link(&checks,"Occurrence chronology and lanes",|a|a.occurrence_lanes());
         self.link(&checks,"Review decisions",|a|a.review_decisions());self.link(&checks,"Translation preview",|a|a.translation_preview());

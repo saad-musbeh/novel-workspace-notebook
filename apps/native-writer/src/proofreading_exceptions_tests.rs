@@ -1,0 +1,53 @@
+use super::*;
+fn settings()->Value {json!({"schemaVersion":1,"theme":"preserved","nativeShortcuts":{"schemaVersion":1,"example":"opaque"},"assistance":{"schemaVersion":1,"providers":[{"kind":"languagetool","endpoint":"http://127.0.0.1:8081"},{"kind":"llm","endpoint":"http://127.0.0.1:8080","model":"preserved-model"}],"exceptions":[{"term":"é","language":"en","reason":"Author's chosen spelling"},{"term":"é","language":"ar","reason":"Different language"}],"suggestions":[{"id":"keep-this-unrelated-decision"}],"extra":"preserved"}})}
+fn suggestion(origin:&str,quote:&str)->Value {json!({"origin":origin,"evidence":[{"quote":quote}],"other":"unchanged"})}
+#[test]
+fn exact_proofreading_quote_and_exact_language_only_never_hide_llm_or_other_issues() {
+    let suggestions=vec![suggestion("proofreading","é"),suggestion("proofreading","e\u{301}"),suggestion("proofreading","É"),suggestion("proofreading","The é word"),suggestion("llm","é"),suggestion("rule","é"),suggestion("manual","é"),suggestion("lexical","é"),suggestion("proofreading","different")];
+    let filtered=filter(&suggestions,&settings(),"en").unwrap();assert_eq!(filtered,suggestions[1..]);assert_eq!(filter(&suggestions,&settings(),"zh-Hans").unwrap(),suggestions);
+    let mut arabic=settings();arabic["assistance"]["exceptions"]=json!([{"term":"مِ","language":"ar","reason":"Exact vowel"},{"term":"𠀀 👩🏽‍🚀","language":"zh-Hans","reason":"Synthetic term"}]);
+    let suggestions=vec![suggestion("proofreading","مِ"),suggestion("proofreading","م"),suggestion("proofreading","𠀀 👩🏽‍🚀")];assert_eq!(filter(&suggestions,&arabic,"ar").unwrap(),suggestions[1..]);assert_eq!(filter(&suggestions,&arabic,"zh-Hans").unwrap(),suggestions[..2]);
+}
+#[test]
+fn allow_remove_preserve_all_unrelated_settings_and_separate_language_records() {
+    let base=settings();let allowed=changed(&base,"é","en","Updated reason",true).unwrap();assert_eq!(allowed["theme"],base["theme"]);assert_eq!(allowed["nativeShortcuts"],base["nativeShortcuts"]);assert_eq!(allowed["assistance"]["providers"],base["assistance"]["providers"]);assert_eq!(allowed["assistance"]["suggestions"],base["assistance"]["suggestions"]);assert_eq!(allowed["assistance"]["extra"],base["assistance"]["extra"]);assert_eq!(exceptions(&allowed).unwrap().len(),2);
+    let removed=changed(&allowed,"é","en","",false).unwrap();assert_eq!(exceptions(&removed).unwrap(),vec![json!({"term":"é","language":"ar","reason":"Different language"})]);assert_eq!(settings(),base);
+    let fresh=changed(&json!({"schemaVersion":1,"opaque":{"value":"keep"}}),"e\u{301}","en","Exact normalization",true).unwrap();assert_eq!(fresh["opaque"]["value"],"keep");assert_eq!(exceptions(&fresh).unwrap()[0]["term"],"e\u{301}");
+}
+#[test]
+fn malformed_exception_data_and_blank_author_claims_refuse_without_mutating_source() {
+    let base=settings();for (term,lang,reason)in[("","en","why"),("é","","why"),("é","en",""),(" ","en","why")]{assert!(changed(&base,term,lang,reason,true).is_err());}
+    let mut broken=base.clone();broken["assistance"]["exceptions"][0]["term"]=json!(true);assert!(filter(&[suggestion("proofreading","é")],&broken,"en").is_err());assert_eq!(settings(),base);
+}
+fn wait(mut predicate:impl FnMut()->bool){let start=std::time::Instant::now();while !predicate(){while glib::MainContext::default().pending(){glib::MainContext::default().iteration(false);}assert!(start.elapsed()<std::time::Duration::from_secs(20),"Exception fixture timed out");std::thread::sleep(std::time::Duration::from_millis(3));}}
+fn rpc(client:&Process,op:&str,args:Value)->Value{let result=Rc::new(RefCell::new(None));let out=result.clone();client.rpc(op,args,move|r|*out.borrow_mut()=Some(r));wait(||result.borrow().is_some());let r=result.borrow_mut().take().unwrap().unwrap();r}
+fn children<T:glib::types::StaticType+IsA<gtk::Widget>+Clone+glib::object::ObjectType>(widget:&impl IsA<gtk::Widget>)->Vec<T>{let mut result=Vec::new();if let Ok(w)=widget.as_ref().clone().downcast::<T>(){result.push(w);}if let Ok(c)=widget.as_ref().clone().downcast::<gtk::Container>(){for w in c.children(){result.extend(children::<T>(&w));}}result}
+fn button(widget:&impl IsA<gtk::Widget>,name:&str)->gtk::Button{children::<gtk::Button>(widget).into_iter().find(|b|b.label().as_deref()==Some(name)).unwrap()}
+fn label(widget:&impl IsA<gtk::Widget>,text:&str)->bool{children::<gtk::Label>(widget).into_iter().any(|l|l.text().contains(text))}
+fn entry(widget:&impl IsA<gtk::Widget>,placeholder:&str)->gtk::Entry{children::<gtk::Entry>(widget).into_iter().find(|e|e.placeholder_text().as_deref()==Some(placeholder)).unwrap()}
+pub(crate) fn run(binaries:&Path){
+    let d=tempfile::tempdir().unwrap();let data=d.path().join("data");let cache=d.path().join("cache");for p in [&data,&cache]{std::fs::create_dir_all(p).unwrap();}let executable=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(executable),&data,true).unwrap();
+    let novel=rpc(&client,"create_novel",json!({"title":"Exact spelling exception fixture"}));let pid=novel["project"]["id"].as_str().unwrap();
+    let mut base=crate::tools::initial("settings");base["opaque"]=json!({"preserve":"مِ 中文"});base["nativeCommandSequences"]=json!({"schemaVersion":1,"sequences":[{"slot":1,"name":"Explicit synthetic sequence","actions":[{"kind":"spacing","value":1.5}]}]});
+    rpc(&client,"save_project_data",json!({"projectId":pid,"kind":"settings","payload":base,"parent":null}));
+    let a=Workspace::build(client,&cache,binaries,false,false).unwrap();wait(||a.active.borrow().as_ref().is_some_and(|p|p.open.get()&&p.pending.get()==0));let pane=a.active.borrow().clone().unwrap();
+    a.proofreading_exceptions();let widget=a.current_widget().unwrap();let form=a.page("settings");wait(||form.loaded.get());
+    let controls=widget.clone().downcast::<gtk::Container>().unwrap().children().into_iter().find(|w|w.widget_name()=="exact-spelling-exceptions").unwrap();let term=entry(&controls,"Exact spelling exception term");let reason=entry(&controls,"Author's reason for allowing this spelling");let language=children::<gtk::ComboBoxText>(&controls).into_iter().next().unwrap();term.set_text("e\u{301}");reason.set_text("Exact author spelling");language.set_active_id(Some("en"));
+    // Complete a real sequence during the settings-check callback. Generation
+    // stays unchanged, but its original window capability must become stale.
+    let owner=a.clone();let source=pane.clone();let controls_=controls.clone();let generation=a.desk.generation.get();let checked=Rc::new(Cell::new(false));let out=checked.clone();
+    BEFORE_SETTINGS_REPLY.with(|h|*h.borrow_mut()=Some(Box::new(move||{
+        owner.install(&source.widget,"Synthetic original scene",false);let completed=Rc::new(RefCell::new(None));let done=completed.clone();owner.sequence_play_saved(1,&source,Box::new(move|r|*done.borrow_mut()=Some(r))).unwrap();wait(||completed.borrow().is_some());assert_eq!(completed.borrow().as_ref().unwrap().saved_steps,1);assert!(completed.borrow().as_ref().unwrap().error.is_none());owner.install(&form_widget(&controls_),"Spelling exceptions · Review settings",false);out.set(true);
+    })));
+    button(&controls,"Allow exact spelling (unsaved)").clicked();wait(||checked.get()&&label(&controls,"authorization changed"));assert_eq!(a.desk.generation.get(),generation);assert!(!form.dirty.get());assert!(exceptions(&form.value.borrow()).unwrap().is_empty());assert_eq!(term.text(),"e\u{301}");
+    let marker=rpc(&a.client,"sync_cursor",json!({}));button(&controls,"Allow exact spelling (unsaved)").clicked();wait(||form.dirty.get());assert_eq!(rpc(&a.client,"sync_cursor",json!({})),marker);assert_eq!(form.value.borrow()["opaque"],base["opaque"]);assert!(button(&controls,"Save Review settings with exceptions").is_sensitive());
+    button(&controls,"Save Review settings with exceptions").clicked();wait(||!form.saving.get()&&!form.dirty.get());let first=rpc(&a.client,"load_project_data_unambiguous",json!({"projectId":pid,"kind":"settings"}));assert_eq!(first["payload"]["opaque"],base["opaque"]);assert_eq!(exceptions(&first["payload"]).unwrap(),vec![json!({"term":"e\u{301}","language":"en","reason":"Exact author spelling"})]);
+    language.set_active_id(Some("ar"));reason.set_text("Separate language");button(&controls,"Allow exact spelling (unsaved)").clicked();wait(||form.dirty.get());button(&controls,"Save Review settings with exceptions").clicked();wait(||!form.saving.get()&&!form.dirty.get());
+    language.set_active_id(Some("en"));button(&controls,"Remove exact spelling (unsaved)").clicked();wait(||form.dirty.get());assert_eq!(exceptions(&form.value.borrow()).unwrap().len(),1);assert_eq!(exceptions(&form.value.borrow()).unwrap()[0]["language"],"ar");button(&controls,"Save Review settings with exceptions").clicked();wait(||!form.saving.get()&&!form.dirty.get());
+    term.set_text("Pending CAS candidate");reason.set_text("Keep this pending reason");button(&controls,"Allow exact spelling (unsaved)").clicked();wait(||form.dirty.get());let draft=form.value.borrow().clone();let retained_parent=form.parent.borrow().clone();
+    let current=rpc(&a.client,"load_project_data_unambiguous",json!({"projectId":pid,"kind":"settings"}));let mut concurrent=current["payload"].clone();concurrent["concurrentAuthorValue"]=json!("preserve");let competing=rpc(&a.client,"save_project_data",json!({"projectId":pid,"kind":"settings","payload":concurrent,"parent":current["revisionId"]}));let marker=rpc(&a.client,"sync_cursor",json!({}));
+    button(&controls,"Save Review settings with exceptions").clicked();wait(||!form.saving.get()&&label(&controls,"Settings not saved"));assert!(form.dirty.get());assert_eq!(*form.value.borrow(),draft);assert_eq!(*form.parent.borrow(),retained_parent);assert_eq!(term.text(),"Pending CAS candidate");assert_eq!(reason.text(),"Keep this pending reason");assert_eq!(rpc(&a.client,"sync_cursor",json!({})),marker);assert_eq!(rpc(&a.client,"load_project_data_unambiguous",json!({"projectId":pid,"kind":"settings"})),competing);
+    a.detach_current();let detached=desk::workspace_for_widget(&widget).unwrap();a.close();wait(||a.desk.is_closed());detached.desk.choices.borrow_mut().push_back(desk::SaveChoice::Cancel);detached.close();assert!(!detached.desk.is_closed());assert!(form.dirty.get());assert_eq!(*form.value.borrow(),draft);assert_eq!(term.text(),"Pending CAS candidate");assert!(button(&controls,"Remove exact spelling (unsaved)").is_sensitive());
+    detached.desk.choices.borrow_mut().push_back(desk::SaveChoice::Discard);detached.close();wait(||detached.desk.is_closed());
+}
+fn form_widget(controls:&gtk::Widget)->gtk::Widget{controls.parent().unwrap()}

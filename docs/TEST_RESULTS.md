@@ -1,3 +1,9 @@
+# Contextual dictionary and spelling author controls — October 14, 2026
+
+Six pure checks passed. Final actual GTK dictionary passed **1 test / 2.37 s** and exceptions **1 test / 0.62 s** with rebuilt workers and fatal criticals. Dictionary exercises exact multilingual rich marks, cancellation, unsaved Apply/one Undo, stale selection/rich formatting, cached panes and independent detached owners without implicit scene saving. Exceptions exercises exact case/normalization/language distinctions, original authorization invalidated by a completed sequence, explicit settings Save, unrelated-field retention and failed CAS/Cancel/Discard. Logs: `/tmp/novel-dictionary-final-gtk.log`, `/tmp/novel-exceptions-final-gtk.log`. Test provider-result integration is recorded with review.
+
+---
+
 # Authored continuity and shared occurrence lanes — October 14, 2026
 
 Fifteen new pure checks cover declared prerequisite links, knowledge learn/use facts, sufficiently definite exclusive presence/state intervals, payoff/scope reminders, exact manual annotations, shared canonical lane identity, missing evidence and bounded refusal. Actual GTK passed **1 test / 0.78 s** with rebuilt workers/fatal criticals and synthetic stores. Saved snapshot/source changes, local rule selection, checked scene navigation and detached ownership are exercised without canon/issue writes. Log: `/tmp/novel-continuity-final-gtk.log`.

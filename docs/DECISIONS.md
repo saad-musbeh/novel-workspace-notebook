@@ -1,3 +1,9 @@
+# Local synonym passage previews and exact spelling exceptions — October 14, 2026
+
+Lookup source meanings remain local licensed or author-owned dictionaries. Literal passage replacement binds the original rich pane and exact selection; it never infers inflection or automatically saves. Exception authoring reuses registered Review settings lifecycle and original input permits. Apply exact language/quote proofreading exceptions only after validating unfiltered source/evidence/offsets; LLM and deterministic questions remain visible.
+
+---
+
 # Deterministic authored continuity and lanes — October 14, 2026
 
 Continuity derives questions only from existing explicitly confirmed story semantics. Knowledge snapshots are not evidence of use; dedicated author facts distinguish learn/use. Numerical feasibility comes from the shared chronology analysis, and uncertain bounds cannot imply exclusive overlap. Findings remain read-only; exact intentional/dismissed canonical issue annotations remain author notes. Main/subplots are memberships of one canonical event rather than copied worlds.

@@ -234,7 +234,8 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "metadata"=>super::super::metadata_conflicts::tests::run(&binaries),
             "private-sync"=>super::super::private_sync::tests::run(&binaries),
             "board"=>{board_forms::run(&binaries);crate::planning::board_view::tests::run(&binaries);}
-            "dictionary"=>dictionary_forms::run(&binaries),
+            "dictionary"=>{dictionary_forms::run(&binaries);dictionary_forms::synonym_workflow(&binaries);},
+            "exceptions"=>super::super::proofreading_exceptions::tests::run(&binaries),
             "projections"=>projection_forms::run(&binaries),
             "conflicts"=>project_data_conflicts::run(&binaries),
             "ripple"=>super::super::ripple::tests::run(&binaries),
@@ -263,6 +264,8 @@ fn notebook_navigation_manual_save_and_multi_window() {
     scene_arrangement_forms::run(&binaries);
     projection_forms::run(&binaries);
     dictionary_forms::run(&binaries);
+    dictionary_forms::synonym_workflow(&binaries);
+    super::super::proofreading_exceptions::tests::run(&binaries);
     board_forms::run(&binaries);
     crate::planning::board_view::tests::run(&binaries);
     exact_navigation::run(&binaries);

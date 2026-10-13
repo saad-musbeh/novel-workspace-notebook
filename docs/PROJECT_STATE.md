@@ -1,3 +1,13 @@
+# Unreleased contextual synonyms and exact spelling exceptions — October 14, 2026
+
+Dictionary alternatives can preview one exact selected passage from the original live rich draft, retaining sense/part-of-speech provenance and a manual inflection notice. Apply is one literal unsaved undoable replacement with original owner/selection/rich-document/parent/input guards; Cancel edits nothing. Saved dictionaries use sole-head checked reads.
+
+Spelling exceptions adds exact term/language/reason controls to the registered Review settings draft. Allow/Remove remains unsaved until explicit Save; unrelated settings, failed-CAS drafts and detached ownership are retained. Proofreading suppression runs only after validating the complete original result, and never hides LLM/other issues or normalizes text.
+
+Observed: three synonym and three exception pure checks passed. Actual GTK dictionary passed **1 test / 2.37 s**, exceptions **1 test / 0.62 s**. Tests corrected an old-page preview wait and invoked the saved-settings sequence path for a fresh runtime. No provider/resource download occurred.
+
+---
+
 # Unreleased authored continuity checks and occurrence lanes — October 14, 2026
 
 Review offers six bounded deterministic checks: confirmed chronology contradictions, missing prerequisites, knowledge used before learning, exclusive presence, conflicting confirmed states and required payoff reminders. Only explicitly authored semantics and sufficiently definite timing produce findings. Unknown, approximate, malformed or over-budget evidence remains unresolved. Exact canonical manual issue annotations can show intentional/dismissed author notes; page rule toggles remain local.

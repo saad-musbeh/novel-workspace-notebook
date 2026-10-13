@@ -287,6 +287,7 @@ fn text(container: &gtk::Box, content: &str) {
 struct DictionaryPage {
     widget: glib::WeakRef<gtk::Box>,
     pid: String,
+    pane:std::rc::Weak<EditorPane>,
     query: gtk::Entry,
     language: gtk::ComboBoxText,
     ignore_case: gtk::CheckButton,
@@ -307,7 +308,7 @@ impl DictionaryPage {
             None
         }
     }
-    fn render(&self) {
+    fn render(self:&Rc<Self>) {
         for child in self.results.children() {
             self.results.remove(&child);
         }
@@ -394,6 +395,12 @@ impl DictionaryPage {
                         &format!("Synonyms for this sense: {}", sense.synonyms.join(" · ")),
                     );
                 }
+                for synonym in &sense.synonyms {
+                    let preview=gtk::Button::with_label(&format!("Preview in captured passage: {synonym}"));
+                    let weak=Rc::downgrade(self);let replacement=synonym.clone();let lookup_term=query.to_string();let lookup_language=language.clone();let lookup_case=self.ignore_case.is_active();let source_generation=self.generation.get();let provenance=format!("{} · {} · {}\nSource: {}\nDeclared license: {}\nAttribution: {}\nSense {} · {}\n{}",source.name,source.version,source.language,source.source,source.license,source.attribution,i+1,sense.part_of_speech,sense.definition);
+                    preview.connect_clicked(move|_|if let Some(page)=weak.upgrade(){if let Some(owner)=page.owner(){if page.loading.get()||page.generation.get()!=source_generation||page.query.text()!=lookup_term||page.language.active_id().as_deref()!=Some(lookup_language.as_str())||page.ignore_case.is_active()!=lookup_case{owner.error("Dictionary lookup changed. Choose an alternative from the current results.");return;}synonym_context::open(&owner,page.pane.clone(),lookup_term.clone(),replacement.clone(),provenance.clone());}});
+                    card.pack_start(&preview,false,false,0);
+                }
                 if !sense.related.is_empty() {
                     text(
                         &card,
@@ -432,31 +439,23 @@ impl DictionaryPage {
         self.render();
         self.load_kind(0);
     }
-    fn load_kind(self: &Rc<Self>, index: usize) {
-        let kinds = ["languagePacks", "writingSystems"];
-        if index == kinds.len() {
-            self.loading.set(false);
-            self.render();
-            return;
-        }
-        let Some(a) = self.owner() else {
-            return;
-        };
-        let kind = kinds[index];
-        let generation = self.generation.get();
-        let p = self.clone();
-        a.client.rpc("project_data_heads",json!({"projectId":self.pid,"kind":kind}),move|reply|{
-            if p.owner().is_none() || p.generation.get()!=generation{return;}
-            let heads=match reply.and_then(|v|serde_json::from_value::<novel_storage::RevisionHeads>(v).map_err(|_|"Unsupported source heads.".into())){Ok(h)=>h.revision_ids,Err(e)=>{p.warnings.borrow_mut().push(format!("{kind}: {e}"));p.load_kind(index+1);return;}};
-            if heads.len()>1{p.warnings.borrow_mut().push(format!("{kind}: competing versions; resolve them in Project data conflicts before lookup."));p.load_kind(index+1);return;}
-            let Some(head)=heads.first().cloned()else{p.load_kind(index+1);return;};let Some(a)=p.owner()else{return;};let page=p.clone();
-            a.client.rpc("load_project_data_revision",json!({"projectId":p.pid,"kind":kind,"revisionId":head}),move|reply|{
-                if page.owner().is_none() || page.generation.get()!=generation{return;}
-                match reply.and_then(|v|if kind=="languagePacks"{pack_sources(&v["payload"])}else{alphabet_sources(&v["payload"])}){Ok(sources)=>page.sources.borrow_mut().extend(sources),Err(e)=>page.warnings.borrow_mut().push(format!("{kind}: {e}"))}
-                page.load_kind(index+1);
-            });
+    fn load_kind(self:&Rc<Self>,index:usize) {
+        let kinds=["languagePacks","writingSystems"];
+        if index==kinds.len(){self.loading.set(false);self.render();return;}
+        let Some(owner)=self.owner()else{return;};let kind=kinds[index];let generation=self.generation.get();let page=self.clone();
+        // Current projection, sole heads and source checksum are verified in one
+        // backend read snapshot rather than selecting a head between two RPCs.
+        owner.client.rpc("load_project_data_unambiguous",json!({"projectId":self.pid,"kind":kind}),move|reply|{
+            if page.owner().is_none()||page.generation.get()!=generation{return;}
+            match reply.and_then(|saved| {
+                if saved.is_null(){return Ok(Vec::new());}
+                if !saved["revisionId"].as_str().is_some_and(|id|!id.is_empty()&&id.len()<=200){return Err("Unsupported dictionary revision identity.".into());}
+                if kind=="languagePacks"{pack_sources(&saved["payload"])}else{alphabet_sources(&saved["payload"])}
+            }) {Ok(sources)=>page.sources.borrow_mut().extend(sources),Err(e)=>page.warnings.borrow_mut().push(format!("{kind}: {e}"))}
+            page.load_kind(index+1);
         });
     }
+
 }
 impl Workspace {
     pub(super) fn dictionary(self: &Rc<Self>) {
@@ -465,18 +464,19 @@ impl Workspace {
             a.error("Choose a novel before looking up local words.");
             return;
         }
+        if a.sequence_window_blocked(){return;}
         let out = a.clone();
-        a.navigate(move||{
+        {
             let panel=out.panel("Dictionary and synonyms");let body=panel.content_area();text(&body,"Read saved local dictionaries and your project alphabet glossaries. Meanings and synonyms stay grouped by sense. Refresh after saving source changes.");
             let controls=gtk::Box::new(gtk::Orientation::Horizontal,8);let query=gtk::Entry::new();query.set_placeholder_text(Some("Word or project symbol"));query.set_max_length(500);controls.pack_start(&query,true,true,0);
             let language=gtk::ComboBoxText::new();language.append(Some("any"),"All languages");for (id,name) in LANGUAGES{language.append(Some(id),name);}language.append(Some("und"),"Project / unspecified language");language.set_active(Some(0));controls.pack_start(&language,false,false,0);body.pack_start(&controls,false,false,0);
             let ignore_case=gtk::CheckButton::with_label("Ignore case for lookup");body.pack_start(&ignore_case,false,false,0);
             let status=gtk::Label::new(None);status.set_xalign(0.);status.set_line_wrap(true);status.set_selectable(true);body.pack_start(&status,false,false,0);let results=gtk::Box::new(gtk::Orientation::Vertical,10);body.pack_start(&scroll(&results),true,true,0);
             let actions=gtk::Box::new(gtk::Orientation::Horizontal,8);body.pack_start(&actions,false,false,0);let reload=gtk::Button::with_label("Reload saved dictionaries");actions.pack_start(&reload,false,false,0);
-            let page=Rc::new(DictionaryPage{widget:panel.widget.downgrade(),pid:out.pid.borrow().clone(),query:query.clone(),language:language.clone(),ignore_case:ignore_case.clone(),status,results,sources:RefCell::new(Vec::new()),warnings:RefCell::new(Vec::new()),generation:Cell::new(0),loading:Cell::new(false)});
+            let page=Rc::new(DictionaryPage{widget:panel.widget.downgrade(),pid:out.pid.borrow().clone(),pane:out.context_pane().map(|p|Rc::downgrade(&p)).unwrap_or_default(),query:query.clone(),language:language.clone(),ignore_case:ignore_case.clone(),status,results,sources:RefCell::new(Vec::new()),warnings:RefCell::new(Vec::new()),generation:Cell::new(0),loading:Cell::new(false)});
             let weak=Rc::downgrade(&page);query.connect_changed(move|_|if let Some(p)=weak.upgrade(){p.render();});let weak=Rc::downgrade(&page);language.connect_changed(move|_|if let Some(p)=weak.upgrade(){p.render();});let weak=Rc::downgrade(&page);ignore_case.connect_toggled(move|_|if let Some(p)=weak.upgrade(){p.render();});
-            let p=page.clone();reload.connect_clicked(move|_|p.load());out.install(&panel.widget,"Dictionary and synonyms",true);page.load();
-        });
+            let p=page.clone();reload.connect_clicked(move|_|p.load());out.install(&panel.widget,"Dictionary and synonyms",false);page.load();
+        }
     }
 }
 #[cfg(test)]
