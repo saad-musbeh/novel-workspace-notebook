@@ -49,6 +49,11 @@ pub(crate) mod alphabet_host;
 pub(crate) mod alphabet_export;
 #[path="statistics.rs"]
 pub(crate) mod statistics;
+#[path="parts_outline.rs"]
+mod parts_outline;
+#[path="parts.rs"]
+pub(crate) mod parts;
+use parts::PartsPage;
 #[path="universe_views.rs"]
 pub(crate) mod universe_views;
 #[path="continuity.rs"]
@@ -115,6 +120,7 @@ pub struct Workspace {
     chapter_pages:RefCell<Vec<Rc<ChapterPage>>>,
     alternative_pages:RefCell<Vec<Rc<AlternativesPage>>>,
     scene_arrangement_pages:RefCell<Vec<Rc<SceneArrangementPage>>>,
+    parts_pages:RefCell<Vec<Rc<PartsPage>>>,
     shortcuts:ShortcutRuntime,
     shortcut_pages:RefCell<Vec<Rc<ShortcutsPage>>>,
     desktop_preferences:DesktopRuntime,
@@ -133,6 +139,8 @@ pub struct Workspace {
     notebook_pending:Cell<usize>,
     notebook_failures:Cell<u64>,
     project_refresh_epoch:Cell<u64>,
+    parts_outline_epoch:Cell<u64>,
+    parts_outline:RefCell<Option<novel_storage::ManuscriptParts>>,
     trail:RefCell<Vec<navigation::TrailEntry>>,
     trail_index:Cell<usize>,
     desk:Desk,
@@ -271,7 +279,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),sequence_host:SequenceHost::default(),alphabet_pages:RefCell::new(Vec::new()),licensed_import_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),project_refresh_epoch:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),parts_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),sequence_host:SequenceHost::default(),alphabet_pages:RefCell::new(Vec::new()),licensed_import_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),project_refresh_epoch:Cell::new(0),parts_outline_epoch:Cell::new(0),parts_outline:RefCell::new(None),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -354,7 +362,7 @@ impl Workspace {
             a.cancel_review_generations();
             if !a.clear_tabs(){a.changing.set(true);a.projects.set_active_id(Some(&previous));a.changing.set(false);return;}
             for pane in a.panes.borrow().values(){pane.process.stop();}
-            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();a.alphabet_pages.borrow_mut().clear();a.licensed_import_pages.borrow_mut().clear();a.review_decision_pages.borrow_mut().clear();a.translation_preview_pages.borrow_mut().clear();
+            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.parts_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();a.alphabet_pages.borrow_mut().clear();a.licensed_import_pages.borrow_mut().clear();a.review_decision_pages.borrow_mut().clear();a.translation_preview_pages.borrow_mut().clear();
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
             *a.index.borrow_mut()=Value::Null;a.populate_outline();a.populate_book();
             a.pages.set_group_name(Some(a.group_name()));
@@ -365,6 +373,7 @@ impl Workspace {
         });
     }
     fn load_index(self:&Rc<Self>){
+        self.parts_outline_epoch.set(self.parts_outline_epoch.get().wrapping_add(1));self.parts_outline.borrow_mut().take();
         let weak=Rc::downgrade(self);
         let pid=self.pid.borrow().clone();
         let selected=pid.clone();
@@ -378,6 +387,7 @@ impl Workspace {
                     *a.index.borrow_mut()=index.clone();
                     a.populate_outline();
                     a.populate_book();
+                    a.refresh_parts_outline();
                     let references=index["scenes"].as_array().into_iter().flatten().map(|s|(s["id"].as_str().unwrap().to_owned(),s["title"].as_str().unwrap_or("Scene").to_owned())).collect::<Vec<_>>();
                     for p in a.data.borrow().iter(){
                         p.load(&selected,references.clone());
@@ -395,11 +405,18 @@ impl Workspace {
         self.outline.clear();
         let index=self.index.borrow();
         let query=self.search.text().to_lowercase();
+        let mut previous_part=None;let mut part_row=None;
         for chapter in index["chapters"].as_array().into_iter().flatten(){
             let scenes:Vec<_>=index["scenes"].as_array().into_iter().flatten().filter(|s|s["chapterId"]==chapter["id"] && (query.is_empty() || s["title"].as_str().unwrap_or("").to_lowercase().contains(&query) || chapter["title"].as_str().unwrap_or("").to_lowercase().contains(&query))).collect();
             if !query.is_empty() && scenes.is_empty() && !chapter["title"].as_str().unwrap_or("").to_lowercase().contains(&query){
                 continue;
-            }let row=self.outline.append(None);
+            }
+            let part=self.chapter_part(chapter["id"].as_str().unwrap_or(""));
+            let part_id=part.as_ref().map(|p|p.0.clone());
+            if part_id!=previous_part {
+                part_row=part.as_ref().map(|(id,title)|{let row=self.outline.append(None);self.outline.set(&row,&[(0,title),(1,id),(2,&"part")]);row});previous_part=part_id;
+            }
+            let row=self.outline.append(part_row.as_ref());
             let title=chapter["title"].as_str().unwrap_or("Chapter");
             let id=chapter["id"].as_str().unwrap();
             self.outline.set(&row,&[(0,&title),(1,&id),(2,&"chapter")]);
@@ -414,7 +431,11 @@ impl Workspace {
         let heading=gtk::Label::new(Some("Manuscript"));heading.set_xalign(0.);heading.style_context().add_class("page-title");
         self.book.pack_start(&heading,false,false,0);
         let index=self.index.borrow();
+        let mut previous_part=None;
         for chapter in index["chapters"].as_array().into_iter().flatten(){
+            let part=self.chapter_part(chapter["id"].as_str().unwrap_or(""));
+            let part_id=part.as_ref().map(|p|p.0.clone());
+            if part_id!=previous_part {if let Some((_,title))=&part {let label=gtk::Label::new(Some(title));label.set_xalign(0.);label.set_line_wrap(true);label.style_context().add_class("page-title");self.book.pack_start(&label,false,false,8);}previous_part=part_id;}
             let group=gtk::Expander::new(chapter["title"].as_str());group.set_expanded(true);
             let scenes=gtk::Box::new(gtk::Orientation::Vertical,4);
             for scene in index["scenes"].as_array().into_iter().flatten().filter(|s|s["chapterId"]==chapter["id"]){

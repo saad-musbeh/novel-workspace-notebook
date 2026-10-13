@@ -993,9 +993,10 @@ impl Storage {
             let old:String=sqlx::query_scalar("SELECT payload FROM revision_envelope WHERE id=?").bind(head).fetch_one(&mut *tx).await.map_err(err)?;
             let old:Value=serde_json::from_str(&old).map_err(|_|"Invalid saved project data.")?;
             validate_data_transition(kind,&old,&payload)?;
-            if kind=="planning"{crate::planning_validation::validate_transition(Some(&old),&payload)?;}
+            if kind=="planning"{crate::planning_validation::validate_transition(Some(&old),&payload)?;crate::manuscript_parts::validate_parts_transition(&mut tx,pid,&payload,&[&old]).await?;}
         }else if kind=="planning"{
             crate::planning_validation::validate_transition(None,&payload)?;
+            crate::manuscript_parts::validate_parts_transition(&mut tx,pid,&payload,&[]).await?;
         }
         if kind=="sceneTranslations"{crate::translations::validate_sources(&mut tx,pid,&payload).await?;}
         if ["planning","writingSystems","sceneMetadata","paragraphAlternatives","notebookTools"].contains(&kind){

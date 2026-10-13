@@ -24,6 +24,7 @@ fn present(value: &Value, key: &str, check: impl FnOnce(&Value) -> bool, message
 /// frontend required. Preserve those omissions and all frozen text; new author
 /// actions are checked by `validate_transition`, never backfilled on a read.
 pub fn validate_compatibility(document: &Value) -> Result<(), String> {
+    crate::manuscript_parts::validate_planning_parts(document)?;
     let mut seen = HashSet::new();
     for key in ["records", "fields", "facts", "events", "plotPoints", "lanes", "boards", "constraints", "issues"] {
         for row in rows(document, key) { if let Some(id) = id(row) { seen.insert(id); } }

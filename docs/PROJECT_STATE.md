@@ -1,3 +1,13 @@
+# Unreleased optional manuscript Parts — October 14, 2026
+
+Organize Parts authors named optional chapter groups, title/order/hidden headings and explicit chapter assignments in revisioned planning metadata. Outline and manuscript overview group existing chapters without moving canonical chapter/scene order; interleaved groups repeat headings, hidden groups retain writing. Removing a Part explicitly unassigns only its chapters.
+
+Checked snapshot/Save binds complete project/chapter metadata and planning heads/projections with bounded preflight reads. Generic Save/checked Save/resolution also verifies newly introduced chapter ownership; unchanged acknowledged historical stale assignments remain visible and retained. No schema migration occurs. Registered manual draft choices, composition/sequence guards, failed-save retention and detached ownership are preserved.
+
+Observed: **9 storage** and **3 native pure** tests passed; actual GTK Parts passed **1 test / 0.89 s**. Archive/branch roundtrip verifies remapped canonical chapter/scene assignments, exact rich Unicode writing and retained Parts history, then checked Save in each copied project without modifying the original. The complete combined GTK workflow passed **1 test / 68.22 s**.
+
+---
+
 # Unreleased English interface catalogue foundation — October 14, 2026
 
 154 static English captions are externalized under stable interface keys for the native shell, menus, common dialogs/forms and launcher. Existing English bytes remain exact; route/group/language/format identifiers and authored titles/text stay separate. A bounded standard-library compiler generates the static Rust table, with explicit coverage/freshness checks. No translated locale or UI-language switch is claimed.

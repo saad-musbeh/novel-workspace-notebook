@@ -147,6 +147,39 @@ export interface ReviewSourcesCheck {
   sources: Array<ReviewSource>;
 }
 
+export interface ManuscriptPart {
+  id: string;
+  title: string;
+  hidden: boolean;
+}
+
+export interface ChapterPart {
+  chapterId: string;
+  partId: string;
+}
+
+export interface ManuscriptParts {
+  schemaVersion: number;
+  parts: Array<ManuscriptPart>;
+  chapters: Array<ChapterPart>;
+}
+
+export interface PartsMetadataSource {
+  entityId: string;
+  revisionId: string;
+  payload: unknown;
+}
+
+export interface ManuscriptPartsSnapshot {
+  projectId: string;
+  project: Project;
+  chapters: Array<Chapter>;
+  chapterNumberStart: number;
+  projectSource: PartsMetadataSource;
+  chapterSources: Array<PartsMetadataSource>;
+  planning: (ProjectDataSnapshot | null);
+}
+
 export interface PlanningReadSnapshot {
   index: ProjectIndex;
   planning: (ProjectDataSnapshot | null);
@@ -923,6 +956,126 @@ export const workspaceWireSchema = {
         "rustName": "sources",
         "name": "sources",
         "rustType": "Vec<ReviewSource>"
+      }
+    ]
+  },
+  "ManuscriptPart": {
+    "source": "crates/storage/src/manuscript_parts.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "id",
+        "name": "id",
+        "rustType": "String"
+      },
+      {
+        "rustName": "title",
+        "name": "title",
+        "rustType": "String"
+      },
+      {
+        "rustName": "hidden",
+        "name": "hidden",
+        "rustType": "bool"
+      }
+    ]
+  },
+  "ChapterPart": {
+    "source": "crates/storage/src/manuscript_parts.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "chapter_id",
+        "name": "chapterId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "part_id",
+        "name": "partId",
+        "rustType": "String"
+      }
+    ]
+  },
+  "ManuscriptParts": {
+    "source": "crates/storage/src/manuscript_parts.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "schema_version",
+        "name": "schemaVersion",
+        "rustType": "u32"
+      },
+      {
+        "rustName": "parts",
+        "name": "parts",
+        "rustType": "Vec<ManuscriptPart>"
+      },
+      {
+        "rustName": "chapters",
+        "name": "chapters",
+        "rustType": "Vec<ChapterPart>"
+      }
+    ]
+  },
+  "PartsMetadataSource": {
+    "source": "crates/storage/src/manuscript_parts.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "entity_id",
+        "name": "entityId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "revision_id",
+        "name": "revisionId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "payload",
+        "name": "payload",
+        "rustType": "Value"
+      }
+    ]
+  },
+  "ManuscriptPartsSnapshot": {
+    "source": "crates/storage/src/manuscript_parts.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "project_id",
+        "name": "projectId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "project",
+        "name": "project",
+        "rustType": "Project"
+      },
+      {
+        "rustName": "chapters",
+        "name": "chapters",
+        "rustType": "Vec<Chapter>"
+      },
+      {
+        "rustName": "chapter_number_start",
+        "name": "chapterNumberStart",
+        "rustType": "i64"
+      },
+      {
+        "rustName": "project_source",
+        "name": "projectSource",
+        "rustType": "PartsMetadataSource"
+      },
+      {
+        "rustName": "chapter_sources",
+        "name": "chapterSources",
+        "rustType": "Vec<PartsMetadataSource>"
+      },
+      {
+        "rustName": "planning",
+        "name": "planning",
+        "rustType": "Option<ProjectDataSnapshot>"
       }
     ]
   },
@@ -1957,6 +2110,8 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   export_archive: {args: {projectId: string;}; result: string};
   import_archive: {args: {archive: string;}; result: ProjectBundle<TScene>};
   load_project_data: {args: {projectId: string; kind: string;}; result: (ProjectDataSnapshot | null)};
+  parts_edit_snapshot: {args: {projectId: string;}; result: ManuscriptPartsSnapshot};
+  save_manuscript_parts_checked: {args: {snapshot: ManuscriptPartsSnapshot; parts: ManuscriptParts;}; result: ManuscriptPartsSnapshot};
   review_context_snapshot: {args: {projectId: string; sceneId: string;}; result: ReviewContextSnapshot};
   review_context_check: {args: {projectId: string; sources: Array<ReviewSource>;}; result: ReviewSourcesCheck};
   review_sources_check: {args: {projectId: string; sources: Array<ReviewSource>;}; result: ReviewSourcesCheck};
@@ -2021,6 +2176,8 @@ export const storageRpcCoverage = {
     "export_archive",
     "import_archive",
     "load_project_data",
+    "parts_edit_snapshot",
+    "save_manuscript_parts_checked",
     "review_context_snapshot",
     "review_context_check",
     "review_sources_check",

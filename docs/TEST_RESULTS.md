@@ -1,3 +1,11 @@
+# Checked optional Parts integration — October 14, 2026
+
+Focused Parts passed **9 storage** and **3 native pure** checks. Actual GTK passed **1 test / 0.89 s** with rebuilt workers and fatal criticals, covering no autosave, preedit refusal, manual Cancel/Discard/Save, repeated real tree parents across a hidden group, canonical book order, later chapter/index refusal, stale draft retention and detached Save after origin close. Full combined GTK passed **1 test / 68.22 s**.
+
+Storage covers complete metadata/source CAS, normal scene typing independent of grouping, foreign/missing/conflicted chapters through all author-save paths, acknowledged historical stale compatibility, strict new schema, bounded/corrupt raw metadata and rollback of revision/head/cursor after injected failure. Archive/branch roundtrip preserves group IDs/title/order/hidden flags and both exact history revisions, remaps assignments to copied canonical chapters/scenes, retains rich multilingual writing and permits a fresh checked Save without changing the source project. Validator test shims expose the actual shared Parts schema guard when compiling the standalone planning module. Logs: `/tmp/novel-parts-final-gtk.log`, `/tmp/novel-final-complete-gtk.log`.
+
+---
+
 # English UI catalogue checks — October 14, 2026
 
 Three Rust lookup checks and four standard-library catalogue compiler tests passed. Freshness and declared hook checks passed for **154 original English captions**, exact identifiers and minimum static references. Duplicate/invalid keys, oversized/control/surrogate text and undeclared format placeholders refuse generation; literal multilingual/quote/backslash values round-trip. Offline workers/native build completed warning-free. Tools: `generate-native-ui-text.py --check`, `check-native-ui-text.py`, `test-native-ui-text.py`. This covers selected shell/shared-form text, not translated locales or complete native message coverage.

@@ -233,6 +233,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "view"=>desktop_preference_forms::run(&binaries),
             "metadata"=>super::super::metadata_conflicts::tests::run(&binaries),
             "private-sync"=>super::super::private_sync::tests::run(&binaries),
+            "parts"=>super::super::parts::tests::run(&binaries),
             "board"=>{board_forms::run(&binaries);crate::planning::board_view::tests::run(&binaries);}
             "dictionary"=>{dictionary_forms::run(&binaries);dictionary_forms::synonym_workflow(&binaries);},
             "exceptions"=>super::super::proofreading_exceptions::tests::run(&binaries),
@@ -264,6 +265,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
     paragraph_forms::run(&binaries);
     project_data_conflicts::run(&binaries);
     scene_arrangement_forms::run(&binaries);
+    super::super::parts::tests::run(&binaries);
     projection_forms::run(&binaries);
     dictionary_forms::run(&binaries);
     dictionary_forms::synonym_workflow(&binaries);

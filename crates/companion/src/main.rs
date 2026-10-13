@@ -4,7 +4,7 @@ mod patch;
 mod sync_service;
 mod recovery;
 mod peer_client;
-use novel_storage::{SceneConflictSnapshot, ReviewSource, MetadataResolutionSnapshot, SceneArrangementSnapshot, Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
+use novel_storage::{ManuscriptParts, ManuscriptPartsSnapshot, SceneConflictSnapshot, ReviewSource, MetadataResolutionSnapshot, SceneArrangementSnapshot, Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use std::{fs::OpenOptions, io::{BufRead, Read, Write}, path::PathBuf, sync::Arc};
@@ -79,6 +79,8 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "review_context_snapshot" => encode(storage.review_context_snapshot(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"sceneId")?).await?),
         "review_context_check" => encode(storage.review_context_check(&argument::<String>(&args,"projectId")?,&argument::<Vec<ReviewSource>>(&args,"sources")?).await?),
         "review_sources_check" => encode(storage.review_sources_check(&argument::<String>(&args,"projectId")?,&argument::<Vec<ReviewSource>>(&args,"sources")?).await?),
+        "parts_edit_snapshot" => encode(storage.parts_edit_snapshot(&argument::<String>(&args,"projectId")?).await?),
+        "save_manuscript_parts_checked" => encode(storage.save_manuscript_parts_checked(argument::<ManuscriptPartsSnapshot>(&args,"snapshot")?,argument::<ManuscriptParts>(&args,"parts")?).await?),
         "planning_read_snapshot" => encode(storage.planning_read_snapshot(&argument::<String>(&args,"projectId")?).await?),
         "alphabet_export_snapshot" => encode(storage.alphabet_export_snapshot(&argument::<String>(&args,"projectId")?).await?),
         "universe_catalogue_snapshot" => encode(storage.universe_catalogue_snapshot().await?),

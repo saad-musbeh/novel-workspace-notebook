@@ -1,3 +1,4 @@
+mod manuscript_parts { pub use novel_storage::manuscript_parts::validate_planning_parts; }
 // The validator is deliberately tested before UI/backend wiring as well as by
 // transaction tests after integration. It never mutates the supplied values.
 #[path = "../src/planning_validation.rs"]

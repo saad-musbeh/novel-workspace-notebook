@@ -1,3 +1,9 @@
+# Optional Parts as authored chapter groups — October 14, 2026
+
+Store optional Part definitions/assignments in existing revisioned planning data. Parts organize canonical chapters without a new database hierarchy or implicit manuscript reordering. Dedicated author Save checks captured project/chapter/planning metadata atomically; every generic new assignment also checks same-transaction ownership. Exact stale historical pairs remain compatible. Group order is a list preference; canonical reading order remains chapter/scene order, so noncontiguous memberships repeat headers. Hidden headings and explicit group removal preserve all writing and history.
+
+---
+
 # English interface text foundation — October 14, 2026
 
 Keep interface display strings in a bounded English catalogue with stable keys and generated compile-time Rust storage. Treat authored manuscript/record names and serialized route/language/command IDs as separate values. Source coverage is explicit and checked. Add parameterized messages only with reviewed argument contracts; do not pass arbitrary saved author text through translation lookup or infer a locale from the operating system.

@@ -613,7 +613,7 @@ impl Storage {
             validate_data_transition(kind,&old,&payload)?;
             previous.push(old);
         }
-        if kind=="planning"{crate::planning_validation::validate_resolution(&previous.iter().collect::<Vec<_>>(),&payload)?;}
+        if kind=="planning"{crate::planning_validation::validate_resolution(&previous.iter().collect::<Vec<_>>(),&payload)?;crate::manuscript_parts::validate_parts_transition(&mut tx,pid,&payload,&previous.iter().collect::<Vec<_>>()).await?;}
         if kind=="sceneTranslations"{crate::translations::validate_sources(&mut tx,pid,&payload).await?;}
         let rid=id();
         if kind=="universeCatalogue"{crate::universe::references(&mut tx,pid,&payload,false).await?;}

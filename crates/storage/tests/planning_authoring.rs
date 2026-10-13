@@ -1,4 +1,5 @@
 //! Synthetic transaction regressions for new planning authorship versus history.
+mod manuscript_parts { pub use novel_storage::manuscript_parts::validate_planning_parts; }
 #[path = "../src/planning_validation.rs"]
 mod guard;
 use novel_storage::{Scene, SourceDependency, Storage, SyncCursor};
