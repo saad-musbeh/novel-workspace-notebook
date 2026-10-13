@@ -1,3 +1,11 @@
+# Native scene writing and deletion recovery — October 13, 2026
+
+Locked offline workspace excluding retained Tauri passed **316 tests, 0 failures, 2 ignored**: 70 companion, 13 DOCX, 12 editor, 66 native and 155 storage. The complete opt-in native workflow passed **1 test / 41.03 s** with fatal criticals and actual rebuilt debug workers. Targeted recovery passed **1 test / 2.45 s**. The new five storage regressions and companion RPC check cover actual concurrent deletion leaves, exact rich writing restore, retained archive/history, stale/omitted/duplicate/foreign heads, placement changes, failed-insert rollback, corrupt previews and explicit `scene:null` versus omitted arguments.
+
+GTK recovery checks cover review-required no-op, unseen tombstone refusal, cross-window dirty Cancel/Discard, detached ownership after origin close, sole tombstone restore and mixed Keep deleted. A deterministic callback adds multilingual typing after author approval: pending/draft content, original parent and Undo/Redo remain intact. A simultaneous clean cached pane is evicted and reopened at the recovered revision. No personal writing or external listener is used. Generator/check and whitespace checks pass; retained Node/Vitest/Tauri assets are unavailable and were not installed. Logs: `/tmp/novel-native-recovery-workspace.log`, `/tmp/novel-native-recovery-complete-gui.log`, `/tmp/novel-native-scene-recovery-gui.log`, `/tmp/novel-scene-recovery-storage.log`. This is source qualification, not packaged installation or physical input.
+
+---
+
 # Native temporary peeks and preference conflicts — October 13, 2026
 
 Locked offline native units passed **64 tests, 0 failures, 1 ignored**. Targeted GTK sections passed: peek **1 test / 2.51 s**, shortcuts including genuine two-store settings conflicts **1 test / 2.33 s**, writing view **1 test / 2.33 s**. Fatal criticals were enabled and actual worker binaries used disposable synthetic stores.

@@ -28,6 +28,8 @@ mod alternatives;
 use alternatives::AlternativesPage;
 #[path="data_conflicts.rs"]
 mod data_conflicts;
+#[path="scene_conflicts.rs"]
+mod scene_conflicts;
 #[path="scene_arrangement.rs"]
 mod scene_arrangement;
 use scene_arrangement::SceneArrangementPage;

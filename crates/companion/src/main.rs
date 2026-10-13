@@ -4,7 +4,7 @@ mod patch;
 mod sync_service;
 mod recovery;
 mod peer_client;
-use novel_storage::{ReviewSource, MetadataResolutionSnapshot, SceneArrangementSnapshot, Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
+use novel_storage::{SceneConflictSnapshot, ReviewSource, MetadataResolutionSnapshot, SceneArrangementSnapshot, Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use std::{fs::OpenOptions, io::{BufRead, Read, Write}, path::PathBuf, sync::Arc};
@@ -88,6 +88,9 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "move_scene" => encode(storage.move_scene(&argument::<String>(&args,"sceneId")?, &argument::<String>(&args,"chapterId")?, argument::<usize>(&args,"position")?).await?),
         "load_revision" => encode(storage.load_revision(&argument::<String>(&args,"sceneId")?,&argument::<String>(&args,"revisionId")?).await?),
         "snapshot_scene" => encode(storage.snapshot_scene(&argument::<String>(&args,"sceneId")?,&argument::<String>(&args,"parent")?).await?),
+        "scene_conflict_index" => encode(storage.scene_conflict_index(&argument::<String>(&args,"projectId")?).await?),
+        "scene_conflict_snapshot" => encode(storage.scene_conflict_snapshot(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"sceneId")?).await?),
+        "resolve_scene_conflict_checked" => encode(storage.resolve_scene_conflict_checked(&argument::<SceneConflictSnapshot>(&args,"snapshot")?,argument::<Option<Scene>>(&args,"scene")?).await?),
         "conflicts" => encode(storage.conflicts(&argument::<String>(&args,"sceneId")?).await?),
         "resolve_scene" => encode(storage.resolve_scene(&argument::<String>(&args,"sceneId")?,argument::<Scene>(&args,"scene")?,&argument::<String>(&args,"parent")?,argument::<Vec<String>>(&args,"conflictIds")?).await?),
         "put_asset" => encode(storage.put_asset(&argument::<String>(&args,"projectId")?,argument::<ProjectAsset>(&args,"asset")?).await?),
@@ -285,4 +288,47 @@ mod translation_rpc_tests {
   crossed["sceneId"]=json!(foreign.id);crossed["sceneRevisionId"]=json!(foreign.revision_id);
   assert!(execute(&storage,&recovery,&sync,&listener,&peer,"provider_translate",crossed).await.unwrap_err().contains("not in this project"));
  }
+}
+
+#[cfg(test)]
+mod scene_recovery_rpc_tests {
+    use super::*;
+    #[tokio::test]
+    async fn scene_recovery_rpc_binds_nullable_author_choice_to_original_heads_and_placement() {
+        let dir=tempfile::tempdir().unwrap();
+        let storage=Storage::open(&dir.path().join("scene-recovery-rpc.sqlite")).await.unwrap();
+        let recovery=Err("Synthetic unavailable backup service".to_owned());
+        let sync=Err("Synthetic unavailable sync service".to_owned());
+        let peer=Err("Synthetic unavailable peer service".to_owned());
+        let listener=Arc::new(tokio::sync::Mutex::new(None));
+        let project=storage.create_project("Scene recovery RPC").await.unwrap();
+        let chapter=storage.create_chapter(&project.id,"Chapter").await.unwrap();
+        let other=storage.create_chapter(&project.id,"Other").await.unwrap();
+        let scene:Scene=serde_json::from_value(json!({"schemaVersion":1,"title":"Exact retained مِ 中文","document":{"type":"doc","content":[{"type":"paragraph","attrs":{"dir":"rtl","lang":"ar"},"content":[{"type":"text","text":"مِ e\u{301} 中文 𠀀 👩🏽‍🚀","marks":[{"type":"bold"},{"type":"underline"}]}]}]}})).unwrap();
+        let original=storage.create_scene(&chapter.id,scene.clone()).await.unwrap();
+        let mut changed=scene.clone();changed.title="Current writing".into();
+        storage.save_scene(&original.id,changed.clone(),Some(original.revision_id.clone())).await.unwrap();
+        storage.preserve_conflict(&original.id,scene.clone(),&original.revision_id).await.unwrap();
+        let args=json!({"projectId":project.id,"sceneId":original.id});
+        let snapshot=execute(&storage,&recovery,&sync,&listener,&peer,"scene_conflict_snapshot",args.clone()).await.unwrap();
+        assert_eq!(snapshot["heads"].as_array().unwrap().len(),2);
+        assert_eq!(snapshot["projectedScene"],serde_json::to_value(&changed).unwrap());
+        let index=execute(&storage,&recovery,&sync,&listener,&peer,"scene_conflict_index",json!({"projectId":project.id})).await.unwrap();
+        assert_eq!(index[0]["headCount"],2);assert_eq!(index[0]["deleted"],false);
+        let marker=storage.sync_cursor().await.unwrap();
+        assert!(execute(&storage,&recovery,&sync,&listener,&peer,"resolve_scene_conflict_checked",json!({"snapshot":snapshot})).await.unwrap_err().contains("Missing scene"));
+        let mut malformed=snapshot.clone();malformed["unexpected"] = json!(true);
+        assert!(execute(&storage,&recovery,&sync,&listener,&peer,"resolve_scene_conflict_checked",json!({"snapshot":malformed,"scene":null})).await.unwrap_err().contains("Invalid snapshot"));
+        assert!(execute(&storage,&recovery,&sync,&listener,&peer,"scene_conflict_snapshot",json!({"projectId":"foreign-project","sceneId":original.id})).await.is_err());
+        assert_eq!(storage.sync_cursor().await.unwrap(),marker);
+        storage.move_scene(&original.id,&other.id,0).await.unwrap();let marker=storage.sync_cursor().await.unwrap();
+        assert!(execute(&storage,&recovery,&sync,&listener,&peer,"resolve_scene_conflict_checked",json!({"snapshot":snapshot,"scene":null})).await.unwrap_err().contains("changed"));
+        assert_eq!(storage.sync_cursor().await.unwrap(),marker);
+        let fresh=execute(&storage,&recovery,&sync,&listener,&peer,"scene_conflict_snapshot",args.clone()).await.unwrap();
+        let hidden=execute(&storage,&recovery,&sync,&listener,&peer,"resolve_scene_conflict_checked",json!({"snapshot":fresh,"scene":null})).await.unwrap();
+        assert_eq!(hidden["deleted"],true);assert_eq!(hidden["heads"].as_array().unwrap().len(),1);assert_eq!(hidden["projectedScene"],serde_json::to_value(&changed).unwrap());
+        let visible=execute(&storage,&recovery,&sync,&listener,&peer,"resolve_scene_conflict_checked",json!({"snapshot":hidden,"scene":scene})).await.unwrap();
+        assert_eq!(visible["deleted"],false);assert_eq!(visible["projectedScene"],serde_json::to_value(&scene).unwrap());assert_eq!(visible["chapterId"],other.id);
+        assert_eq!(storage.load_revision(&original.id,&original.revision_id).await.unwrap().scene,scene);
+    }
 }

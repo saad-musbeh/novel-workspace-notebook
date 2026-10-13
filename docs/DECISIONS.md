@@ -279,3 +279,8 @@ Use explicit frozen fact capture and author decisions rather than arbitrary snap
 ## October 13 — Temporary frozen peeks and optional preference conflicts
 
 Freeze the acknowledged editor frame at hold time, label unsaved writing and compare only to an explicitly selected immutable saved revision. Do not reintroduce superseded autosave for comparisons. Cancel by token and current widget owner on release, focus/composition/navigation/transfer; late replies cannot reopen a hold. Keep references saved and authored. Read custom view/shortcut preferences unambiguously; use visible built-in runtime defaults on refusal and keep conflicting author forms disabled. Preserve the fallback notice across ordinary status updates.
+
+
+## October 13 — Complete scene/deletion author recovery
+
+Capture projected rich writing, actual scene/tombstone leaves and placement in one transaction. A deleted projection may retain an ancestor scene for previews; it is not an extra leaf parent. Require the original complete capture and explicit author review for Keep writing/Keep deleted; preserve all immutable history and recoverable archives. Drain project-wide drafts first. After Save, evict only clean idle caches synchronously; preserve pending/composing/new drafts against their original parent with a changed-version notice. Ordinary detached recovery does not require an open scene editor.

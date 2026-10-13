@@ -114,6 +114,35 @@ export interface MetadataResolutionSnapshot {
   placementHeads: Array<MetadataPlacementState>;
 }
 
+export interface SceneConflictRevision<TScene extends Scene = Scene> {
+  revisionId: string;
+  entityType: string;
+  operation: string;
+  createdAt: string;
+  scene: (TScene | null);
+}
+
+export interface SceneConflictSnapshot<TScene extends Scene = Scene> {
+  projectId: string;
+  sceneId: string;
+  chapterId: string;
+  chapterTitle: string;
+  position: number;
+  deleted: boolean;
+  projectedRevisionId: string;
+  projectedScene: TScene;
+  heads: Array<SceneConflictRevision<TScene>>;
+  placementHeads: Array<string>;
+}
+
+export interface SceneConflictEntry {
+  sceneId: string;
+  title: string;
+  chapterTitle: string;
+  deleted: boolean;
+  headCount: number;
+}
+
 export interface SceneArrangementEntry {
   id: string;
   position: number;
@@ -712,6 +741,124 @@ export const workspaceWireSchema = {
         "rustName": "placement_heads",
         "name": "placementHeads",
         "rustType": "Vec<MetadataPlacementState>"
+      }
+    ]
+  },
+  "SceneConflictRevision": {
+    "source": "crates/storage/src/scene_conflict_snapshot.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "revision_id",
+        "name": "revisionId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "entity_type",
+        "name": "entityType",
+        "rustType": "String"
+      },
+      {
+        "rustName": "operation",
+        "name": "operation",
+        "rustType": "String"
+      },
+      {
+        "rustName": "created_at",
+        "name": "createdAt",
+        "rustType": "String"
+      },
+      {
+        "rustName": "scene",
+        "name": "scene",
+        "rustType": "Option<Scene>"
+      }
+    ]
+  },
+  "SceneConflictSnapshot": {
+    "source": "crates/storage/src/scene_conflict_snapshot.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "project_id",
+        "name": "projectId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "scene_id",
+        "name": "sceneId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "chapter_id",
+        "name": "chapterId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "chapter_title",
+        "name": "chapterTitle",
+        "rustType": "String"
+      },
+      {
+        "rustName": "position",
+        "name": "position",
+        "rustType": "i64"
+      },
+      {
+        "rustName": "deleted",
+        "name": "deleted",
+        "rustType": "bool"
+      },
+      {
+        "rustName": "projected_revision_id",
+        "name": "projectedRevisionId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "projected_scene",
+        "name": "projectedScene",
+        "rustType": "Scene"
+      },
+      {
+        "rustName": "heads",
+        "name": "heads",
+        "rustType": "Vec<SceneConflictRevision>"
+      },
+      {
+        "rustName": "placement_heads",
+        "name": "placementHeads",
+        "rustType": "Vec<String>"
+      }
+    ]
+  },
+  "SceneConflictEntry": {
+    "source": "crates/storage/src/scene_conflict_snapshot.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "scene_id",
+        "name": "sceneId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "title",
+        "name": "title",
+        "rustType": "String"
+      },
+      {
+        "rustName": "chapter_title",
+        "name": "chapterTitle",
+        "rustType": "String"
+      },
+      {
+        "rustName": "deleted",
+        "name": "deleted",
+        "rustType": "bool"
+      },
+      {
+        "rustName": "head_count",
+        "name": "headCount",
+        "rustType": "i64"
       }
     ]
   },
@@ -1527,6 +1674,9 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   move_scene: {args: {sceneId: string; chapterId: string; position: number;}; result: null};
   load_revision: {args: {sceneId: string; revisionId: string;}; result: Snapshot<TScene>};
   snapshot_scene: {args: {sceneId: string; parent: string;}; result: Snapshot<TScene>};
+  scene_conflict_index: {args: {projectId: string;}; result: Array<SceneConflictEntry>};
+  scene_conflict_snapshot: {args: {projectId: string; sceneId: string;}; result: SceneConflictSnapshot<TScene>};
+  resolve_scene_conflict_checked: {args: {snapshot: SceneConflictSnapshot<TScene>; scene: (TScene | null);}; result: SceneConflictSnapshot<TScene>};
   conflicts: {args: {sceneId: string;}; result: Array<Revision>};
   resolve_scene: {args: {sceneId: string; scene: TScene; parent: string; conflictIds: Array<string>;}; result: Snapshot<TScene>};
   put_asset: {args: {projectId: string; asset: ProjectAsset;}; result: null};
@@ -1582,6 +1732,9 @@ export const storageRpcCoverage = {
     "move_scene",
     "load_revision",
     "snapshot_scene",
+    "scene_conflict_index",
+    "scene_conflict_snapshot",
+    "resolve_scene_conflict_checked",
     "conflicts",
     "resolve_scene",
     "put_asset",

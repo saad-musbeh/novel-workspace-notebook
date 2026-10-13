@@ -205,6 +205,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "ripple"=>super::super::ripple::tests::run(&binaries),
             "knowledge"=>knowledge_forms::run(&binaries),
             "peek"=>peek_forms::run(&binaries),
+            "scene-recovery"=>super::super::scene_conflicts::tests::run(&binaries),
             _=>panic!("Unknown native test section: {section}"),
         }
         assert_eq!(windows(),0); return;
@@ -226,6 +227,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
     super::super::ripple::tests::run(&binaries);
     knowledge_forms::run(&binaries);
     peek_forms::run(&binaries);
+    super::super::scene_conflicts::tests::run(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));
     let first=rpc(&client,"create_scene",json!({"chapterId":chapter["id"],"scene":{"schemaVersion":1,"title":"The first morning","document":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The room was quiet. مِ 中文 👩🏽‍🚀"}]}]}}}));

@@ -242,6 +242,7 @@ impl Workspace {
         let recovery=self.menu(&project,"History & recovery",false);self.link(&recovery,"What-if branches",|a|a.branches());self.control(&recovery,"New what-if branch",Self::new_branch);self.link(&recovery,"Project time machine",|a|a.time_machine());self.link(&recovery,"Deleted scenes",|a|a.deleted());
         self.link(&recovery,"Backup now",|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,"Private sync",|a|a.private_sync());
         self.link(&recovery,"Project data conflicts",|a|a.data_conflicts());
+        self.link(&recovery,"Scene writing and deletion recovery",|a|a.scene_conflicts());
         self.link(&recovery,"Manuscript organization conflicts",|a|a.metadata_conflicts());
         let window=self.menu(&self.desk.sidebar,"Tabs & windows",false);
         self.control(&window,"New tab",Self::new_tab);self.control(&window,"New window",|a|{let child=a.spawn_window();child.new_tab();});

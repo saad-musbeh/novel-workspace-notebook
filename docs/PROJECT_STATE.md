@@ -1,3 +1,13 @@
+# Unreleased scene writing and deletion recovery — October 13, 2026
+
+Project → History & recovery → Scene writing and deletion recovery lists the entire novel including deleted scenes. Checked previews retain exact rich writing, every writing/deletion leaf and placement dependencies. The author explicitly reviews Keep writing or Keep deleted after all-window draft decisions; stale or incomplete captures refuse the choice. A sole deleted version can be explicitly restored. Concurrent deletions now resolve using actual leaves while retaining projected-head CAS. Every earlier revision remains in history and archives.
+
+After recovery, only clean idle scene caches are evicted for explicit reopening. New typing after draft approval retains its old parent, exact draft and Undo with a changed-version notice; recovery never reloads over it. Detached recovery pages continue after origin closure.
+
+Observed: the locked offline Rust workspace excluding retained Tauri passed **316 tests, 0 failures, 2 ignored**. The complete real GTK/worker workflow passed **1 test / 41.03 s**, and the targeted scene recovery workflow passed **1 test / 2.45 s**. Five storage recovery regressions and one companion RPC regression passed, including archive/history retention, corruption/rollback, all-head/placement guards and explicit null deletion. Generated contract drift and whitespace checks passed. No dependency install, migration, personal-store access or external listener occurred. These remain unreleased source changes; published packages and physical/private-transport qualification are separate.
+
+---
+
 # Unreleased temporary peeks and safe preference fallback — October 13, 2026
 
 On a writing page, hold F6 for saved authored references or F7 for a read-only paragraph comparison of the frozen acknowledged editor draft against a chosen saved version. Release, focus loss, composition, navigation and ownership transfer cancel the hold and reject late replies. Comparisons show unsaved status explicitly and never save or apply writing. An ordinary page chooses the saved comparison source; excerpts and paragraph pages are bounded.

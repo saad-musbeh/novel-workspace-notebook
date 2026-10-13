@@ -4,7 +4,7 @@ import {homedir,tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {afterEach,describe,expect,expectTypeOf,it,vi} from 'vitest';
 import {storageRpcCoverage,workspaceWireSchema} from '../apps/writer/src/generated/workspace-contract';
-import type {StorageRpcContract,Snapshot,ProjectIndex,SceneRecord,SceneArrangementSnapshot,MetadataResolutionSnapshot,UniverseNovelCreated,NovelCreated,Project} from '../apps/writer/src/generated/workspace-contract';
+import type {StorageRpcContract,SceneConflictEntry,SceneConflictSnapshot,SceneConflictRevision,Snapshot,ProjectIndex,SceneRecord,SceneArrangementSnapshot,MetadataResolutionSnapshot,UniverseNovelCreated,NovelCreated,Project} from '../apps/writer/src/generated/workspace-contract';
 import type {Scene} from '../apps/writer/src/document';
 const {invoke}=vi.hoisted(()=>({invoke:vi.fn()}));
 vi.mock('@tauri-apps/api/core',()=>({invoke}));
@@ -17,7 +17,7 @@ const source='crates/storage/src/workspace.rs';
 const temporary:string[]=[];
 function temp(){const path=mkdtempSync(join(tmpdir(),'novel-contract-'));temporary.push(path);return path;}
 function run(args:string[]=[]){return spawnSync('python3',[script,...args],{encoding:'utf8',timeout:10000});}
-function fixtureRoot(){const path=temp();for(const file of ['crates/storage/src/lib.rs',source,'crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs','crates/storage/src/export_profile.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/companion/src/main.rs',output]){mkdirSync(join(path,file,'..'),{recursive:true});copyFileSync(join(root,file),join(path,file));}return path;}
+function fixtureRoot(){const path=temp();for(const file of ['crates/storage/src/lib.rs',source,'crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs','crates/storage/src/scene_conflict_snapshot.rs','crates/storage/src/export_profile.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/companion/src/main.rs',output]){mkdirSync(join(path,file,'..'),{recursive:true});copyFileSync(join(root,file),join(path,file));}return path;}
 afterEach(()=>{for(const path of temporary.splice(0))rmSync(path,{recursive:true,force:true});vi.unstubAllGlobals();invoke.mockReset();});
 
 describe('generated storage wire contract',()=>{
@@ -56,6 +56,12 @@ describe('generated storage wire contract',()=>{
   expectTypeOf<StorageRpcContract['arrange_scene']['args']>().toEqualTypeOf<{snapshot:SceneArrangementSnapshot;targetChapterId:string;position:number}>();
   expectTypeOf<StorageRpcContract['metadata_resolution_snapshot']['result']>().toEqualTypeOf<MetadataResolutionSnapshot>();
   expectTypeOf<StorageRpcContract['resolve_metadata_checked']['args']>().toEqualTypeOf<{snapshot:MetadataResolutionSnapshot;payload:unknown}>();
+  expectTypeOf<StorageRpcContract['scene_conflict_index']['result']>().toEqualTypeOf<SceneConflictEntry[]>();
+  expectTypeOf<StorageRpcContract<Scene>['scene_conflict_snapshot']['args']>().toEqualTypeOf<{projectId:string;sceneId:string}>();
+  expectTypeOf<StorageRpcContract<Scene>['scene_conflict_snapshot']['result']>().toEqualTypeOf<SceneConflictSnapshot<Scene>>();
+  expectTypeOf<StorageRpcContract<Scene>['resolve_scene_conflict_checked']['args']>().toEqualTypeOf<{snapshot:SceneConflictSnapshot<Scene>;scene:Scene|null}>();
+  expectTypeOf<StorageRpcContract<Scene>['resolve_scene_conflict_checked']['result']>().toEqualTypeOf<SceneConflictSnapshot<Scene>>();
+  expectTypeOf<SceneConflictSnapshot<Scene>['heads']>().toEqualTypeOf<SceneConflictRevision<Scene>[]>();
   expectTypeOf<StorageRpcContract['edit_chapter']['result']>().toEqualTypeOf<ProjectIndex>();
   expectTypeOf<StorageRpcContract<Scene>['load_project_scene']['result']>().toEqualTypeOf<SceneRecord<Scene>>();
  });
@@ -63,7 +69,7 @@ describe('generated storage wire contract',()=>{
   const generated=readFileSync(join(root,output),'utf8');
   expect(generated).toContain('rename_project: {args: {projectId: string; title: string;}; result: null}');
   expect(generated).toContain('save: {args: {scene: TScene; parent: (string | null);}; result: Snapshot<TScene>}');
-  expect(storageRpcCoverage.covered).toEqual(expect.arrayContaining(['load_scene','open_project_index','load_project_scene','create_universe','create_universe_novel']));
+  expect(storageRpcCoverage.covered).toEqual(expect.arrayContaining(['load_scene','open_project_index','load_project_scene','create_universe','create_universe_novel','scene_conflict_index','scene_conflict_snapshot','resolve_scene_conflict_checked']));
   expect(workspaceWireSchema.SceneSummary.fields.map(field=>field.name)).toEqual(['id','chapterId','position','revisionId','title']);
   expect(storageRpcCoverage.uncovered).toEqual(expect.arrayContaining(['save_scene','provider_run','peer_pair','sync_start']));
   expect(new Set([...storageRpcCoverage.covered,...storageRpcCoverage.uncovered]).size).toBe(storageRpcCoverage.covered.length+storageRpcCoverage.uncovered.length);

@@ -14,7 +14,7 @@ OPERATIONS = (
     'restore_scene', 'export_archive', 'import_archive', 'load_project_data',
     'review_sources_check', 'planning_read_snapshot', 'load_project_data_unambiguous', 'load_entity_revision', 'project_data_history', 'load_project_data_revision',
     'save_project_data', 'move_scene', 'load_revision', 'snapshot_scene',
-    'conflicts', 'resolve_scene', 'put_asset', 'list_assets', 'deleted_scenes',
+    'scene_conflict_index', 'scene_conflict_snapshot', 'resolve_scene_conflict_checked', 'conflicts', 'resolve_scene', 'put_asset', 'list_assets', 'deleted_scenes',
     'project_time_points', 'project_time_preview', 'recover_time_piece',
     'create_project_branch', 'list_project_branches', 'compare_project_branch', 'bring_back_branch_piece',
 )
@@ -41,7 +41,7 @@ def comma_parts(text):
 
 def derive(root, rust_type, uncomment):
     source = uncomment((root / 'crates/companion/src/main.rs').read_text(encoding='utf-8'))
-    storage = uncomment('\n'.join((root / path).read_text(encoding='utf-8') for path in ['crates/storage/src/workspace.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs']))
+    storage = uncomment('\n'.join((root / path).read_text(encoding='utf-8') for path in ['crates/storage/src/workspace.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs','crates/storage/src/scene_conflict_snapshot.rs']))
     contracts = {}
     for operation in OPERATIONS:
         arms = re.findall(r'"' + operation + r'"\s*=>\s*encode\(storage\.([a-z_]+)\((.*?)\)\.await\?\),', source, re.S)
@@ -92,7 +92,7 @@ def render(model, ts_type):
         # All opaque serde Values deliberately remain unknown.
         if kind == 'Scene':
             return 'TScene'
-        if kind in {'Snapshot', 'SceneRecord', 'ProjectBundle', 'UniverseNovelCreated', 'NovelCreated'}:
+        if kind in {'Snapshot', 'SceneRecord', 'ProjectBundle', 'UniverseNovelCreated', 'NovelCreated', 'SceneConflictRevision', 'SceneConflictSnapshot'}:
             return kind + '<TScene>'
         if kind.startswith('Vec<'):
             return 'Array<' + bind(kind[4:-1]) + '>'

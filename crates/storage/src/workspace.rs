@@ -840,7 +840,10 @@ impl Storage {
         let mut tx=self.pool.begin().await.map_err(err)?;
         let (head,pid):(String,String)=sqlx::query_as("SELECT s.head,c.project_id FROM manuscript_scene s JOIN chapter c ON c.id=s.chapter_id WHERE s.id=?").bind(sid).fetch_one(&mut *tx).await.map_err(err)?;
         if head!=expected_head{return Err("Conflict: scene changed before deletion resolution.".into())}
-        let mut parents=vec![head];parents.extend(conflict_ids);
+        // A deleted projection retains its last scene for archival preview. It
+        // can be an ancestor of every current tombstone, never a new parent.
+        let projected_is_leaf:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM revision_envelope r WHERE r.id=? AND r.project_id=? AND r.entity_id=? AND r.entity_type IN('scene','tombstone') AND NOT EXISTS(SELECT 1 FROM revision_envelope c,json_each(c.parents) p WHERE c.project_id=r.project_id AND c.entity_id=r.entity_id AND c.entity_type IN('scene','tombstone') AND p.value=r.id))").bind(&head).bind(&pid).bind(sid).fetch_one(&mut *tx).await.map_err(err)?;
+        let mut parents=if projected_is_leaf{vec![head]}else{vec![]};parents.extend(conflict_ids);
         validate_resolution_heads(&mut tx,&pid,sid,&parents).await?;
         let rid=id();append(&mut tx,&pid,sid,"tombstone",parents,serde_json::json!({"deleted":true}),"resolveDelete",&rid).await?;
         recompute_scene_heads(&mut tx,sid).await?;tx.commit().await.map_err(err)?;Ok(rid)

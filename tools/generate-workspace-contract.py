@@ -32,6 +32,9 @@ STRUCTS = {
     "PlanningReadSnapshot": "crates/storage/src/planning_read.rs",
     "MetadataPlacementState": "crates/storage/src/sync.rs",
     "MetadataResolutionSnapshot": "crates/storage/src/sync.rs",
+    "SceneConflictRevision": "crates/storage/src/scene_conflict_snapshot.rs",
+    "SceneConflictSnapshot": "crates/storage/src/scene_conflict_snapshot.rs",
+    "SceneConflictEntry": "crates/storage/src/scene_conflict_snapshot.rs",
     "SceneArrangementEntry": "crates/storage/src/scene_arrangement.rs",
     "SceneArrangementChapter": "crates/storage/src/scene_arrangement.rs",
     "SceneArrangementSnapshot": "crates/storage/src/scene_arrangement.rs",
@@ -182,10 +185,12 @@ def ts_type(kind, owner):
         return "Array<" + ts_type(kind[4:-1], owner) + ">"
     if kind.startswith("Option<"):
         return "(" + ts_type(kind[7:-1], owner) + " | null)"
-    if kind == "Scene" and owner in {"Snapshot", "SceneRecord", "ProjectBundle"}:
+    if kind == "Scene" and owner in {"Snapshot", "SceneRecord", "ProjectBundle", "SceneConflictRevision", "SceneConflictSnapshot"}:
         return "TScene"
     if kind == "SceneRecord" and owner in {"ProjectBundle", "UniverseNovelCreated", "NovelCreated"}:
         return "SceneRecord<TScene>"
+    if kind == "SceneConflictRevision" and owner == "SceneConflictSnapshot":
+        return "SceneConflictRevision<TScene>"
     if kind in STRUCTS:
         return kind
     raise ContractError(f"Unsupported TypeScript binding for {kind}")
@@ -201,7 +206,7 @@ def generate(structs, contracts=None):
             generic = "<TDocument = unknown>"
         elif name in {"Revision", "ProjectDataSnapshot"}:
             generic = "<TPayload = unknown>"
-        elif name in {"Snapshot", "SceneRecord", "ProjectBundle", "UniverseNovelCreated", "NovelCreated"}:
+        elif name in {"Snapshot", "SceneRecord", "ProjectBundle", "UniverseNovelCreated", "NovelCreated", "SceneConflictRevision", "SceneConflictSnapshot"}:
             generic = "<TScene extends Scene = Scene>"
         lines.append(f"export interface {name}{generic} {{")
         for field in model["fields"]:
@@ -234,7 +239,7 @@ def fixture_value(kind, owner, field):
 
 
 def rust_fixture(structs):
-    lines = ["// Synthetic serde fixture using the exact selected Rust declarations.", "use serde::{Serialize, Deserialize};", "use serde_json::Value;", "fn default_chapter_number_start()->i64{1}"]
+    lines = ['#![recursion_limit = "256"]', "// Synthetic serde fixture using the exact selected Rust declarations.", "use serde::{Serialize, Deserialize};", "use serde_json::Value;", "fn default_chapter_number_start()->i64{1}"]
     lines.extend(model["declaration"] for model in structs.values())
     for name, model in structs.items():
         fields = ",".join(field["rustName"] + ":" + fixture_value(field["rustType"], name, field["rustName"]) for field in model["fields"])
