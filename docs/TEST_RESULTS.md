@@ -1,3 +1,17 @@
+# Native paragraph alternatives — October 13, 2026 (unreleased source)
+
+- Offline desktop/editor/companion build: passed.
+- Editor/native unit suites: **19 passed**, one opt-in GTK check ignored in ordinary discovery.
+- Checked project-data concurrent-root regression: **1 passed**.
+- Explicit complete GTK workflow: **1 passed**, with fatal criticals and real debug workers.
+- RPC contract drift and whitespace checks: passed.
+
+The GTK fixture stores a rich Arabic/Chinese/emoji heading from an explicitly selected paragraph, saves named versions without modifying the scene, applies an unsaved one-step replacement and checks exact Undo. It refuses stale document hashes and saved revisions, rebinds only through an explicit action, retains candidate metadata and undoable writing after a concurrent metadata save, guards navigation/close/composition, and saves detached alternatives after the original window closes. Saved originals retain their exact JSON and untouched text runs retain marks/attributes.
+
+A new editor request accepts an optional checked blockIndex for read-only capture; default caret capture is unchanged. The new checked-data regression ingests two independent root metadata revisions in one batch, confirms no projection exists, refuses an unparented checked save and then resolves every head explicitly. Native source applies source revision dependencies in its capture/rebind/apply commits. No model, external listener, dependency download or personal store was used. The fixture capture is `work/notebook-paragraph-alternatives.png`; logs are `/tmp/novel-alternatives-{build,unit,gui}.log` and `/tmp/novel-checked-data-tests.log`.
+
+---
+
 # Native chapter form — October 13, 2026 (unreleased source)
 
 - Locked offline debug desktop/companion/editor build: passed.

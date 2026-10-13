@@ -971,6 +971,10 @@ impl Storage {
         }
         if let Some(dependencies)=dependencies{
             if let Some(head)=&current{validate_current_source(&mut tx,pid,&format!("{pid}:{kind}"),"projectData",head).await?;}
+            else{
+                let retained:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM revision_envelope WHERE project_id=? AND entity_id=? AND entity_type='projectData')").bind(pid).bind(format!("{pid}:{kind}")).fetch_one(&mut *tx).await.map_err(err)?;
+                if retained{return Err("Conflict: resolve retained project data heads before saving.".into())}
+            }
             validate_dependencies(&mut tx,pid,dependencies).await?;
         }
         if let Some(head)=&current{

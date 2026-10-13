@@ -9,12 +9,12 @@ thread_local! {
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(super) enum SaveChoice { Save, Discard, Cancel }
 #[derive(Clone)]
-enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>), Chapter(Rc<ChapterPage>) }
+enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>), Chapter(Rc<ChapterPage>), Alternatives(Rc<AlternativesPage>) }
 impl Draft {
-    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get(), Self::Chapter(p)=>p.dirty.get() } }
-    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get(), Self::Chapter(p)=>p.saving.get() } }
-    fn composing(&self)->bool { match self { Self::Scene(p)=>p.composing.get(), Self::Chapter(p)=>p.composing.get(), Self::Form(_)=>false } }
-    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into(), Self::Chapter(_)=>"Edit chapter".into() } }
+    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get(), Self::Chapter(p)=>p.dirty.get(), Self::Alternatives(p)=>p.dirty.get() } }
+    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get(), Self::Chapter(p)=>p.saving.get(), Self::Alternatives(p)=>p.saving.get() } }
+    fn composing(&self)->bool { match self { Self::Scene(p)=>p.composing.get(), Self::Chapter(p)=>p.composing.get(), Self::Alternatives(p)=>p.composing.get(), Self::Form(_)=>false } }
+    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into(), Self::Chapter(_)=>"Edit chapter".into(), Self::Alternatives(_)=>"Paragraph alternatives".into() } }
 }
 pub(super) struct Desk {
     pub sidebar:gtk::Box,
@@ -218,6 +218,7 @@ impl Workspace {
         let pages=self.menu(&write,"Other pages",false);
         self.link(&pages,"Manuscript overview",|a|a.open_book());
         self.link(&pages,"Scene details",|a|a.details());
+        self.link(&pages,"Paragraph alternatives",|a|a.alternatives());
         for kind in ["exportProfile","writingSystems","sceneTranslations"]{self.link(&pages,data_title(kind),move|a|a.open_data(kind,data_title(kind)));}
         self.link(&pages,"New translation draft",|a|a.new_translation());
         let planning=self.group("Planning");let story=self.menu(&planning,"Story",true);
@@ -285,6 +286,7 @@ impl Workspace {
     }
     pub(super) fn current_widget(&self)->Option<gtk::Widget> { self.pages.current_page().and_then(|i|self.pages.nth_page(Some(i))) }
     fn draft(&self,widget:&gtk::Widget)->Option<Draft> {
+        if let Some(p)=self.alternative_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Alternatives(p));}
         if let Some(p)=self.chapter_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Chapter(p));}
         if let Some(p)=self.panes.borrow().values().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Scene(p));}
         if let Some(p)=self.data_pages().into_iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget){return Some(Draft::Form(p));}
@@ -297,7 +299,7 @@ impl Workspace {
         let label=gtk::Label::new(Some(&format!("Save changes to “{title}” before leaving?")));label.set_line_wrap(true);label.set_margin_start(20);label.set_margin_end(20);label.set_margin_top(18);label.set_margin_bottom(18);dialog.content_area().pack_start(&label,false,false,0);
         dialog.show_all();let response=dialog.run();dialog.close();match response{gtk::ResponseType::Accept=>SaveChoice::Save,gtk::ResponseType::Reject=>SaveChoice::Discard,_=>SaveChoice::Cancel}
     }
-    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>p.save(callback),Draft::Chapter(p)=>p.save(self,callback)} }
+    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>p.save(callback),Draft::Chapter(p)=>p.save(self,callback),Draft::Alternatives(p)=>p.save(self,callback)} }
     fn confirm(self:&Rc<Self>,draft:Draft,started:std::time::Instant,callback:Box<dyn FnOnce(bool)>) {
         if draft.composing(){self.error("Finish the current input composition before leaving.");callback(false);return;}
         if draft.busy(){
@@ -312,6 +314,7 @@ impl Workspace {
                 Draft::Scene(p)=>{let a=self.clone();p.discard(move|r|match r{Ok(())=>callback(true),Err(e)=>{a.error(&format!("Could not discard. Your draft stays open. {e}"));callback(false);}});},
                 Draft::Form(p)=>{p.discard();callback(true);}
                 Draft::Chapter(p)=>{p.discard();callback(true);}
+                Draft::Alternatives(p)=>{p.discard();callback(true);}
             }
         }
     }
@@ -328,6 +331,7 @@ impl Workspace {
         let mut drafts=self.panes.borrow().values().cloned().map(Draft::Scene).collect::<Vec<_>>();
         drafts.extend(self.data_pages().into_iter().map(Draft::Form));
         drafts.extend(self.chapter_pages.borrow().iter().cloned().map(Draft::Chapter));
+        drafts.extend(self.alternative_pages.borrow().iter().cloned().map(Draft::Alternatives));
         let a=self.clone();let owner=self.clone();
         let done:Box<dyn FnOnce(bool)>=Box::new(move|ok|{owner.window.set_sensitive(true);owner.desk.busy.set(false);callback(ok);});
         self.confirm_next(drafts,0,Box::new(move|ok|{
@@ -400,6 +404,7 @@ impl Workspace {
                     Draft::Scene(p)=>{a.panes.borrow_mut().remove(&p.scene_id);p.process.stop();},
                     Draft::Form(p)=>{a.data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));a.extra_data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                     Draft::Chapter(p)=>{a.chapter_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::Alternatives(p)=>{a.alternative_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                 }}a.release_view(&widget);
                 *a.desk.selected.borrow_mut()=a.current_widget();if let Some(w)=a.current_widget(){a.activate_widget(&w);}else{*a.active.borrow_mut()=None;a.new_tab();}
             }
@@ -432,6 +437,7 @@ impl Workspace {
         }
     }
     fn release_view(&self,widget:&gtk::Widget){
+        self.alternative_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.chapter_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.desk.titles.borrow_mut().remove(widget);
         self.desk.bindings.borrow_mut().retain(|(w,_)|w!=widget);
@@ -499,6 +505,7 @@ impl Workspace {
         if let Some(draft)=self.draft(widget){match draft{
             Draft::Scene(p)=>{self.panes.borrow_mut().remove(&p.scene_id);child.panes.borrow_mut().insert(p.scene_id.clone(),p.clone());*child.active.borrow_mut()=Some(p);},
             Draft::Chapter(p)=>{self.chapter_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.chapter_pages.borrow_mut().push(p);},
+            Draft::Alternatives(p)=>{self.alternative_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.alternative_pages.borrow_mut().push(p);},
             Draft::Form(p)=>{
                 self.data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));self.extra_data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));
                 if p.project_id.borrow().as_str()==self.pid.borrow().as_str(){child.data.borrow_mut().push(p.clone());}else{child.extra_data.borrow_mut().push(p.clone());}

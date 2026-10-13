@@ -1,3 +1,13 @@
+# Unreleased paragraph alternatives — October 13, 2026
+
+Write → Other pages → Paragraph alternatives keeps exact rich originals and named saved versions. The author chooses a paragraph number, captures it explicitly, edits a version and saves it as a new immutable alternative. Comparing and selecting versions never changes writing. Apply replaces exactly the captured paragraph as one undoable unsaved scene edit; manuscript Save remains manual. A changed document hash or saved scene revision refuses the operation. Explicit rebinding after saving the current scene updates only the group's guarded anchor; its original and saved versions remain intact.
+
+Alternative forms use normal Save / Discard / Cancel, composition and detachable-page ownership. Failed metadata writes retain the candidate and, if Apply already changed writing, explicitly label the retained scene draft and available Undo. Capture/rebind/apply metadata writes check the saved source revision atomically as a dependency. Checked first project-data writes now refuse retained concurrent roots even when no projection exists; a synthetic two-store sync regression reproduced and covers that case.
+
+Observed: offline native build passed; editor/native unit suites passed **19 tests**, including two rich Unicode version-edit tests and one explicit paragraph-capture test; checked project-data regression passed **1 test**; the complete opt-in GTK workflow passed **1 test** with debug workers, including alternatives, previous chapter and notebook workflows. GTK checks include exact rich originals, manual-save inactivity, one-step Undo, stale document/revision refusal, explicit rebinding, concurrent metadata failure after Apply, retained failed drafts, composition, detachment and saving after the original window closes. Physical input and release packages remain separate. Parallel work on the other audited gaps is not included in this slice's qualification.
+
+---
+
 # Unreleased native chapter editing — October 13, 2026
 
 The source after 0.4.0 adds Write → Add & arrange → Edit chapter. A selected chapter or scene opens a title/number form with ordinary manual Save / Discard / Cancel, composition guards and detachable draft ownership. Chapter rename uses the same checked form. Saving a number moves the chapter and renumbers the manuscript, including Chapter 0 and returning its first chapter to 1. Scene identities, exact writing and saved scene revisions remain unchanged.

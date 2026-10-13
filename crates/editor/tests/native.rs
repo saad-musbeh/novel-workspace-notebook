@@ -242,6 +242,12 @@ fn editor(text:&str)->(tempfile::TempDir,NativeEditor){
     std::fs::write(path,serde_json::to_vec(&data).unwrap()).unwrap();
     assert!(NativeEditor::resume(dir.path()).is_err());
 }
+#[test]fn explicit_paragraph_capture_is_read_only_and_rejects_invalid_indices(){
+    let (_dir,mut e)=editor("First");e.model=TextModel::new(json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"First"}]},{"type":"paragraph","content":[{"type":"text","text":"Second مِ 中文 𠀀"}]}]})).unwrap();let before=e.model.document();
+    let capture=e.request(&json!({"type":"command","command":"captureParagraph","blockIndex":1})).unwrap();
+    assert_eq!(capture["paragraphCapture"]["blockIndex"],1);assert_eq!(e.model.document(),before);
+    for index in [json!(-1),json!(1.5),json!("1"),json!(2)]{assert!(e.request(&json!({"type":"command","command":"captureParagraph","blockIndex":index})).is_err());assert_eq!(e.model.document(),before);}
+}
 #[test]fn viewport_only_paint_and_reflow_leave_text_and_undo_untouched(){
     let (_dir,mut e)=editor(&"English مِ 中文 👩🏽‍🚀 ".repeat(400));
     let before=e.model.document();

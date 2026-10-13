@@ -234,7 +234,13 @@ impl NativeEditor {
                         self.model.move_to(cursor,true);
                         self.layout.reset_navigation();
                         navigation=Some(self.navigation_capture());
-                    },                 "captureParagraph"=>capture=Some(self.paragraph_capture(self.model.state.cursor[0])?),                 "swapParagraph"=>{
+                    },                 "captureParagraph"=>{
+                        let index=match request.get("blockIndex"){
+                            Some(value)=>usize::try_from(value.as_u64().ok_or("Invalid paragraph index.")?).map_err(|_|"Invalid paragraph index.")?,
+                            None=>self.model.state.cursor[0],
+                        };
+                        capture=Some(self.paragraph_capture(index)?);
+                    },                 "swapParagraph"=>{
                         let anchor=&request["anchor"];
                         let index=anchor["blockIndex"].as_u64().ok_or("Invalid paragraph anchor.")? as usize;
                         if !anchor.as_object().is_some_and(|m|m.contains_key("documentHash") && m.keys().all(|k|["blockIndex","documentHash","block"].contains(&k.as_str()))){

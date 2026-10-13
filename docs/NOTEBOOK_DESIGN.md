@@ -45,6 +45,14 @@ Typing into this form does not save it. **Discard changes** restores the form's 
 
 The title, order, numbering and metadata heads are captured together. If another window changes a captured title, manuscript order or numbering, Save refuses the stale edit. Discard the pending values and reopen Edit chapter to load the newer version; the app never automatically replaces them. This source slice has not been included in the published 0.4.0 packages.
 
+## Keep paragraph alternatives
+
+The source after 0.4.0 adds **Write → Other pages → Paragraph alternatives** for the current scene. Opening the page checks the writing draft. Choose a paragraph number and **Capture paragraph** to save its exact rich original. Choose a saved version, edit its text and name, then **Save alternative** or **Ctrl+S** to append a new version. The original is immutable. Unchanged runs retain their formatting; new words inherit marks at the changed range. Captured groups hold up to twenty saved versions.
+
+**Apply saved version to draft** replaces only the captured paragraph, with one-step Undo and manual manuscript Save. Use **Open scene** to inspect, Undo or Save the result. Changed document hashes or saved revisions refuse replacement. After explicitly saving current writing, **Rebind saved group** binds its anchor to the chosen current paragraph while keeping its original and alternatives. Rebinding is an author action; the app never guesses a new position.
+
+The form has normal Save / Discard / Cancel and composition guards and can be detached. Failed alternatives saves retain their candidate. If Apply succeeded before a metadata failure, the page says the scene draft changed and still has Undo; discarding alternative metadata leaves scene writing for its own manual-save decision. This source feature is not in the published 0.4.0 packages.
+
 ## Keep passages and return to work
 
 Open **Write → Keep & return → Cutting-room floor** to see passages removed between saved scene versions. It compares each revision with its saved parents; it does not capture every deletion as you type. Use Undo for unsaved deletions, or select text and choose **Keep selection as scrap** before cutting it. Keeping a selection saves a separate plain-text copy and leaves the draft unchanged.

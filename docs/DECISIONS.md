@@ -241,3 +241,10 @@ Host chapter title and number edits in a normal notebook page. Reuse the manual 
 Read the chapter title, order, numbering and expected metadata heads in one SQLite transaction through an additive `chapter_edit_snapshot` RPC. Independent reads could pair an old displayed value with a newer head. Reuse the existing atomic `edit_chapter` mutation and refuse all stale captured boundaries. Keep entered values on failure; loading newer values requires discarding and reopening. Chapter edits change metadata/order only, preserving scene IDs, text and scene revisions. No schema migration or dependency is needed.
 
 Qualify the active GTK runtime with native workspace tests excluding the retained Tauri UI member. That member additionally needs its frontend build and remains a separate reference check. Source qualification does not qualify the published 0.4.0 packages.
+
+
+## October 13 — Native immutable paragraph alternatives
+
+Keep rich originals and versions in existing revisioned paragraphAlternatives data. Author text changes append immutable versions with scalar-safe prefix/suffix run preservation, unchanged attributes and local inherited marks. Native Apply creates a normal unsaved scene edit and one Undo step; it never changes the manual manuscript-save policy. Keep exact anchor/hash and saved-revision checks, require explicit rebinding after changed writing, and include saved scene dependencies in capture/rebind/apply metadata commits. Retain failed metadata candidates and any already-applied scene draft with clear status; Discard metadata never silently discards scene writing.
+
+Integrate alternative forms with the shared manual draft and detached ownership lifecycle. Reject checked first saves if project-data revision roots already exist without a current projection, preserving every concurrent root for explicit resolution. No migration or dependency is needed.
