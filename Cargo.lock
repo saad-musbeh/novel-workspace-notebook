@@ -2298,6 +2298,7 @@ dependencies = [
  "novel-editor",
  "novel-storage",
  "serde_json",
+ "sha2",
  "tempfile",
  "uuid",
 ]

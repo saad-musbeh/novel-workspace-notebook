@@ -41,6 +41,48 @@ fn contains_preview(widget: &impl IsA<gtk::Widget>, text: &str) -> bool {
         .ok()
         .is_some_and(|c| c.children().iter().any(|w| contains_preview(w, text)))
 }
+fn combined_view(widget: &impl IsA<gtk::Widget>) -> Option<gtk::TextView> {
+    if let Ok(view) = widget.as_ref().clone().downcast::<gtk::TextView>() {
+        if view.widget_name() == "data-conflicts-combined-preview" {
+            return Some(view);
+        }
+    }
+    widget
+        .as_ref()
+        .clone()
+        .downcast::<gtk::Container>()
+        .ok()
+        .and_then(|c| c.children().iter().find_map(combined_view))
+}
+fn reviewed(widget: &impl IsA<gtk::Widget>) -> Option<gtk::CheckButton> {
+    if let Ok(check) = widget.as_ref().clone().downcast::<gtk::CheckButton>() {
+        if check.label().as_deref()
+            == Some("I reviewed this complete candidate and its selected base")
+        {
+            return Some(check);
+        }
+    }
+    widget
+        .as_ref()
+        .clone()
+        .downcast::<gtk::Container>()
+        .ok()
+        .and_then(|c| c.children().iter().find_map(reviewed))
+}
+fn candidate(widget: &impl IsA<gtk::Widget>) -> Value {
+    let view = combined_view(widget).unwrap();
+    assert!(!view.is_editable());
+    let b = view.buffer().unwrap();
+    serde_json::from_str(&b.text(&b.start_iter(), &b.end_iter(), true).unwrap()).unwrap()
+}
+fn attempt(client: &Process, op: &str, args: Value) -> Result<Value, String> {
+    let result = Rc::new(RefCell::new(None));
+    let out = result.clone();
+    client.rpc(op, args, move |r| *out.borrow_mut() = Some(r));
+    wait(|| result.borrow().is_some());
+    let value = result.borrow_mut().take().unwrap();
+    value
+}
 fn replicate(from: &Process, to: &Process, pid: &str, after: i64) {
     let cursor = rpc(from, "sync_cursor", json!({}));
     let local = rpc(to, "sync_cursor", json!({}));
@@ -352,6 +394,142 @@ pub(super) fn run(binaries: &Path) {
             json!({"projectId":pid,"kind":"writingSystems"})
         ),
         heads
+    );
+    // Preparation is explicit, read-only and does not commit without review.
+    let marker = rpc(&detached.client, "sync_cursor", json!({}));
+    find_button(&widget, "Prepare combined resolution")
+        .unwrap()
+        .clicked();
+    wait(|| contains_label(&widget, "Combined candidate prepared."));
+    let combined = candidate(&widget);
+    assert_eq!(combined["systems"].as_array().unwrap().len(), 2);
+    assert!(!find_button(&widget, "Save reviewed combined resolution")
+        .unwrap()
+        .is_sensitive());
+    find_button(&widget, "Save reviewed combined resolution")
+        .unwrap()
+        .clicked();
+    assert_eq!(rpc(&detached.client, "sync_cursor", json!({})), marker);
+    reviewed(&widget).unwrap().set_active(true);
+    // A newer explicit resolution consumes the reviewed heads; the old candidate is refused.
+    rpc(
+        &detached.client,
+        "resolve_project_data",
+        json!({"projectId":pid,"kind":"writingSystems","payload":combined,"heads":heads["revisionIds"]}),
+    );
+    let marker = rpc(&detached.client, "sync_cursor", json!({}));
+    find_button(&widget, "Save reviewed combined resolution")
+        .unwrap()
+        .clicked();
+    wait(|| contains_label(&widget, "heads changed"));
+    assert_eq!(rpc(&detached.client, "sync_cursor", json!({})), marker);
+    assert!(!find_button(&widget, "Save reviewed combined resolution")
+        .unwrap()
+        .is_sensitive());
+    assert_eq!(
+        snapshot(&detached.client, pid, "writingSystems")["payload"],
+        combined
+    );
+    // Independently added rich paragraph versions from both devices are retained.
+    let source = rpc(&detached.client, "load_scene", json!({"sceneId":sid}));
+    let original = source["scene"]["document"]["content"][0].clone();
+    let hash = rpc(
+        &detached.client,
+        "text_hash",
+        json!({"text":serde_json::to_string(&source["scene"]["document"]).unwrap()}),
+    );
+    let base = json!({"schemaVersion":1,"scenes":[{"sceneId":sid,"groups":[{"id":"merge-group","label":"Retained paragraph","sceneRevisionId":source["revisionId"],"anchor":{"blockIndex":0,"documentHash":hash,"block":original},"originalId":"merge-original","activeId":"merge-original","versions":[{"id":"merge-original","label":"Original","block":original}]}]}]});
+    let extra = |value: &Value, id: &str, text: &str| {
+        let mut out = value.clone();
+        let mut block = original.clone();
+        block["content"] = json!([{"type":"text","text":text,"marks":[{"type":"bold"}]}]);
+        out["scenes"][0]["groups"][0]["versions"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"id":id,"label":id,"block":block}));
+        out["scenes"][0]["groups"][0]["activeId"] = json!(id);
+        out
+    };
+    let left = extra(&base, "merge-left", "Left مِ 中文 𠀀");
+    let right = extra(&base, "merge-right", "Right 世界 👩🏽‍🚀");
+    let (left_head, right_head) = conflict(
+        &detached.client,
+        &peer,
+        pid,
+        "paragraphAlternatives",
+        base.clone(),
+        left.clone(),
+        right.clone(),
+    );
+    assert!(combos(&widget)[0].set_active_id(Some("paragraphAlternatives")));
+    wait(|| {
+        find_button(&widget, "Prepare combined resolution")
+            .unwrap()
+            .is_sensitive()
+    });
+    choose(&widget, &left_head, "Left مِ 中文");
+    find_button(&widget, "Prepare combined resolution")
+        .unwrap()
+        .clicked();
+    wait(|| contains_label(&widget, "Combined candidate prepared."));
+    let combined = candidate(&widget);
+    let versions = combined["scenes"][0]["groups"][0]["versions"]
+        .as_array()
+        .unwrap();
+    assert_eq!(versions.len(), 3);
+    for value in [&base, &left, &right] {
+        for version in value["scenes"][0]["groups"][0]["versions"]
+            .as_array()
+            .unwrap()
+        {
+            assert!(versions.contains(version));
+        }
+    }
+    assert_eq!(combined["scenes"][0]["groups"][0]["activeId"], "merge-left");
+    assert_eq!(
+        combined["scenes"][0]["groups"][0]["anchor"],
+        left["scenes"][0]["groups"][0]["anchor"]
+    );
+    let heads = rpc(
+        &detached.client,
+        "project_data_heads",
+        json!({"projectId":pid,"kind":"paragraphAlternatives"}),
+    );
+    let marker = rpc(&detached.client, "sync_cursor", json!({}));
+    let mut malformed = combined.clone();
+    malformed["scenes"][0]["groups"][0]["originalId"] = json!("missing");
+    assert!(attempt(&detached.client,"resolve_project_data",json!({"projectId":pid,"kind":"paragraphAlternatives","payload":malformed,"heads":heads["revisionIds"]})).is_err());
+    assert_eq!(rpc(&detached.client, "sync_cursor", json!({})), marker);
+    assert_eq!(
+        rpc(
+            &detached.client,
+            "project_data_heads",
+            json!({"projectId":pid,"kind":"paragraphAlternatives"})
+        ),
+        heads
+    );
+    reviewed(&widget).unwrap().set_active(true);
+    find_button(&widget, "Save reviewed combined resolution")
+        .unwrap()
+        .clicked();
+    wait(|| contains_label(&widget, "Combined resolution saved."));
+    assert_eq!(
+        snapshot(&detached.client, pid, "paragraphAlternatives")["payload"],
+        combined
+    );
+    for (id, value) in [(&left_head, &left), (&right_head, &right)] {
+        assert_eq!(
+            rpc(
+                &detached.client,
+                "load_project_data_revision",
+                json!({"projectId":pid,"kind":"paragraphAlternatives","revisionId":id})
+            )["payload"],
+            *value
+        );
+    }
+    assert_eq!(
+        rpc(&detached.client, "load_scene", json!({"sceneId":sid})),
+        source
     );
     capture(&detached, "notebook-project-data-conflicts.png");
     // Inspection includes every supported kind; protected branch lineage has no resolution action.

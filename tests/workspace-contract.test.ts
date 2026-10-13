@@ -17,7 +17,7 @@ const source='crates/storage/src/workspace.rs';
 const temporary:string[]=[];
 function temp(){const path=mkdtempSync(join(tmpdir(),'novel-contract-'));temporary.push(path);return path;}
 function run(args:string[]=[]){return spawnSync('python3',[script,...args],{encoding:'utf8',timeout:10000});}
-function fixtureRoot(){const path=temp();for(const file of ['crates/storage/src/lib.rs',source,'crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/export_profile.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/companion/src/main.rs',output]){mkdirSync(join(path,file,'..'),{recursive:true});copyFileSync(join(root,file),join(path,file));}return path;}
+function fixtureRoot(){const path=temp();for(const file of ['crates/storage/src/lib.rs',source,'crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs','crates/storage/src/export_profile.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/companion/src/main.rs',output]){mkdirSync(join(path,file,'..'),{recursive:true});copyFileSync(join(root,file),join(path,file));}return path;}
 afterEach(()=>{for(const path of temporary.splice(0))rmSync(path,{recursive:true,force:true});vi.unstubAllGlobals();invoke.mockReset();});
 
 describe('generated storage wire contract',()=>{

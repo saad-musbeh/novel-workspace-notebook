@@ -21,14 +21,19 @@ pub struct NativeShortcutSettings {
 pub const NATIVE_SHORTCUT_ACTIONS:&[(&str,&str)]=&[
     ("workspace.save","Save tab"),("workspace.newTab","New tab"),("workspace.closeTab","Close tab"),("workspace.find","Find in scene"),
     ("workspace.nextTab","Next tab"),("workspace.previousTab","Previous tab"),("workspace.detachTab","Move tab to new window"),
+    ("workspace.back","Back to previous place"),("workspace.forward","Forward to next place"),("workspace.fullscreen","Toggle fullscreen"),
     ("editor.bold","Bold"),("editor.italic","Italic"),("editor.underline","Underline"),("editor.selectAll","Select all"),
     ("editor.undo","Undo"),("editor.redo","Redo"),("editor.copy","Copy"),("editor.cut","Cut"),("editor.paste","Paste"),("editor.unicodeToggle","Convert Unicode code / character"),
 ];
+const ADDITIVE_ACTIONS:&[&str]=&["workspace.back","workspace.forward","workspace.fullscreen"];
 fn binding(code:&str,ctrl:bool,shift:bool,alt:bool)->NativeShortcutBinding{NativeShortcutBinding{code:code.into(),ctrl,alt,shift,meta:false}}
 impl Default for NativeShortcutSettings {
     fn default()->Self{
         let defaults=[("workspace.save","KeyS",true,false,false),("workspace.newTab","KeyT",true,false,false),("workspace.closeTab","KeyW",true,false,false),("workspace.find","KeyF",true,false,false),("workspace.nextTab","Tab",true,false,false),("workspace.previousTab","Tab",true,true,false),("workspace.detachTab","KeyN",true,true,false),("editor.bold","KeyB",true,false,false),("editor.italic","KeyI",true,false,false),("editor.underline","KeyU",true,false,false),("editor.selectAll","KeyA",true,false,false),("editor.undo","KeyZ",true,false,false),("editor.redo","KeyY",true,false,false),("editor.copy","KeyC",true,false,false),("editor.cut","KeyX",true,false,false),("editor.paste","KeyV",true,false,false),("editor.unicodeToggle","KeyX",false,false,true)];
         let mut bindings:BTreeMap<String,Vec<NativeShortcutBinding>>=defaults.into_iter().map(|(id,key,c,s,a)|(id.into(),vec![binding(key,c,s,a)])).collect();
+        bindings.insert("workspace.back".into(),vec![binding("ArrowLeft",false,false,true)]);
+        bindings.insert("workspace.forward".into(),vec![binding("ArrowRight",false,false,true)]);
+        bindings.insert("workspace.fullscreen".into(),vec![binding("F11",false,false,false)]);
         bindings.get_mut("editor.redo").unwrap().push(binding("KeyZ",true,true,false));Self{schema_version:1,bindings}
     }
 }
@@ -43,9 +48,11 @@ impl NativeShortcutBinding {
             if !self.ctrl&&!self.alt{return Err("Letters and numbers require Ctrl or Alt; ordinary typing is reserved.".into())}
         }else if self.code=="Tab"{
             if !self.ctrl||self.alt{return Err("Only Ctrl+Tab combinations can be assigned; normal Tab input and desktop switching are reserved.".into())}
+        }else if matches!(self.code.as_str(),"ArrowLeft"|"ArrowRight"){
+            if !self.alt||self.ctrl{return Err("Arrow shortcuts require Alt; ordinary, Shift and Ctrl navigation remain reserved for editing.".into())}
         }else if let Some(number)=function{
-            if [1,6,7,11].contains(&number)||(self.alt&&number==4){return Err("This function key is reserved for help, peek, fullscreen or desktop controls.".into())}
-        }else{return Err("Use a letter, number, Ctrl+Tab or an available function key.".into())}
+            if [1,6,7].contains(&number)||(self.alt&&number==4)||(number==11&&(self.ctrl||self.alt||self.shift)){return Err("This function key is reserved for help, peek, fullscreen or desktop controls.".into())}
+        }else{return Err("Use a letter, number, Ctrl+Tab, Alt+ArrowLeft/Right or an available function key.".into())}
         Ok(())
     }
     pub fn display(&self)->String{
@@ -56,12 +63,13 @@ impl NativeShortcutBinding {
 impl NativeShortcutSettings {
     pub fn validate(&self)->Result<(),String>{
         if self.schema_version!=1{return Err("Unsupported native shortcuts version.".into())}
-        if self.bindings.len()!=NATIVE_SHORTCUT_ACTIONS.len()||NATIVE_SHORTCUT_ACTIONS.iter().any(|(id,_)|!self.bindings.contains_key(*id)){return Err("Unsupported or missing native shortcut actions.".into())}
+        if self.bindings.keys().any(|id|!NATIVE_SHORTCUT_ACTIONS.iter().any(|(known,_)|id.as_str()==*known))||NATIVE_SHORTCUT_ACTIONS.iter().any(|(id,_)|!ADDITIVE_ACTIONS.contains(id)&&!self.bindings.contains_key(*id)){return Err("Unsupported or missing native shortcut actions.".into())}
         let mut used=BTreeSet::new();
         for (action,bindings) in &self.bindings{
             if bindings.len()>3{return Err("An action can have at most three shortcuts.".into())}
             for binding in bindings{
                 binding.validate()?;
+                if binding.code=="F11"&&action!="workspace.fullscreen"{return Err("F11 is reserved for the fullscreen action.".into())}
                 if action.starts_with("workspace.")&&binding.ctrl&&!binding.alt&&["KeyA","KeyC","KeyX","KeyV","KeyZ","KeyY"].contains(&binding.code.as_str()){
                     return Err("Workspace shortcuts cannot replace standard text-field selection, clipboard or Undo keys.".into())
                 }
@@ -71,7 +79,13 @@ impl NativeShortcutSettings {
     }
     pub fn from_project_settings(value:&Value)->Result<Self,String>{
         let Some(shortcuts)=value.get("nativeShortcuts")else{return Ok(Self::default())};
-        let parsed:Self=serde_json::from_value(shortcuts.clone()).map_err(|_|"Invalid native shortcut settings fields.")?;parsed.validate()?;Ok(parsed)
+        let mut parsed:Self=serde_json::from_value(shortcuts.clone()).map_err(|_|"Invalid native shortcut settings fields.")?;parsed.validate()?;
+        // Additive schema-one defaults yield to explicit existing assignments.
+        // An explicitly cleared new action stays cleared. This changes only the
+        // read projection; stored preferences wait for the author's manual Save.
+        let defaults=Self::default();let occupied=parsed.bindings.values().flatten().cloned().collect::<BTreeSet<_>>();
+        for id in ADDITIVE_ACTIONS{if !parsed.bindings.contains_key(*id){parsed.bindings.insert((*id).into(),defaults.bindings[*id].iter().filter(|binding|!occupied.contains(*binding)).cloned().collect());}}
+        parsed.validate()?;Ok(parsed)
     }
     pub fn action(&self,scope:&str,binding:&NativeShortcutBinding)->Option<&str>{
         self.bindings.iter().find(|(id,bindings)|id.starts_with(scope)&&bindings.contains(binding)).map(|(id,_)|id.as_str())
@@ -88,6 +102,6 @@ pub fn parse_native_shortcut_list(text:&str)->Result<Vec<NativeShortcutBinding>,
             let normalized=modifier.to_ascii_lowercase();if !seen.insert(normalized.clone()){return Err("A shortcut repeats a modifier.".into())}
             match normalized.as_str(){"ctrl"|"control"=>{if chord.ctrl{return Err("A shortcut repeats Ctrl.".into())}chord.ctrl=true},"alt"=>chord.alt=true,"shift"=>chord.shift=true,"meta"|"super"=>chord.meta=true,_=>return Err("Use Ctrl, Alt or Shift before the key.".into())}
         }
-        let key=parts.last().unwrap_or(&"").to_ascii_uppercase();chord.code=if key.len()==1&&key.as_bytes()[0].is_ascii_alphabetic(){format!("Key{key}")}else if key.len()==1&&key.as_bytes()[0].is_ascii_digit(){format!("Digit{key}")}else if key=="TAB"{"Tab".into()}else{key};chord.validate()?;Ok(chord)
+        let key=parts.last().unwrap_or(&"").to_ascii_uppercase();chord.code=if key.len()==1&&key.as_bytes()[0].is_ascii_alphabetic(){format!("Key{key}")}else if key.len()==1&&key.as_bytes()[0].is_ascii_digit(){format!("Digit{key}")}else if key=="TAB"{"Tab".into()}else if key=="LEFT"||key=="ARROWLEFT"{"ArrowLeft".into()}else if key=="RIGHT"||key=="ARROWRIGHT"{"ArrowRight".into()}else{key};chord.validate()?;Ok(chord)
     }).collect()
 }

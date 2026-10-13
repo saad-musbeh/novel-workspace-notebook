@@ -14,6 +14,22 @@ use std::collections::{
     HashMap,
     HashSet
 };
+/// Read navigation metadata within the caller's existing snapshot transaction.
+/// Does not commit or read manuscript bodies.
+pub(crate) async fn read_project_index(tx:&mut Transaction<'_,Sqlite>,pid:&str)->Result<ProjectIndex,String>{
+        let r=sqlx::query("SELECT id,title,created_at FROM project WHERE id=?").bind(pid).fetch_optional(&mut **tx).await.map_err(err)?.ok_or("Project not found.")?;
+        let project=Project{id:r.get("id"),title:r.get("title"),created_at:r.get("created_at")};
+        let chapters=sqlx::query("SELECT id,project_id,title,position FROM chapter WHERE project_id=? ORDER BY position,id").bind(pid).fetch_all(&mut **tx).await.map_err(err)?.into_iter().map(|r|Chapter{id:r.get("id"),project_id:r.get("project_id"),title:r.get("title"),position:r.get("position")}).collect();
+        // CASE protects JSON extraction from malformed stored JSON. Never coerce
+        // null/numeric/object titles into apparently valid navigation metadata.
+        let rows=sqlx::query("SELECT s.id,s.chapter_id,s.position,s.head,CASE WHEN json_valid(r.payload) THEN json_type(r.payload,'$.title') END AS title_type,CASE WHEN json_valid(r.payload) THEN json_extract(r.payload,'$.title') END AS title FROM manuscript_scene s JOIN chapter c ON c.id=s.chapter_id JOIN revision_envelope r ON r.id=s.head WHERE c.project_id=? AND s.deleted=0 ORDER BY c.position,c.id,s.position,s.id").bind(pid).fetch_all(&mut **tx).await.map_err(err)?;
+        let scenes=rows.into_iter().map(|r|{
+            if r.get::<Option<String>,_>("title_type").as_deref()!=Some("text"){return Err("Unsupported saved scene title. Stored data was preserved.".into())}
+            Ok(SceneSummary{id:r.get("id"),chapter_id:r.get("chapter_id"),position:r.get("position"),revision_id:r.get("head"),title:r.get("title")})
+        }).collect::<Result<Vec<_>,String>>()?;
+        let (chapter_number_start,chapter_numbering_revision_id,chapter_numbering_conflicted)=chapter_numbering_state(tx,pid).await?;
+        Ok(ProjectIndex{project,chapters,scenes,chapter_number_start,chapter_numbering_revision_id,chapter_numbering_conflicted})
+}
 fn default_chapter_number_start()->i64{1}
 const LEGACY_PROJECT: &str = "prototype-project";
 const LEGACY_CHAPTER: &str = "prototype-chapter";
@@ -523,19 +539,9 @@ impl Storage {
     /// enter Rust scene decoding. This does not validate unrelated checksums.
     pub async fn open_project_index(&self,pid:&str)->Result<ProjectIndex,String>{
         let mut tx=self.pool.begin().await.map_err(err)?;
-        let r=sqlx::query("SELECT id,title,created_at FROM project WHERE id=?").bind(pid).fetch_optional(&mut *tx).await.map_err(err)?.ok_or("Project not found.")?;
-        let project=Project{id:r.get("id"),title:r.get("title"),created_at:r.get("created_at")};
-        let chapters=sqlx::query("SELECT id,project_id,title,position FROM chapter WHERE project_id=? ORDER BY position,id").bind(pid).fetch_all(&mut *tx).await.map_err(err)?.into_iter().map(|r|Chapter{id:r.get("id"),project_id:r.get("project_id"),title:r.get("title"),position:r.get("position")}).collect();
-        // CASE protects JSON extraction from malformed stored JSON. Never coerce
-        // null/numeric/object titles into apparently valid navigation metadata.
-        let rows=sqlx::query("SELECT s.id,s.chapter_id,s.position,s.head,CASE WHEN json_valid(r.payload) THEN json_type(r.payload,'$.title') END AS title_type,CASE WHEN json_valid(r.payload) THEN json_extract(r.payload,'$.title') END AS title FROM manuscript_scene s JOIN chapter c ON c.id=s.chapter_id JOIN revision_envelope r ON r.id=s.head WHERE c.project_id=? AND s.deleted=0 ORDER BY c.position,c.id,s.position,s.id").bind(pid).fetch_all(&mut *tx).await.map_err(err)?;
-        let scenes=rows.into_iter().map(|r|{
-            if r.get::<Option<String>,_>("title_type").as_deref()!=Some("text"){return Err("Unsupported saved scene title. Stored data was preserved.".into())}
-            Ok(SceneSummary{id:r.get("id"),chapter_id:r.get("chapter_id"),position:r.get("position"),revision_id:r.get("head"),title:r.get("title")})
-        }).collect::<Result<Vec<_>,String>>()?;
-        let (chapter_number_start,chapter_numbering_revision_id,chapter_numbering_conflicted)=chapter_numbering_state(&mut tx,pid).await?;
+        let index=read_project_index(&mut tx,pid).await?;
         tx.commit().await.map_err(err)?;
-        Ok(ProjectIndex{project,chapters,scenes,chapter_number_start,chapter_numbering_revision_id,chapter_numbering_conflicted})
+        Ok(index)
     }
     /// Resolve membership, placement and current verified text in one read transaction.
     pub async fn load_project_scene(&self,pid:&str,sid:&str)->Result<SceneRecord,String>{
@@ -1404,79 +1410,81 @@ String>{
     }
     Ok(())
 }
-pub(crate) fn validate_scene_links(value:&Value,ids:&HashSet<String>)->Result<(),
-String>{
-    match value{
-        Value::Object(map)=>{
-            if map.get("kind").and_then(Value::as_str)==Some("scene"){
-                if !map.get("id").and_then(Value::as_str).is_some_and(|id|ids.contains(id)){
-                    return Err("Planning data references a missing scene.".into())
+/// Only a canonical card at planning.boards[*].cards[*] represents a scene;
+/// its own ID belongs to the board, while its nested reference is a typed link.
+/// Sparse historical cards without `kind` remain untouched by this distinction.
+#[derive(Clone,Copy,PartialEq)]
+enum LinkContext { Root,Boards,Board,Cards,Card,Other }
+fn field_link_context(parent:LinkContext,key:&str)->LinkContext {
+    match (parent,key) {(LinkContext::Root,"boards")=>LinkContext::Boards,(LinkContext::Board,"cards")=>LinkContext::Cards,_=>LinkContext::Other}
+}
+fn item_link_context(parent:LinkContext)->LinkContext {
+    match parent {LinkContext::Boards=>LinkContext::Board,LinkContext::Cards=>LinkContext::Card,_=>LinkContext::Other}
+}
+fn scene_board_card(map:&serde_json::Map<String,Value>,context:LinkContext)->bool {
+    if context!=LinkContext::Card || map.get("kind").and_then(Value::as_str)!=Some("scene"){return false;}
+    let identity=|key:&str|map.get(key).and_then(Value::as_str).is_some_and(valid_id);
+    let text=|key:&str|map.get(key).and_then(Value::as_str).is_some_and(|s|s.len()<=8_000_000);
+    let number=|key:&str|map.get(key).and_then(Value::as_f64).is_some_and(f64::is_finite);
+    let reference=match map.get("reference") {
+        Some(Value::Null)=>true,
+        Some(Value::Object(link))=>matches!(link.get("kind").and_then(Value::as_str),Some("scene"|"record"|"event"|"plot-point")) && link.get("id").and_then(Value::as_str).is_some_and(valid_id),
+        _=>false,
+    };
+    let group=map.get("groupId").is_some_and(|v|v.is_null()||v.as_str().is_some_and(valid_id));
+    let labels=map.get("labels").and_then(Value::as_array).is_some_and(|labels|labels.len()<=20_000&&labels.iter().all(|v|v.as_str().is_some_and(|s|s.len()<=8_000_000)));
+    let canonical=text("title")&&text("body")&&number("x")&&number("y")&&reference&&group&&labels;
+    // Historical board cards sometimes omitted presentation fields. An explicit
+    // typed reference plus this exact board/card context still identifies their
+    // independent card ID. Any supplied presentation fields must remain valid.
+    let legacy=matches!(map.get("reference"),Some(Value::Object(_)))&&reference
+        && ["title","body"].iter().all(|k|!map.contains_key(*k)||text(k))
+        && ["x","y"].iter().all(|k|!map.contains_key(*k)||number(k))
+        && (!map.contains_key("groupId")||group)&&(!map.contains_key("labels")||labels);
+    identity("id")&&(canonical||legacy)
+}
+pub(crate) fn validate_scene_links(value:&Value,ids:&HashSet<String>)->Result<(),String>{
+    fn visit(value:&Value,ids:&HashSet<String>,context:LinkContext)->Result<(),String>{
+        match value {
+            Value::Object(map)=>{
+                if map.get("kind").and_then(Value::as_str)==Some("scene")&&!scene_board_card(map,context){
+                    if !map.get("id").and_then(Value::as_str).is_some_and(|id|ids.contains(id)){return Err("Planning data references a missing scene.".into());}
                 }
-            }
-            if let Some(sid)=map.get("sceneId"){if !sid.as_str().is_some_and(|sid|ids.contains(sid)){return Err("Project data references a missing scene.".into())}}
-            if let Some(scene_ids)=map.get("sceneIds"){
-                for id in scene_ids.as_array().ok_or("Invalid planning scene links.")?{
-                    if !id.as_str().is_some_and(|id|ids.contains(id)){
-                        return Err("Planning event references a missing scene.".into())
-                    }
+                if let Some(sid)=map.get("sceneId"){if !sid.as_str().is_some_and(|sid|ids.contains(sid)){return Err("Project data references a missing scene.".into());}}
+                if let Some(scene_ids)=map.get("sceneIds"){
+                    for id in scene_ids.as_array().ok_or("Invalid planning scene links.")?{if !id.as_str().is_some_and(|id|ids.contains(id)){return Err("Planning event references a missing scene.".into());}}
                 }
-            }
-            for v in map.values(){
-                validate_scene_links(v,ids)?;
-            }
-        },
-        Value::Array(items)=>{
-            for v in items{
-                validate_scene_links(v,ids)?;
-            }
-        },
-        _=>{
-        }
+                // Always descend into reference and every other property: card
+                // classification never hides an actual foreign/missing link.
+                for (key,v) in map {visit(v,ids,field_link_context(context,key))?;}
+            },
+            Value::Array(items)=>{for v in items{visit(v,ids,item_link_context(context))?;}},
+            _=>{},
+        }Ok(())
     }
-    Ok(())
+    visit(value,ids,LinkContext::Root)
 }
 pub(crate) fn remap_payload(value:&mut Value,ids:&HashMap<String,String>){
-    match value{
-        Value::Object(map)=>{
-            if map.get("kind").and_then(Value::as_str)==Some("scene") || (map.contains_key("mimeType") && map.contains_key("checksum") && map.contains_key("size")){
-                if let Some(Value::String(v))=map.get_mut("id"){
-                    if let Some(new)=ids.get(v){
-                        *v=new.clone();
-                    }
+    fn visit(value:&mut Value,ids:&HashMap<String,String>,context:LinkContext){
+        match value {
+            Value::Object(map)=>{
+                let card=scene_board_card(map,context);
+                if !card&&(map.get("kind").and_then(Value::as_str)==Some("scene")||(map.contains_key("mimeType")&&map.contains_key("checksum")&&map.contains_key("size"))){
+                    if let Some(Value::String(v))=map.get_mut("id"){if let Some(new)=ids.get(v){*v=new.clone();}}
                 }
-            }
-            for (key,v) in map.iter_mut(){
-                if ["order","sceneIds","eventIds"].contains(&key.as_str()){
-                    if let Some(items)=v.as_array_mut(){
-                        for item in items{
-                            if let Some(old)=item.as_str(){
-                                if let Some(new)=ids.get(old){
-                                    *item=Value::String(new.clone())
-                                }
-                            }
-                        }
-                    }
+                for (key,v) in map.iter_mut(){
+                    if ["order","sceneIds","eventIds"].contains(&key.as_str()){
+                        if let Some(items)=v.as_array_mut(){for item in items{if let Some(old)=item.as_str(){if let Some(new)=ids.get(old){*item=Value::String(new.clone());}}}}
+                    }else if ["projectId","chapterId","fromChapterId","assetId","fontAssetId","sceneId","revisionId","sceneRevisionId","viewpointId","branchProjectId","branchSceneId","branchBaselineRevisionId","branchPlanningBaselineRevisionId","branchId"].contains(&key.as_str()){
+                        if let Some(old)=v.as_str(){if let Some(new)=ids.get(old){*v=Value::String(new.clone());}}
+                    }else{visit(v,ids,field_link_context(context,key));}
                 }
-                else if ["projectId","chapterId","fromChapterId","assetId","fontAssetId","sceneId","revisionId","sceneRevisionId","viewpointId","branchProjectId","branchSceneId","branchBaselineRevisionId","branchPlanningBaselineRevisionId","branchId"].contains(&key.as_str()){
-                    if let Some(old)=v.as_str(){
-                        if let Some(new)=ids.get(old){
-                            *v=Value::String(new.clone())
-                        }
-                    }
-                }
-                else{
-                    remap_payload(v,ids);
-                }
-            }
-        },
-        Value::Array(items)=>{
-            for v in items{
-                remap_payload(v,ids)
-            }
-        },
-        _=>{
+            },
+            Value::Array(items)=>{for v in items{visit(v,ids,item_link_context(context));}},
+            _=>{},
         }
     }
+    visit(value,ids,LinkContext::Root)
 }
 fn validate_archive_data(data:&ArchiveData)->Result<(),
 String>{

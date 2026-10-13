@@ -4,7 +4,7 @@ mod patch;
 mod sync_service;
 mod recovery;
 mod peer_client;
-use novel_storage::{MetadataResolutionSnapshot, SceneArrangementSnapshot, Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
+use novel_storage::{ReviewSource, MetadataResolutionSnapshot, SceneArrangementSnapshot, Scene, Storage, ProjectBundle, Revision, SyncCursor, AssetTransferSpec, ProjectAsset, SourceDependency, plain_text};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use std::{fs::OpenOptions, io::{BufRead, Read, Write}, path::PathBuf, sync::Arc};
@@ -76,6 +76,9 @@ async fn execute(storage: &Storage, recovery: &Result<Arc<recovery::Recovery>,St
         "statistics" => encode(storage.statistics(&argument::<String>(&args,"projectId")?).await?),
         "export_archive" => encode(storage.export_archive(&argument::<String>(&args,"projectId")?).await?),
         "import_archive" => encode(storage.import_archive(&argument::<String>(&args,"archive")?).await?),
+        "review_sources_check" => encode(storage.review_sources_check(&argument::<String>(&args,"projectId")?,&argument::<Vec<ReviewSource>>(&args,"sources")?).await?),
+        "planning_read_snapshot" => encode(storage.planning_read_snapshot(&argument::<String>(&args,"projectId")?).await?),
+        "load_project_data_unambiguous" => encode(storage.load_project_data_unambiguous(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"kind")?).await?),
         "load_project_data" => encode(storage.load_project_data(&argument::<String>(&args,"projectId")?, &argument::<String>(&args,"kind")?).await?),
         "load_entity_revision" => encode(storage.load_entity_revision(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"entityId")?,&argument::<String>(&args,"entityType")?,&argument::<String>(&args,"revisionId")?).await?),
         "project_data_history" => encode(storage.project_data_history(&argument::<String>(&args,"projectId")?,&argument::<String>(&args,"kind")?).await?),

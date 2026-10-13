@@ -3,18 +3,18 @@ use super::*;
 use std::rc::Weak;
 
 thread_local! {
-    static WINDOWS: RefCell<Vec<Rc<Workspace>>> = const { RefCell::new(Vec::new()) };
+    pub(super) static WINDOWS: RefCell<Vec<Rc<Workspace>>> = const { RefCell::new(Vec::new()) };
     static ACTION_WINDOW: RefCell<Option<Rc<Workspace>>> = const { RefCell::new(None) };
 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(super) enum SaveChoice { Save, Discard, Cancel }
 #[derive(Clone)]
-enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>), Chapter(Rc<ChapterPage>), Alternatives(Rc<AlternativesPage>) }
+enum Draft { Scene(Rc<EditorPane>), Form(Rc<DataPage>), Chapter(Rc<ChapterPage>), Alternatives(Rc<AlternativesPage>), Arrangement(Rc<SceneArrangementPage>), Shortcuts(Rc<ShortcutsPage>), Preferences(Rc<DesktopPreferencesPage>), Ripple(Rc<RipplePage>) }
 impl Draft {
-    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get(), Self::Chapter(p)=>p.dirty.get(), Self::Alternatives(p)=>p.dirty.get() } }
-    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get(), Self::Chapter(p)=>p.saving.get(), Self::Alternatives(p)=>p.saving.get() } }
-    fn composing(&self)->bool { match self { Self::Scene(p)=>p.composing.get(), Self::Chapter(p)=>p.composing.get(), Self::Alternatives(p)=>p.composing.get(), Self::Form(_)=>false } }
-    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into(), Self::Chapter(_)=>"Edit chapter".into(), Self::Alternatives(_)=>"Paragraph alternatives".into() } }
+    fn dirty(&self)->bool { match self { Self::Scene(p)=>p.dirty.get(), Self::Form(p)=>p.dirty.get(), Self::Chapter(p)=>p.dirty.get(), Self::Alternatives(p)=>p.dirty.get(), Self::Arrangement(p)=>p.dirty.get(), Self::Shortcuts(p)=>p.dirty.get(), Self::Preferences(p)=>p.dirty.get(), Self::Ripple(p)=>p.dirty.get() } }
+    fn busy(&self)->bool { match self { Self::Scene(p)=>p.pending.get()!=0 || p.saving.get() || !p.open.get(), Self::Form(p)=>p.saving.get(), Self::Chapter(p)=>p.saving.get(), Self::Alternatives(p)=>p.saving.get(), Self::Arrangement(p)=>p.saving.get(), Self::Shortcuts(p)=>p.saving.get(), Self::Preferences(p)=>p.saving.get(), Self::Ripple(p)=>p.saving.get() } }
+    fn composing(&self)->bool { match self { Self::Scene(p)=>p.composing.get(), Self::Chapter(p)=>p.composing.get(), Self::Alternatives(p)=>p.composing.get(), Self::Arrangement(p)=>p.composing.get(), Self::Shortcuts(p)=>p.composing.get(), Self::Preferences(p)=>p.composing.get(), Self::Ripple(p)=>p.composing.get(), Self::Form(_)=>false } }
+    fn title(&self)->String { match self { Self::Scene(p)=>p.title.borrow().clone(), Self::Form(p)=>data_title(&p.kind).into(), Self::Chapter(_)=>"Edit chapter".into(), Self::Alternatives(_)=>"Paragraph alternatives".into(), Self::Arrangement(_)=>"Arrange scene".into(), Self::Shortcuts(_)=>"Keyboard shortcuts".into(), Self::Preferences(_)=>"Writing view".into(), Self::Ripple(_)=>"Preview story change".into() } }
 }
 pub(super) struct Desk {
     pub sidebar:gtk::Box,
@@ -30,7 +30,7 @@ pub(super) struct Desk {
     group:String,
     selected:RefCell<Option<gtk::Widget>>,
     suppress:Cell<bool>,
-    busy:Cell<bool>,
+    pub(super) busy:Cell<bool>,
     closed:Cell<bool>,
     pub generation:Cell<u64>,
     bindings:RefCell<Vec<(gtk::Widget,Rc<DataPage>)>>,
@@ -66,7 +66,7 @@ pub(super) fn bind_pane(pane:&Rc<EditorPane>) {
     pane.area.connect_focus_in_event(move|_,_|{
         if let Some(p)=weak.upgrade(){
             WINDOWS.with(|windows|for a in windows.borrow().iter(){
-                if a.pages.page_num(&p.widget).is_some(){*a.active.borrow_mut()=Some(p.clone());}
+                if a.pages.page_num(&p.widget).is_some(){*a.active.borrow_mut()=Some(p.clone());a.remember_scene(&p.scene_id);}
             });
         }
         glib::Propagation::Proceed
@@ -148,7 +148,7 @@ impl Workspace {
     pub(super) fn context_pane(&self)->Option<Rc<EditorPane>> {
         self.active.borrow().clone().or_else(||self.desk.last_scene.borrow().as_ref().and_then(|id|self.panes.borrow().get(id).cloned()))
     }
-    pub(super) fn remember_scene(&self,id:&str){*self.desk.last_scene.borrow_mut()=Some(id.into());}
+    pub(super) fn remember_scene(&self,id:&str){*self.desk.last_scene.borrow_mut()=Some(id.into());scene_reference::scene_changed(&self.pid.borrow(),id);}
     pub(super) fn group_name(&self)->&str { &self.desk.group }
     pub(super) fn references(&self)->Vec<(String,String)> {
         self.index.borrow()["scenes"].as_array().into_iter().flatten().filter_map(|s|Some((s["id"].as_str()?.into(),s["title"].as_str().unwrap_or("Scene").into()))).collect()
@@ -189,7 +189,7 @@ impl Workspace {
         let write=self.group("Write");
         let outline=self.menu(&write,"Manuscript",true);outline.pack_start(&self.search,false,false,4);outline.pack_start(&self.binder,true,true,0);
         let create=self.menu(&write,"Add & arrange",false);
-        self.control(&create,"New chapter",Self::new_chapter);self.control(&create,"New scene",Self::new_scene);self.control(&create,"Edit chapter",Self::edit_chapter);self.control(&create,"Rename selected item",Self::rename);
+        self.control(&create,"New chapter",Self::new_chapter);self.control(&create,"New scene",Self::new_scene);self.control(&create,"Edit chapter",Self::edit_chapter);self.control(&create,"Arrange scene",Self::arrange_scene);self.control(&create,"Rename selected item",Self::rename);
         let edit=self.menu(&write,"Edit",false);
         self.control(&edit,"Undo",|a|a.undo());self.control(&edit,"Redo",|a|a.redo());
         self.control(&edit,"Bold",|a|a.bold());self.control(&edit,"Italic",|a|a.italic());self.control(&edit,"Underline",|a|a.underline());self.control(&edit,"Paragraph format",|a|a.format());
@@ -218,23 +218,28 @@ impl Workspace {
         let pages=self.menu(&write,"Other pages",false);
         self.link(&pages,"Manuscript overview",|a|a.open_book());
         self.link(&pages,"Scene details",|a|a.details());
+        self.link(&pages,"Scene references",|a|a.scene_references());self.link(&pages,"Character cut",|a|a.character_cut());
+        self.link(&pages,"Writing view",|a|a.writing_view());self.link(&pages,"Keyboard shortcuts",|a|a.keyboard_shortcuts());
         self.link(&pages,"Paragraph alternatives",|a|a.alternatives());
         for kind in ["exportProfile","writingSystems","sceneTranslations"]{self.link(&pages,data_title(kind),move|a|a.open_data(kind,data_title(kind)));}
         self.link(&pages,"New translation draft",|a|a.new_translation());
         let planning=self.group("Planning");let story=self.menu(&planning,"Story",true);
         let board_tools=self.menu(&planning,"Board tools",true);board_tools.pack_start(&self.desk.board_controls,false,false,0);
         self.link(&story,"Story notes",|a|a.open_data("planning","Story notes"));self.link(&story,"Plot board",|a|a.open_board());self.link(&story,"Chronology",|a|{text_dialog(&a.window,"Chronology",&crate::planning::chronology(&a.page("planning").value.borrow()));});
+        self.link(&story,"Reader rehearsal",|a|a.reader_rehearsal());self.link(&story,"Preview story change",|a|a.ripple());
         let review=self.group("Review");let checks=self.menu(&review,"Review",true);
         self.link(&checks,"Read like a stranger",|a|a.reader());
         self.link(&checks,"Passages to revisit",|a|a.attention());
+        self.link(&checks,"Dictionary and synonyms",|a|a.dictionary());
         self.link(&checks,"Local review",|a|a.review());self.link(&checks,"Review settings",|a|a.open_data("settings","Review settings"));
         let versions=self.menu(&review,"Saved versions",false);self.link(&versions,"Scene history",|a|a.history());self.link_routes(&versions,"Scene conflicts",Rc::new(|a|a.conflicts()),Rc::new(|a|a.open_conflicts_window()));
         self.control(&versions,"Create scene snapshot",Self::snapshot);
         let project=self.group("Project");let library=self.menu(&project,"Novels & files",true);
         self.link(&library,"Library",|a|a.library());self.control(&library,"New novel",Self::new_project);self.control(&library,"Import project",Self::import);self.control(&library,"Export manuscript",Self::export);
         let recovery=self.menu(&project,"History & recovery",false);self.link(&recovery,"What-if branches",|a|a.branches());self.control(&recovery,"New what-if branch",Self::new_branch);self.link(&recovery,"Project time machine",|a|a.time_machine());self.link(&recovery,"Deleted scenes",|a|a.deleted());
-        self.link(&recovery,"Backup now",|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,"Private sync",|a|a.sync());
+        self.link(&recovery,"Backup now",|a|a.simple_rpc("backup_now",json!({}),"Backup"));self.link(&recovery,"Private sync",|a|a.private_sync());
         self.link(&recovery,"Project data conflicts",|a|a.data_conflicts());
+        self.link(&recovery,"Manuscript organization conflicts",|a|a.metadata_conflicts());
         let window=self.menu(&self.desk.sidebar,"Tabs & windows",false);
         self.control(&window,"New tab",Self::new_tab);self.control(&window,"New window",|a|{let child=a.spawn_window();child.new_tab();});
         self.control(&window,"Move tab to new window",Self::detach);self.control(&window,"Close this tab",|a|{if let Some(w)=a.current_widget(){a.close_tab(&w);}});
@@ -276,17 +281,18 @@ impl Workspace {
             if a.desk.selected.borrow().as_ref()==Some(widget){*a.desk.selected.borrow_mut()=a.current_widget();if let Some(w)=a.current_widget(){a.activate_widget(&w);}else{*a.active.borrow_mut()=None;}}
         });
         let weak=Rc::downgrade(self);self.window.connect_delete_event(move|_,_|{if let Some(a)=weak.upgrade(){a.close();}glib::Propagation::Stop});
-        let weak=Rc::downgrade(self);self.window.connect_key_press_event(move|_,event|{
-            if event.state().contains(gdk::ModifierType::CONTROL_MASK){if let Some(a)=weak.upgrade(){match event.keyval().to_unicode().map(|c|c.to_ascii_lowercase()){
-                Some('s')=>{a.save_now();return glib::Propagation::Stop;},Some('f')=>{a.find();return glib::Propagation::Stop;},Some('t')=>{a.new_tab();return glib::Propagation::Stop;},Some('w')=>{if let Some(w)=a.current_widget(){a.close_tab(&w);}return glib::Propagation::Stop;},_=>{}
-            }}}glib::Propagation::Proceed
-        });
+        let weak=Rc::downgrade(self);self.window.connect_key_press_event(move|_,event|weak.upgrade().map(|a|a.workspace_shortcut(event)).unwrap_or(glib::Propagation::Proceed));
         let weak=Rc::downgrade(self);glib::timeout_add_local(Duration::from_millis(250),move||{
             let Some(a)=weak.upgrade()else{return glib::ControlFlow::Break;};if a.desk.closed.get(){return glib::ControlFlow::Break;}a.refresh_titles();glib::ControlFlow::Continue
         });
     }
     pub(super) fn current_widget(&self)->Option<gtk::Widget> { self.pages.current_page().and_then(|i|self.pages.nth_page(Some(i))) }
+    pub(super) fn shortcut_composing(&self)->bool {self.current_widget().and_then(|w|self.draft(&w)).is_some_and(|d|d.composing())}
     fn draft(&self,widget:&gtk::Widget)->Option<Draft> {
+        if let Some(p)=self.ripple_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Ripple(p));}
+        if let Some(p)=self.shortcut_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Shortcuts(p));}
+        if let Some(p)=self.desktop_preference_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Preferences(p));}
+        if let Some(p)=self.scene_arrangement_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Arrangement(p));}
         if let Some(p)=self.alternative_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Alternatives(p));}
         if let Some(p)=self.chapter_pages.borrow().iter().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Chapter(p));}
         if let Some(p)=self.panes.borrow().values().find(|p|p.widget.upcast_ref::<gtk::Widget>()==widget).cloned(){return Some(Draft::Scene(p));}
@@ -300,7 +306,7 @@ impl Workspace {
         let label=gtk::Label::new(Some(&format!("Save changes to “{title}” before leaving?")));label.set_line_wrap(true);label.set_margin_start(20);label.set_margin_end(20);label.set_margin_top(18);label.set_margin_bottom(18);dialog.content_area().pack_start(&label,false,false,0);
         dialog.show_all();let response=dialog.run();dialog.close();match response{gtk::ResponseType::Accept=>SaveChoice::Save,gtk::ResponseType::Reject=>SaveChoice::Discard,_=>SaveChoice::Cancel}
     }
-    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>p.save(callback),Draft::Chapter(p)=>p.save(self,callback),Draft::Alternatives(p)=>p.save(self,callback)} }
+    fn save_draft(self:&Rc<Self>,draft:Draft,callback:impl FnOnce(Result<(),String>)+'static) { match draft{Draft::Scene(p)=>self.save_pane(p,callback),Draft::Form(p)=>{let owner=self.clone();let settings=p.kind=="settings";p.save(move|result|{if settings&&result.is_ok(){let windows=WINDOWS.with(|windows|windows.borrow().iter().filter(|a|*a.pid.borrow()==*owner.pid.borrow()&&!a.desk.is_closed()).cloned().collect::<Vec<_>>());for window in windows{window.reload_shortcuts();window.reload_desktop_preferences();}}callback(result);});},Draft::Chapter(p)=>p.save(self,callback),Draft::Alternatives(p)=>p.save(self,callback),Draft::Arrangement(p)=>p.save(self,callback),Draft::Shortcuts(p)=>p.save(self,callback),Draft::Preferences(p)=>p.save(self,callback),Draft::Ripple(p)=>p.save(self,callback)} }
     fn confirm(self:&Rc<Self>,draft:Draft,started:std::time::Instant,callback:Box<dyn FnOnce(bool)>) {
         if draft.composing(){self.error("Finish the current input composition before leaving.");callback(false);return;}
         if draft.busy(){
@@ -316,13 +322,20 @@ impl Workspace {
                 Draft::Form(p)=>{p.discard();callback(true);}
                 Draft::Chapter(p)=>{p.discard();callback(true);}
                 Draft::Alternatives(p)=>{p.discard();callback(true);}
+                Draft::Arrangement(p)=>{p.discard();callback(true);}
+                Draft::Shortcuts(p)=>{p.discard();callback(true);}
+                Draft::Preferences(p)=>{p.discard();callback(true);}
+                Draft::Ripple(p)=>{p.discard();callback(true);}
             }
         }
     }
     pub(super) fn navigate(self:&Rc<Self>,action:impl FnOnce()+'static) {
         if self.desk.busy.replace(true){return;}
         self.window.set_sensitive(false);let a=self.clone();let widget=self.current_widget();
-        let done=move|accepted:bool|{a.window.set_sensitive(true);a.desk.busy.set(false);if accepted && !a.desk.closed.get(){a.desk.generation.set(a.desk.generation.get()+1);action();}};
+        let done=move|accepted:bool|{
+            if !accepted||a.desk.closed.get(){a.window.set_sensitive(true);a.desk.busy.set(false);return;}
+            let owner=a.clone();a.capture_departure(move|captured|{owner.window.set_sensitive(true);owner.desk.busy.set(false);if captured&&!owner.desk.closed.get(){owner.desk.generation.set(owner.desk.generation.get()+1);action();}});
+        };
         if let Some(draft)=widget.and_then(|w|self.draft(&w)){self.confirm(draft,std::time::Instant::now(),Box::new(done));}else{done(true);}
     }
     pub(super) fn confirm_all(self:&Rc<Self>,callback:impl FnOnce(bool)+'static) {
@@ -333,6 +346,10 @@ impl Workspace {
         drafts.extend(self.data_pages().into_iter().map(Draft::Form));
         drafts.extend(self.chapter_pages.borrow().iter().cloned().map(Draft::Chapter));
         drafts.extend(self.alternative_pages.borrow().iter().cloned().map(Draft::Alternatives));
+        drafts.extend(self.scene_arrangement_pages.borrow().iter().cloned().map(Draft::Arrangement));
+        drafts.extend(self.shortcut_pages.borrow().iter().cloned().map(Draft::Shortcuts));
+        drafts.extend(self.desktop_preference_pages.borrow().iter().cloned().map(Draft::Preferences));
+        drafts.extend(self.ripple_pages.borrow().iter().cloned().map(Draft::Ripple));
         let a=self.clone();let owner=self.clone();
         let done:Box<dyn FnOnce(bool)>=Box::new(move|ok|{owner.window.set_sensitive(true);owner.desk.busy.set(false);callback(ok);});
         self.confirm_next(drafts,0,Box::new(move|ok|{
@@ -367,7 +384,7 @@ impl Workspace {
             if let Some(parent)=widget.parent(){if let Ok(c)=parent.downcast::<gtk::Container>(){c.remove(widget);}}
             widget.show_all();self.pages.append_page(widget,Some(&gtk::Label::new(Some(title))));
         }
-        self.decorate_tab(widget);self.pages.set_current_page(self.pages.page_num(widget));*self.desk.selected.borrow_mut()=Some(widget.clone());self.activate_widget(widget);widget.show_all();self.desk.suppress.set(false);self.refresh_titles();
+        self.decorate_tab(widget);self.pages.set_current_page(self.pages.page_num(widget));*self.desk.selected.borrow_mut()=Some(widget.clone());self.activate_widget(widget);self.apply_desktop_to_widget(widget);widget.show_all();self.desk.suppress.set(false);self.refresh_titles();
     }
     fn decorate_tab(self:&Rc<Self>,widget:&gtk::Widget) {
         if self.pages.page_num(widget).is_none(){return;}
@@ -380,7 +397,7 @@ impl Workspace {
         let tab=gtk::Box::new(gtk::Orientation::Horizontal,8);tab.set_tooltip_text(Some(&title));let label=gtk::Label::new(Some(&title));label.set_max_width_chars(25);label.set_width_chars(18);label.set_ellipsize(gtk::pango::EllipsizeMode::End);tab.pack_start(&label,true,true,0);
         let close=gtk::Button::with_label("×");close.set_relief(gtk::ReliefStyle::None);close.set_tooltip_text(Some("Close tab"));close.set_can_focus(false);tab.pack_start(&close,false,false,0);
         let weak=Rc::downgrade(self);let widget_=widget.clone();close.connect_clicked(move|_|if let Some(a)=weak.upgrade(){a.close_tab(&widget_);});
-        self.pages.set_tab_label(widget,Some(&tab));self.pages.set_tab_reorderable(widget,true);self.pages.set_tab_detachable(widget,true);tab.show_all();
+        self.apply_desktop_to_widget(tab.upcast_ref());self.pages.set_tab_label(widget,Some(&tab));self.pages.set_tab_reorderable(widget,true);self.pages.set_tab_detachable(widget,true);tab.show_all();
     }
     fn tab_switched(self:&Rc<Self>,target:&gtk::Widget) {
         if self.desk.suppress.get(){return;}
@@ -406,6 +423,10 @@ impl Workspace {
                     Draft::Form(p)=>{a.data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));a.extra_data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                     Draft::Chapter(p)=>{a.chapter_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                     Draft::Alternatives(p)=>{a.alternative_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::Arrangement(p)=>{a.scene_arrangement_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::Shortcuts(p)=>{a.shortcut_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::Preferences(p)=>{a.desktop_preference_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
+                    Draft::Ripple(p)=>{a.ripple_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));}
                 }}a.release_view(&widget);
                 *a.desk.selected.borrow_mut()=a.current_widget();if let Some(w)=a.current_widget(){a.activate_widget(&w);}else{*a.active.borrow_mut()=None;a.new_tab();}
             }
@@ -438,6 +459,9 @@ impl Workspace {
         }
     }
     fn release_view(&self,widget:&gtk::Widget){
+        self.ripple_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
+        self.scene_arrangement_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
+        self.shortcut_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);self.desktop_preference_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.alternative_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.chapter_pages.borrow_mut().retain(|p|p.widget.upcast_ref::<gtk::Widget>()!=widget);
         self.desk.titles.borrow_mut().remove(widget);
@@ -480,7 +504,7 @@ impl Workspace {
     pub(super) fn spawn_window(self:&Rc<Self>)->Rc<Self> {
         let child=Self::build(self.client.clone(),&self.cache,&self.desk.binaries,self.desk.focus,true).expect("A second notebook uses the existing runtime");
         *child.pid.borrow_mut()=self.pid.borrow().clone();*child.index.borrow_mut()=self.index.borrow().clone();child.pages.set_group_name(Some(&child.desk.group));
-        child.populate_outline();child.populate_book();if !child.pid.borrow().is_empty(){child.refresh_projects(Some(child.pid.borrow().clone()));}
+        child.populate_outline();child.populate_book();if !child.pid.borrow().is_empty(){child.reload_shortcuts();child.reload_desktop_preferences();child.refresh_projects(Some(child.pid.borrow().clone()));}
         child.status.set_text("Manual saving · Ctrl+S to save");child
     }
     fn open_link_window(self:&Rc<Self>,action:Rc<dyn Fn(Rc<Self>)>) {
@@ -492,8 +516,9 @@ impl Workspace {
         if p.composing.get(){self.error("Finish the current input composition first.");return;}
         let child=self.spawn_window();*child.active.borrow_mut()=Some(p);child.conflicts();
     }
-    pub(super) fn confirm_project(self:&Rc<Self>,callback:impl FnOnce(bool)+'static){
-        let windows=WINDOWS.with(|windows|windows.borrow().iter().filter(|a|*a.pid.borrow()==*self.pid.borrow()).cloned().collect::<Vec<_>>());
+    pub(super) fn confirm_project(self:&Rc<Self>,callback:impl FnOnce(bool)+'static){let pid=self.pid.borrow().clone();self.confirm_project_id(&pid,callback);}
+    pub(super) fn confirm_project_id(self:&Rc<Self>,pid:&str,callback:impl FnOnce(bool)+'static){
+        let windows=WINDOWS.with(|windows|windows.borrow().iter().filter(|a|a.pid.borrow().as_str()==pid&&!a.desk.is_closed()).cloned().collect::<Vec<_>>());
         for a in &windows{a.window.set_sensitive(false);}
         let all=windows.clone();self.confirm_windows(windows,0,Box::new(move|ok|{for a in all{if !a.desk.closed.get(){a.window.set_sensitive(true);}}callback(ok);}));
     }
@@ -504,9 +529,13 @@ impl Workspace {
     }
     fn transfer_ownership(self:&Rc<Self>,widget:&gtk::Widget,child:&Rc<Self>) {
         if let Some(draft)=self.draft(widget){match draft{
-            Draft::Scene(p)=>{self.panes.borrow_mut().remove(&p.scene_id);child.panes.borrow_mut().insert(p.scene_id.clone(),p.clone());*child.active.borrow_mut()=Some(p);},
+            Draft::Scene(p)=>{self.panes.borrow_mut().remove(&p.scene_id);child.apply_desktop_to_pane(&p);child.panes.borrow_mut().insert(p.scene_id.clone(),p.clone());*child.active.borrow_mut()=Some(p);},
+            Draft::Shortcuts(p)=>{self.shortcut_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.shortcut_pages.borrow_mut().push(p);},
+            Draft::Preferences(p)=>{self.desktop_preference_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.desktop_preference_pages.borrow_mut().push(p);},
+            Draft::Ripple(p)=>{self.ripple_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.ripple_pages.borrow_mut().push(p);},
             Draft::Chapter(p)=>{self.chapter_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.chapter_pages.borrow_mut().push(p);},
             Draft::Alternatives(p)=>{self.alternative_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.alternative_pages.borrow_mut().push(p);},
+            Draft::Arrangement(p)=>{self.scene_arrangement_pages.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));child.scene_arrangement_pages.borrow_mut().push(p);},
             Draft::Form(p)=>{
                 self.data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));self.extra_data.borrow_mut().retain(|d|!Rc::ptr_eq(d,&p));
                 if p.project_id.borrow().as_str()==self.pid.borrow().as_str(){child.data.borrow_mut().push(p.clone());}else{child.extra_data.borrow_mut().push(p.clone());}

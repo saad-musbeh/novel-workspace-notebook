@@ -46,6 +46,10 @@ pub fn validate(scene: &Scene) -> Result<(), String> {
 mod recovery;
 #[cfg(test)] mod release_tests;
 mod workspace;
+mod review_sources;
+pub use review_sources::*;
+mod planning_read;
+pub use planning_read::*;
 mod scene_arrangement;
 pub mod native_shortcuts;
 pub mod native_desk;

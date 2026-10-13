@@ -12,7 +12,7 @@ OPERATIONS = (
     'metadata_resolution_snapshot', 'resolve_metadata_checked', 'scene_arrangement_snapshot', 'arrange_scene', 'chapter_edit_snapshot', 'edit_chapter', 'rename_project', 'create_chapter', 'rename_chapter', 'reorder_chapters',
     'open_project_index', 'load_project_scene', 'create_scene', 'load_scene', 'rename_scene', 'reorder_scenes', 'history',
     'restore_scene', 'export_archive', 'import_archive', 'load_project_data',
-    'load_entity_revision', 'project_data_history', 'load_project_data_revision',
+    'review_sources_check', 'planning_read_snapshot', 'load_project_data_unambiguous', 'load_entity_revision', 'project_data_history', 'load_project_data_revision',
     'save_project_data', 'move_scene', 'load_revision', 'snapshot_scene',
     'conflicts', 'resolve_scene', 'put_asset', 'list_assets', 'deleted_scenes',
     'project_time_points', 'project_time_preview', 'recover_time_piece',
@@ -41,7 +41,7 @@ def comma_parts(text):
 
 def derive(root, rust_type, uncomment):
     source = uncomment((root / 'crates/companion/src/main.rs').read_text(encoding='utf-8'))
-    storage = uncomment('\n'.join((root / path).read_text(encoding='utf-8') for path in ['crates/storage/src/workspace.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs']))
+    storage = uncomment('\n'.join((root / path).read_text(encoding='utf-8') for path in ['crates/storage/src/workspace.rs','crates/storage/src/time_machine.rs','crates/storage/src/branches.rs','crates/storage/src/universe.rs','crates/storage/src/scene_arrangement.rs','crates/storage/src/sync.rs','crates/storage/src/planning_read.rs','crates/storage/src/review_sources.rs']))
     contracts = {}
     for operation in OPERATIONS:
         arms = re.findall(r'"' + operation + r'"\s*=>\s*encode\(storage\.([a-z_]+)\((.*?)\)\.await\?\),', source, re.S)
@@ -67,6 +67,8 @@ def derive(root, rust_type, uncomment):
             kind = re.sub(r'\s+', '', declaration[1])
             if kind == '&str':
                 kind = 'String'
+            elif argument.strip().startswith('&') and re.fullmatch(r'&\[[A-Za-z][A-Za-z0-9]*\]', kind):
+                kind = 'Vec<' + kind[2:-1] + '>'
             elif kind.startswith('&') and argument.strip().startswith('&') and re.fullmatch(r'&[A-Za-z][A-Za-z0-9]*', kind):
                 # A borrowed direct RPC value is serialized as its selected owned type.
                 # Borrowed serde fields remain unsupported in the struct parser.

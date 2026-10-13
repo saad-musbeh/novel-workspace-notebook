@@ -28,7 +28,33 @@ mod alternatives;
 use alternatives::AlternativesPage;
 #[path="data_conflicts.rs"]
 mod data_conflicts;
-use desk::{Desk, Panel};
+#[path="scene_arrangement.rs"]
+mod scene_arrangement;
+use scene_arrangement::SceneArrangementPage;
+#[path="navigation.rs"]
+mod navigation;
+#[path="ripple.rs"]
+mod ripple;
+use ripple::RipplePage;
+#[path="rehearsal.rs"]
+mod rehearsal;
+#[path="character_cut.rs"]
+mod character_cut;
+#[path="scene_reference.rs"]
+mod scene_reference;
+#[path="dictionary.rs"]
+mod dictionary;
+#[path="private_sync.rs"]
+mod private_sync;
+#[path="metadata_conflicts.rs"]
+mod metadata_conflicts;
+#[path="shortcuts.rs"]
+pub(crate) mod shortcuts;
+#[path="desktop_preferences.rs"]
+pub(crate) mod desktop_preferences;
+use shortcuts::{ShortcutRuntime,ShortcutsPage};
+use desktop_preferences::{DesktopRuntime,DesktopPreferencesPage};
+use desk::{Desk, Panel, WINDOWS};
 pub struct Workspace {
     pub window:gtk::Window,
     client:Process,
@@ -50,12 +76,18 @@ pub struct Workspace {
     extra_data:RefCell<Vec<Rc<DataPage>>>,
     chapter_pages:RefCell<Vec<Rc<ChapterPage>>>,
     alternative_pages:RefCell<Vec<Rc<AlternativesPage>>>,
+    scene_arrangement_pages:RefCell<Vec<Rc<SceneArrangementPage>>>,
+    shortcuts:ShortcutRuntime,
+    shortcut_pages:RefCell<Vec<Rc<ShortcutsPage>>>,
+    desktop_preferences:DesktopRuntime,
+    desktop_preference_pages:RefCell<Vec<Rc<DesktopPreferencesPage>>>,
+    ripple_pages:RefCell<Vec<Rc<RipplePage>>>,
     changing:Cell<bool>,
     closing:Cell<bool>,
     loading:Cell<bool>,
     notebook_pending:Cell<usize>,
     notebook_failures:Cell<u64>,
-    trail:RefCell<Vec<String>>,
+    trail:RefCell<Vec<navigation::TrailEntry>>,
     trail_index:Cell<usize>,
     desk:Desk,
 }
@@ -192,7 +224,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -270,12 +302,12 @@ impl Workspace {
             }
             a.clear_tabs();
             for pane in a.panes.borrow().values(){pane.process.stop();}
-            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();
+            a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
             *a.index.borrow_mut()=Value::Null;a.populate_outline();a.populate_book();
             a.pages.set_group_name(Some(a.group_name()));
             a.trail.borrow_mut().clear();a.trail_index.set(0);a.desk.generation.set(a.desk.generation.get()+1);
-            a.load_index();
+            a.reload_shortcuts();a.reload_desktop_preferences();a.load_index();
         });
     }
     fn load_index(self:&Rc<Self>){
@@ -442,6 +474,7 @@ impl Workspace {
                             callback(Ok(existing));
                             return;
                         }
+                        a.apply_desktop_to_pane(&pane);
                         a.panes.borrow_mut().insert(pane.scene_id.clone(),pane.clone());
                         desk::bind_pane(&pane);
                         callback(Ok(pane));
@@ -456,10 +489,7 @@ impl Workspace {
         self.install(&pane.widget,&title,true);
         self.show_return_note(&pane);
         self.remember_scene(&pane.scene_id);*self.active.borrow_mut()=Some(pane.clone());pane.area.grab_focus();
-        let mut trail=self.trail.borrow_mut();
-        if trail.get(self.trail_index.get())!=Some(&pane.scene_id){
-            trail.truncate(self.trail_index.get()+1);trail.push(pane.scene_id.clone());self.trail_index.set(trail.len()-1);
-        }
+        self.record_navigation(&pane.scene_id);
     }
     pub fn save_pane(self:&Rc<Self>,pane:Rc<EditorPane>,callback:impl FnOnce(Result<(),String>)+'static){
         if pane.composing.get(){
@@ -640,14 +670,6 @@ impl Workspace {
         }
     }
     fn detach(self:&Rc<Self>){self.detach_current();}
-    fn back(self:&Rc<Self>){
-        let index=self.trail_index.get();
-        if index>0{let id=self.trail.borrow()[index-1].clone();let a=self.clone();self.navigate(move||{a.trail_index.set(index-1);a.open_scene(&id,false);});}
-    }
-    fn forward(self:&Rc<Self>){
-        let index=self.trail_index.get();
-        if index+1<self.trail.borrow().len(){let id=self.trail.borrow()[index+1].clone();let a=self.clone();self.navigate(move||{a.trail_index.set(index+1);a.open_scene(&id,false);});}
-    }
     fn find(&self){
         self.desk.area.set_active_id(Some("Write"));
         if let Some(expander)=self.desk.find.borrow().as_ref(){expander.set_expanded(true);}
@@ -1093,35 +1115,6 @@ impl Workspace {
                 });
             });
         }
-    }
-    fn sync(self:&Rc<Self>){
-        let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.sync();return;}
-        let dialog=self.panel("Private sync");
-        let row=gtk::Box::new(gtk::Orientation::Horizontal,6);
-        let a=self.clone();
-        button(&row,"Status",move||a.simple_rpc("sync_status",json!({
-        }),"Sync status"));
-        let a=self.clone();
-        button(&row,"Devices",move||a.simple_rpc("sync_devices",json!({
-        }),"Paired devices"));
-        let a=self.clone();
-        button(&row,"Stop listener",move||a.simple_rpc("sync_stop",json!({
-        }),"Sync stopped"));
-        dialog.content_area().pack_start(&row,false,false,6);
-        let address=gtk::Entry::new();
-        address.set_text("127.0.0.1:8765");
-        dialog.content_area().pack_start(&address,false,false,6);
-        let row=gtk::Box::new(gtk::Orientation::Horizontal,6);
-        let a=self.clone();
-        button(&row,"Enable private listener",move||a.simple_rpc("sync_start",json!({
-            "address":address.text().as_str()
-        }),"Private listener"));
-        let a=self.clone();
-        button(&row,"Saved peers",move||a.simple_rpc("peer_list",json!({
-        }),"Saved peers"));
-        dialog.content_area().pack_start(&row,false,false,6);
-        
-        dialog.show_all();
     }
     fn review(self:&Rc<Self>){
         let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.review();return;}

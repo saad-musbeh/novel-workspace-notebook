@@ -80,6 +80,22 @@ export interface ChapterEditSnapshot {
   chapterNumberStart: number;
 }
 
+export interface ReviewSource {
+  sceneId: string;
+  revisionId: string;
+  hash: string;
+}
+
+export interface ReviewSourcesCheck {
+  sources: Array<ReviewSource>;
+}
+
+export interface PlanningReadSnapshot {
+  index: ProjectIndex;
+  planning: (ProjectDataSnapshot | null);
+  sceneMetadata: (ProjectDataSnapshot | null);
+}
+
 export interface MetadataPlacementState {
   sceneId: string;
   chapterId: string;
@@ -571,6 +587,59 @@ export const workspaceWireSchema = {
         "rustName": "chapter_number_start",
         "name": "chapterNumberStart",
         "rustType": "i64"
+      }
+    ]
+  },
+  "ReviewSource": {
+    "source": "crates/storage/src/review_sources.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "scene_id",
+        "name": "sceneId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "revision_id",
+        "name": "revisionId",
+        "rustType": "String"
+      },
+      {
+        "rustName": "hash",
+        "name": "hash",
+        "rustType": "String"
+      }
+    ]
+  },
+  "ReviewSourcesCheck": {
+    "source": "crates/storage/src/review_sources.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "sources",
+        "name": "sources",
+        "rustType": "Vec<ReviewSource>"
+      }
+    ]
+  },
+  "PlanningReadSnapshot": {
+    "source": "crates/storage/src/planning_read.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "index",
+        "name": "index",
+        "rustType": "ProjectIndex"
+      },
+      {
+        "rustName": "planning",
+        "name": "planning",
+        "rustType": "Option<ProjectDataSnapshot>"
+      },
+      {
+        "rustName": "scene_metadata",
+        "name": "sceneMetadata",
+        "rustType": "Option<ProjectDataSnapshot>"
       }
     ]
   },
@@ -1448,6 +1517,9 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   export_archive: {args: {projectId: string;}; result: string};
   import_archive: {args: {archive: string;}; result: ProjectBundle<TScene>};
   load_project_data: {args: {projectId: string; kind: string;}; result: (ProjectDataSnapshot | null)};
+  review_sources_check: {args: {projectId: string; sources: Array<ReviewSource>;}; result: ReviewSourcesCheck};
+  planning_read_snapshot: {args: {projectId: string;}; result: PlanningReadSnapshot};
+  load_project_data_unambiguous: {args: {projectId: string; kind: string;}; result: (ProjectDataSnapshot | null)};
   load_entity_revision: {args: {projectId: string; entityId: string; entityType: string; revisionId: string;}; result: Revision};
   project_data_history: {args: {projectId: string; kind: string;}; result: Array<Revision>};
   load_project_data_revision: {args: {projectId: string; kind: string; revisionId: string;}; result: ProjectDataSnapshot};
@@ -1500,6 +1572,9 @@ export const storageRpcCoverage = {
     "export_archive",
     "import_archive",
     "load_project_data",
+    "review_sources_check",
+    "planning_read_snapshot",
+    "load_project_data_unambiguous",
     "load_entity_revision",
     "project_data_history",
     "load_project_data_revision",

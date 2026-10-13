@@ -1,3 +1,17 @@
+#[path="navigation_tests.rs"]
+mod exact_navigation;
+#[path="dictionary_ui_tests.rs"]
+mod dictionary_forms;
+#[path="projection_tests.rs"]
+mod projection_forms;
+#[path="board_tests.rs"]
+mod board_forms;
+#[path="shortcut_tests.rs"]
+mod shortcut_forms;
+#[path="desktop_preferences_tests.rs"]
+mod desktop_preference_forms;
+#[path="scene_arrangement_tests.rs"]
+mod scene_arrangement_forms;
 #[path="notebook_tests.rs"]
 mod notebook_features;
 #[path="chapter_tests.rs"]
@@ -10,7 +24,7 @@ use super::*;
 use std::time::Instant;
 fn wait(condition:impl Fn()->bool) {
     let start=Instant::now();let context=glib::MainContext::default();
-    while !condition(){while context.pending(){context.iteration(false);}assert!(start.elapsed()<Duration::from_secs(20),"Native UI operation timed out");std::thread::sleep(Duration::from_millis(8));}
+    while !condition(){while context.pending(){context.iteration(false);}if start.elapsed()>=Duration::from_secs(20){WINDOWS.with(|windows|for a in windows.borrow().iter(){eprintln!("UI timeout: status={} busy={} panes={}",a.status.text(),a.desk.busy.get(),a.panes.borrow().len());for p in a.panes.borrow().values(){eprintln!("pane pending={} open={} saving={} dirty={} allocated={}x{} frame={}x{}",p.pending.get(),p.open.get(),p.saving.get(),p.dirty.get(),p.area.allocated_width(),p.area.allocated_height(),p.frame.borrow()["width"],p.frame.borrow()["height"]);}});panic!("Native UI operation timed out");}std::thread::sleep(Duration::from_millis(8));}
     while context.pending(){context.iteration(false);}
 }
 fn pump(duration:Duration) {let start=Instant::now();wait(||start.elapsed()>=duration);}
@@ -43,7 +57,8 @@ fn select(a:&Workspace,choice:SaveChoice) {a.desk.choices.borrow_mut().push_back
 fn last_window()->Rc<Workspace> {WINDOWS.with(|windows|windows.borrow().last().unwrap().clone())}
 fn windows()->usize {WINDOWS.with(|windows|windows.borrow().len())}
 fn capture(a:&Workspace,name:&str) {
-    pump(Duration::from_millis(120));let path=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../work").join(name);
+    eprintln!("Capturing synthetic UI: {name}");
+    pump(Duration::from_millis(120));a.window.check_resize();let path=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../work").join(name);
     let surface=cairo::ImageSurface::create(cairo::Format::ARgb32,a.window.allocated_width(),a.window.allocated_height()).unwrap();let context=cairo::Context::new(&surface).unwrap();a.window.draw(&context);surface.write_to_png(&mut std::fs::File::create(path).unwrap()).unwrap();
 }
 fn assert_paper_contrast(name:&str,context:&gtk::StyleContext,state:gtk::StateFlags) {
@@ -172,11 +187,37 @@ fn new_novel_workflow(binaries:&Path){
 fn notebook_navigation_manual_save_and_multi_window() {
     gtk::init().unwrap();notebook_surfaces_remain_light();let fixture=tempfile::tempdir().unwrap();let data=fixture.path().join("data");let cache=fixture.path().join("cache");std::fs::create_dir_all(&data).unwrap();std::fs::create_dir_all(&cache).unwrap();
     let binaries=std::env::var_os("NOVEL_RUST_TEST_BINARIES").map(PathBuf::from).unwrap_or_else(||PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/debug"));
+    if let Ok(section)=std::env::var("NOVEL_NATIVE_TEST_SECTION") {
+        match section.as_str() {
+            "navigation"=>exact_navigation::run(&binaries),
+            "shortcuts"=>shortcut_forms::run(&binaries),
+            "view"=>desktop_preference_forms::run(&binaries),
+            "metadata"=>super::super::metadata_conflicts::tests::run(&binaries),
+            "private-sync"=>super::super::private_sync::tests::run(&binaries),
+            "board"=>board_forms::run(&binaries),
+            "dictionary"=>dictionary_forms::run(&binaries),
+            "projections"=>projection_forms::run(&binaries),
+            "conflicts"=>project_data_conflicts::run(&binaries),
+            "ripple"=>super::super::ripple::tests::run(&binaries),
+            _=>panic!("Unknown native test section: {section}"),
+        }
+        assert_eq!(windows(),0); return;
+    }
     new_novel_workflow(&binaries);
     notebook_features::run(&binaries);
     chapter_forms::run(&binaries);
     paragraph_forms::run(&binaries);
     project_data_conflicts::run(&binaries);
+    scene_arrangement_forms::run(&binaries);
+    projection_forms::run(&binaries);
+    dictionary_forms::run(&binaries);
+    board_forms::run(&binaries);
+    exact_navigation::run(&binaries);
+    shortcut_forms::run(&binaries);
+    desktop_preference_forms::run(&binaries);
+    super::super::metadata_conflicts::tests::run(&binaries);
+    super::super::private_sync::tests::run(&binaries);
+    super::super::ripple::tests::run(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));
     let first=rpc(&client,"create_scene",json!({"chapterId":chapter["id"],"scene":{"schemaVersion":1,"title":"The first morning","document":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The room was quiet. مِ 中文 👩🏽‍🚀"}]}]}}}));

@@ -18,6 +18,7 @@ use std::{
     },rc::Rc
 };
 pub struct EditorPane {
+    pub surface:Rc<crate::app::desktop_preferences::WritingSurface>,
     pub widget:gtk::Box,pub return_note:gtk::Label,pub area:gtk::DrawingArea,pub process:Process,pub frame:RefCell<Value>,     pub scene_id:String,pub title:RefCell<String>,pub parent:RefCell<String>,pub dirty:Cell<bool>,pub pending:Cell<usize>,     pub saving:Cell<bool>,pub open:Cell<bool>,pub composing:Cell<bool>,     image:RefCell<Option<cairo::ImageSurface>>,adjustment:gtk::Adjustment,adjusting:Cell<bool>,directory:PathBuf,     pub saved_document:RefCell<Value>,pub saved_title:RefCell<String>,pub error:gtk::Label,pub on_change:RefCell<Option<Box<dyn Fn()>>>,
 }
 impl Drop for EditorPane{
@@ -37,7 +38,6 @@ impl EditorPane {
         let process=Process::start(executable,&directory,false)?;
         let widget=gtk::Box::new(gtk::Orientation::Vertical,0);
         let return_note=gtk::Label::new(None);return_note.set_xalign(0.);return_note.set_line_wrap(true);return_note.set_margin_start(32);return_note.set_margin_end(24);return_note.set_margin_top(8);return_note.set_margin_bottom(8);return_note.set_no_show_all(true);widget.pack_start(&return_note,false,false,0);
-        let row=gtk::Box::new(gtk::Orientation::Horizontal,0);
         let area=gtk::DrawingArea::new();
         area.set_can_focus(true);
         area.set_hexpand(true);
@@ -46,15 +46,14 @@ impl EditorPane {
         area.add_events(gdk::EventMask::BUTTON_PRESS_MASK|gdk::EventMask::BUTTON_RELEASE_MASK|gdk::EventMask::POINTER_MOTION_MASK|gdk::EventMask::SCROLL_MASK|gdk::EventMask::SMOOTH_SCROLL_MASK|gdk::EventMask::KEY_PRESS_MASK|gdk::EventMask::KEY_RELEASE_MASK|gdk::EventMask::FOCUS_CHANGE_MASK);
         let adjustment=gtk::Adjustment::new(0.,0.,680.,28.,200.,680.);
         let scrollbar=gtk::Scrollbar::new(gtk::Orientation::Vertical,Some(&adjustment));
-        row.pack_start(&area,true,true,0);
-        row.pack_start(&scrollbar,false,false,0);
+        let surface=crate::app::desktop_preferences::WritingSurface::new(&area,&scrollbar);
         let error=gtk::Label::new(None);
         error.set_xalign(0.);
         error.set_line_wrap(true);
-        widget.pack_start(&row,true,true,0);
+        widget.pack_start(&surface.widget,true,true,0);
         widget.pack_start(&error,false,false,2);
         let pane=Rc::new(Self {
-            widget,return_note,area,process,frame:RefCell::new(Value::Null),scene_id:record["id"].as_str().ok_or("Missing scene identity.")?.into(),title:RefCell::new(record["scene"]["title"].as_str().unwrap_or("Scene").into()),parent:RefCell::new(record["revisionId"].as_str().ok_or("Missing scene revision.")?.into()),dirty:Cell::new(false),pending:Cell::new(0),saving:Cell::new(false),open:Cell::new(false),composing:Cell::new(false),image:RefCell::new(None),adjustment,adjusting:Cell::new(false),directory,saved_document:RefCell::new(record["scene"]["document"].clone()),saved_title:RefCell::new(record["scene"]["title"].as_str().unwrap_or("Scene").into()),error,on_change:RefCell::new(None)
+            surface,widget,return_note,area,process,frame:RefCell::new(Value::Null),scene_id:record["id"].as_str().ok_or("Missing scene identity.")?.into(),title:RefCell::new(record["scene"]["title"].as_str().unwrap_or("Scene").into()),parent:RefCell::new(record["revisionId"].as_str().ok_or("Missing scene revision.")?.into()),dirty:Cell::new(false),pending:Cell::new(0),saving:Cell::new(false),open:Cell::new(false),composing:Cell::new(false),image:RefCell::new(None),adjustment,adjusting:Cell::new(false),directory,saved_document:RefCell::new(record["scene"]["document"].clone()),saved_title:RefCell::new(record["scene"]["title"].as_str().unwrap_or("Scene").into()),error,on_change:RefCell::new(None)
         });
         Self::connect(&pane);
         let weak=Rc::downgrade(&pane);
@@ -63,8 +62,16 @@ impl EditorPane {
         }),move|reply|if let Some(pane)=weak.upgrade(){
             pane.accept(reply,false);
             pane.open.set(true);
+            pane.refresh_allocation();
         });
         Ok(pane)
+    }
+    fn refresh_allocation(self:&Rc<Self>){
+        if !self.open.get(){return;}
+        let width=self.area.allocated_width().clamp(240,4096) as u32;
+        let height=self.area.allocated_height().clamp(120,2160) as u32;
+        let different={let frame=self.frame.borrow();frame["width"]!=width || frame["height"]!=height};
+        if different{self.operation(json!({"type":"refresh","width":width,"viewportHeight":height}),false);}
     }
     fn accept(&self,reply:Reply,editing:bool){
         match reply{
@@ -215,49 +222,7 @@ impl EditorPane {
             let key=event.keyval();
             let ctrl=event.state().contains(gdk::ModifierType::CONTROL_MASK);
             let shift=event.state().contains(gdk::ModifierType::SHIFT_MASK);
-            let alt=event.state().contains(gdk::ModifierType::MOD1_MASK);
-            if ctrl{
-                let command=match key.to_unicode().map(|c|c.to_ascii_lowercase()){
-                    Some('b')=>Some("bold"),Some('i')=>Some("italic"),Some('u')=>Some("underline"),Some('a')=>Some("selectAll"),Some('z')=>Some(if shift{
-                        "redo"
-                    }else{
-                        "undo"
-                    }),Some('y')=>Some("redo"),_=>None
-                };
-                if let Some(command)=command{
-                    p.operation(json!({
-                        "type":"command","command":command
-                    }),command!="selectAll");
-                    return glib::Propagation::Stop;
-                }
-                let clipboard=gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD);
-                match key.to_unicode().map(|c|c.to_ascii_lowercase()){
-                    Some('c')|Some('x')=>{
-                        let text=p.frame.borrow()["selectedText"].as_str().unwrap_or("").to_owned();
-                        clipboard.set_text(&text);
-                        if key.to_unicode().is_some_and(|c|c=='x' || c=='X'){
-                            p.operation(json!({
-                                "type":"text","text":""
-                            }),true);
-                        }return glib::Propagation::Stop;
-                    },                     Some('v')=>{
-                        let weak=Rc::downgrade(&p);
-                        clipboard.request_text(move|_,text|if let(Some(p),Some(text))=(weak.upgrade(),text){
-                            p.operation(json!({
-                                "type":"text","text":text
-                            }),true);
-                        });
-                        return glib::Propagation::Stop;
-                    },_=>{
-                    }
-                }
-            }
-            if alt && key.to_unicode().is_some_and(|c|c=='x'||c=='X'){
-                p.operation(json!({
-                    "type":"command","command":"unicodeToggle"
-                }),true);
-                return glib::Propagation::Stop;
-            }
+            if let Some(result)=crate::app::shortcuts::editor_shortcut(&p,event){return result;}
             let name=match key{
                 gdk::keys::constants::Left=>Some("ArrowLeft"),gdk::keys::constants::Right=>Some("ArrowRight"),gdk::keys::constants::Up=>Some("ArrowUp"),gdk::keys::constants::Down=>Some("ArrowDown"),gdk::keys::constants::Home=>Some("Home"),gdk::keys::constants::End=>Some("End"),gdk::keys::constants::Page_Up=>Some("PageUp"),gdk::keys::constants::Page_Down=>Some("PageDown"),gdk::keys::constants::Return|gdk::keys::constants::KP_Enter=>Some("Enter"),gdk::keys::constants::BackSpace=>Some("Backspace"),gdk::keys::constants::Delete=>Some("Delete"),gdk::keys::constants::Tab=>Some("Tab"),gdk::keys::constants::Escape=>Some("Escape"),_=>None
             };
@@ -332,17 +297,6 @@ impl EditorPane {
             }glib::Propagation::Stop
         });
         let weak=Rc::downgrade(pane);
-        pane.area.connect_size_allocate(move|_,allocation|if let Some(p)=weak.upgrade(){
-            let width=allocation.width().clamp(240,4096) as u32;
-            let height=allocation.height().clamp(120,2160) as u32;
-            let frame=p.frame.borrow();
-            let different=frame["width"]!=width || frame["height"]!=height;
-            drop(frame);
-            if different{
-                p.operation(json!({
-                    "type":"refresh","width":width,"viewportHeight":height
-                }),false);
-            }
-        });
+        pane.area.connect_size_allocate(move|_,_|if let Some(p)=weak.upgrade(){p.refresh_allocation();});
     }
 }

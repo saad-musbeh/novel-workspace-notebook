@@ -39,7 +39,7 @@ The editor protocol retains scalar-value positions, rich block JSON, layout fram
 | Reading and reminders | Saved read-only manuscript, selected Bored/Confused/Curious reactions, revision-checked passage navigation, unresolved scene notes and edit-save counts |
 | Return bookmark | Explicit next-session reminder, scene/cursor/selection capture, exact document-hash check before restoration |
 | Story bible | Native structured forms for records, custom fields, linked facts/events, reveals, knowledge and issues; stable identities remain hidden |
-| Plot board / chronology | Draggable note cards, visible edges, editable board data; known/unknown/fixed/interval/relative times and explicit constraint findings |
+| Plot board / chronology | Draggable cards, Pango multilingual edge labels, explicit checked source/target connections; known/unknown/fixed/interval/relative times and explicit constraint findings |
 | Library | Shared universe/series catalogue, atomic novel creation, existing novel membership and shared planning notes |
 | Recovery | Saved history preview, snapshots, consistent backups, deleted-scene restore and common-point scene/whole-bible recovery with captured-head checks |
 | What-if branches | Separate copies, comparison previews and explicit selected scene/whole-bible bring-back |
@@ -47,7 +47,7 @@ The editor protocol retains scalar-value positions, rich block JSON, layout fram
 | Translation | Manual drafts with immutable source language/revision/text; originals remain the exported manuscript |
 | Local review | Explicit configured loopback provider, frozen saved source/hash, read-only result display; author edits remain manual |
 | Word / portable exports | Saved snapshot, per-novel export-profile forms, original Unicode/rich marks/language/direction/spacing in DOCX; full project archives |
-| Private sync | Session listener start/stop, status and saved-device/peer inspection. Existing authenticated backend APIs remain available |
+| Private sync (source after 0.4.0) | Session listener/status, scoped challenges/pairing, approval/revocation, strict private endpoint controls, manual sync/forget and credential repair; external transport qualification remains separate |
 
 ## Writing-aid boundaries
 
@@ -55,16 +55,15 @@ The cutting-room floor reconstructs removed plain text from saved parent/child r
 
 The reader displays saved plain text, with chapter/scene headings and scalar-value selection anchors. It does not live-update or preserve the editor's rich layout. Reactions bind to the selected quote and saved scene revision. Passage restoration refuses changed revisions, dirty drafts and mismatching quotes. Passages to revisit contains explicit unresolved reactions/notes plus scenes with at least two saved rewrites of existing text; it does not infer difficult prose or track typing behavior.
 
-A return bookmark is an explicit action, not a close-time prompt. A bookmark per scene holds a reminder and an editor navigation capture; the latest saved bookmark is the novel’s return location on reopen. Exact document-hash validation guards restoration; changed text leaves the reminder intact and refuses the old position. This dedicated return action does not add exact restoration to general Back/Forward navigation.
+A return bookmark is an explicit action, not a close-time prompt. A bookmark per scene holds a reminder and an editor navigation capture; the latest saved bookmark is the novel’s return location on reopen. Exact document-hash validation guards restoration; changed text leaves the reminder intact and refuses the old position. Source after 0.4.0 additionally captures exact window Back/Forward selection and scroll locations, refusing changed document hashes or saved revisions.
 
 Scraps, reactions, notes and bookmarks use the existing revisioned project-data mechanism, validation, archive/branch remapping and expected-parent checks. Their explicit save buttons do not change the manuscript's manual-save policy. No new schema migration, service or dependency is required.
 
 ## Interface differences and outstanding parity
 
-The Rust interface is a new native implementation, not a pixel-for-pixel copy. Some specialized controls from the React workspace still need native counterparts: character-cut navigation, hold-to-peek, exact bookmarked Back/Forward restoration, reader rehearsal and ripple/rehearsal previews, shortcut remapping, recorded formatting sequences, saved writing-width/interface-direction preferences, scene reordering/moving between chapters, language-pack/font import, generated translation review and review Apply/Reject/job-history controls.
+Source after 0.4.0 qualifies checked scene organization, reader rehearsal, authored character cuts and pin/follow references, installed dictionary lookup, labelled board connections, exact Back/Forward, saved shortcut/view settings, ripple preview and explicit private-peer controls. The native conflict pages qualify checked placement/chapter decisions and reviewed combined immutable candidates for alternatives, translations and alphabets. See PROJECT_STATE.md and TEST_RESULTS.md for observed results.
 
-Full peer pairing, challenge entry, revocation and manual synchronization controls remain in the retained interface/backend. The GTK listener controls alone do not complete a remote pairing workflow. Source after 0.4.0 adds a GTK whole-version project-data conflict panel with captured-head refusal and retained history. Combined author resolution of immutable additions and metadata placement/order conflicts remain separate gaps.
-
+Remaining integration work includes dedicated character knowledge/reader-timeline authoring, hold-to-peek/saved paragraph comparison, formatting sequences, local language-pack/font import and alphabet palette/input mapping, generated translation review and revision-bound review Apply/Reject/job-history controls. Complete chronology feasibility, physical input and actual private transport remain separate qualification.
 Existing data for those features is preserved by storage and complete archives. Do not claim full convenience-feature parity or use the earlier webview workflow probes to qualify this interface. Earlier guides describe the retained React/Tauri implementation where marked.
 
 ## Build and packaging

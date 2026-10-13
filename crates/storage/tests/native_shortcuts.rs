@@ -5,7 +5,7 @@ fn shortcut_defaults_and_text_roundtrip_are_exact(){
     let defaults=NativeShortcutSettings::default();defaults.validate().unwrap();
     for bindings in defaults.bindings.values(){let text=bindings.iter().map(NativeShortcutBinding::display).collect::<Vec<_>>().join(", ");assert_eq!(parse_native_shortcut_list(&text).unwrap(),*bindings);}
     assert_eq!(parse_native_shortcut_list("  control+shift+s, f8 ").unwrap().iter().map(NativeShortcutBinding::display).collect::<Vec<_>>(),vec!["Ctrl+Shift+S","F8"]);assert!(parse_native_shortcut_list(" ").unwrap().is_empty());
-    for invalid in ["a","Shift+S","4","Ctrl+Alt+Q","Meta+S","Ctrl+Ctrl+S","Ctrl+Control+S","Alt+Tab","Tab","Ctrl+Escape","Enter","Ctrl+Backspace","F1","F6","F7","F11","Alt+F4","F25","F08","Ctrl+S,Ctrl+T,Ctrl+W,F8","Ctrl+"]{assert!(parse_native_shortcut_list(invalid).is_err(),"{invalid}");}
+    for invalid in ["a","Shift+S","4","Ctrl+Alt+Q","Meta+S","Ctrl+Ctrl+S","Ctrl+Control+S","Alt+Tab","Tab","Ctrl+Escape","Enter","Ctrl+Backspace","F1","F6","F7","Alt+F4","F25","F08","Ctrl+S,Ctrl+T,Ctrl+W,F8","Ctrl+"]{assert!(parse_native_shortcut_list(invalid).is_err(),"{invalid}");}
 }
 #[test]
 fn shortcuts_reject_duplicates_across_scopes_and_unknown_or_missing_actions(){
@@ -14,6 +14,22 @@ fn shortcuts_reject_duplicates_across_scopes_and_unknown_or_missing_actions(){
     let mut unknown=defaults.clone();unknown.bindings.insert("workspace.remoteCommand".into(),vec![]);assert!(unknown.validate().is_err());let mut absent=defaults.clone();absent.bindings.remove("editor.bold");assert!(absent.validate().is_err());
     let mut disabled=defaults.clone();disabled.bindings.insert("editor.bold".into(),vec![]);disabled.validate().unwrap();let chord=defaults.bindings["editor.bold"][0].clone();assert_eq!(defaults.action("editor.",&chord),Some("editor.bold"));assert_eq!(defaults.action("workspace.",&chord),None);assert_eq!(disabled.action("editor.",&chord),None);
     let mut fields=serde_json::to_value(defaults).unwrap();fields["unknown"]=json!(true);assert!(NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":fields})).is_err());
+}
+#[test]
+fn added_navigation_and_fullscreen_actions_preserve_schema_one_preferences(){
+    let mut legacy=NativeShortcutSettings::default();for id in ["workspace.back","workspace.forward","workspace.fullscreen"]{legacy.bindings.remove(id);}legacy.bindings.insert("editor.bold".into(),vec![]);let original=serde_json::to_value(&legacy).unwrap();
+    let normalized=NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":original})).unwrap();assert!(normalized.bindings["editor.bold"].is_empty());assert_eq!(normalized.bindings["workspace.back"],parse_native_shortcut_list("Alt+ArrowLeft").unwrap());assert_eq!(normalized.bindings["workspace.forward"],parse_native_shortcut_list("Alt+Right").unwrap());assert_eq!(normalized.bindings["workspace.fullscreen"],parse_native_shortcut_list("F11").unwrap());assert_eq!(serde_json::to_value(&legacy).unwrap(),original,"Reading adds defaults without mutating saved preferences");
+    legacy.bindings.insert("workspace.back".into(),vec![]);let normalized=NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":legacy})).unwrap();assert!(normalized.bindings["workspace.back"].is_empty(),"Explicitly disabled actions remain disabled");
+    let mut missing=normalized.clone();missing.bindings.remove("workspace.save");assert!(NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":missing})).is_err());
+    let mut unknown=normalized.clone();unknown.bindings.insert("workspace.sequence1".into(),vec![]);assert!(NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":unknown})).is_err());
+    let mut remapped=normalized;remapped.bindings.remove("workspace.back");remapped.bindings.insert("editor.bold".into(),parse_native_shortcut_list("Alt+Left").unwrap());let projected=NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":remapped})).unwrap();assert!(projected.bindings["workspace.back"].is_empty());assert_eq!(projected.bindings["editor.bold"],parse_native_shortcut_list("Alt+ArrowLeft").unwrap());
+}
+#[test]
+fn navigation_chords_protect_editing_and_fullscreen_key_is_action_scoped(){
+    for invalid in ["Left","ArrowRight","Shift+Left","Ctrl+ArrowLeft","Ctrl+Shift+ArrowRight","Ctrl+Alt+Left","Alt+Up","Ctrl+F11","Shift+F11"]{assert!(parse_native_shortcut_list(invalid).is_err(),"{invalid}");}
+    let default=NativeShortcutSettings::default();assert_eq!(default.action("workspace.",&parse_native_shortcut_list("Alt+Left").unwrap()[0]),Some("workspace.back"));assert_eq!(default.action("workspace.",&parse_native_shortcut_list("Alt+Right").unwrap()[0]),Some("workspace.forward"));
+    let mut reserved=default.clone();reserved.bindings.insert("workspace.fullscreen".into(),vec![]);reserved.bindings.insert("workspace.save".into(),parse_native_shortcut_list("F11").unwrap());assert!(reserved.validate().unwrap_err().contains("reserved for the fullscreen"));
+    let mut remapped=default;remapped.bindings.insert("workspace.fullscreen".into(),parse_native_shortcut_list("F8").unwrap());remapped.validate().unwrap();assert_eq!(remapped.action("workspace.",&parse_native_shortcut_list("F8").unwrap()[0]),Some("workspace.fullscreen"));assert!(remapped.action("workspace.",&parse_native_shortcut_list("F11").unwrap()[0]).is_none());
 }
 #[tokio::test]
 async fn shortcut_settings_preserve_other_configuration_and_refuse_stale_concurrent_forms(){
