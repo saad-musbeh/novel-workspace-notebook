@@ -1,0 +1,86 @@
+[hidden]{display:none!important}.project-picker{display:grid;gap:8px;margin-top:25px}.project-picker select{width:100%;max-width:100%}.workspace-nav{display:grid;gap:5px;margin:24px 0}.workspace-nav button{background:transparent;text-align:left}.workspace-nav button[aria-pressed=true]{background:#d9e6dc;color:#203e31}.manuscript-tree{overflow:auto;max-height:40vh}.manuscript-tree h3{font-size:14px;font-weight:500}.manuscript-tree button{display:block;text-align:start;width:100%;background:transparent;margin:5px 0;overflow:hidden;text-overflow:ellipsis}.workspace-panel{width:100%;max-width:none;margin:0;padding:0;min-width:0}.workspace-panel h2{margin-top:16px}.workspace-panel button{margin:3px}.workspace-panel label{display:inline-grid;gap:4px;margin:4px}.workspace-panel input,.workspace-panel select,.project-picker select{border:1px solid #c8d5cc;border-radius:7px;background:#fffef9;padding:9px;color:#29463b;font:inherit}.project-tools{padding:0;border:0}.chapter-actions{padding:4px 0;border-top:1px solid #dde4dd}.chapter-actions b{display:inline-block;min-width:150px}.revision-list{max-height:300px;overflow:auto}.revision-list>div{padding:8px;border-bottom:1px solid #dce3dc}.history-preview{background:#fffef9;border:1px solid #d5ded3;border-radius:4px;padding:8px}.workspace-panel pre{white-space:pre-wrap;font:inherit}.search-hit{display:grid!important;text-align:start;width:100%}.search-hit span{font-size:14px;padding-top:6px}.workspace-panel dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 20px}.workspace-notice{background:#e2eee2;padding:12px 25px}.command-palette{position:fixed;z-index:100;left:30%;top:18%;width:40%;max-height:65vh;overflow:auto;padding:25px;border:1px solid #839e8e;background:#fffef9;box-shadow:0 15px 70px #13271a33;border-radius:15px}.command-palette button{display:block;width:100%;text-align:start;margin:5px 0}kbd{font-size:11px;margin-left:15px}@media(max-width:950px){.app{grid-template-columns:210px minmax(0,1fr)!important}.command-palette{left:15%;width:70%}}
+
+.paragraph-settings{display:flex;flex-wrap:wrap;align-items:end;gap:12px;padding:12px 25px;border-bottom:1px solid #dee5dc}.paragraph-settings label{display:grid;gap:5px;font-size:12px}.paragraph-settings select{font:inherit;padding:6px;border:1px solid #cbd5cb;background:#fffef9;border-radius:6px;color:#29463b}
+
+/* One palette drives the shell in explicit and system themes. Light document
+   surfaces reset control colors so they never inherit light shell text. */
+:root { --shell-bg:#f3f4f6; --shell-text:#28323d; --shell-muted:#526171; --shell-surface:#fafbfc; --shell-border:#bcc5cf; --control-text:var(--shell-text); --control-border:var(--shell-border); --control-hover:#e6ebf1; --focus-color:#315781; color-scheme:light; }
+:root[data-theme=dark] { --shell-bg:#1b222a; --shell-text:#eef3f8; --shell-muted:#bbc9d6; --shell-surface:#252e38; --shell-border:#778b9e; --control-hover:#334354; --focus-color:#9fc1e4; color-scheme:dark; }
+@media(prefers-color-scheme:dark) { :root[data-theme=system] { --shell-bg:#1b222a; --shell-text:#eef3f8; --shell-muted:#bbc9d6; --shell-surface:#252e38; --shell-border:#778b9e; --control-hover:#334354; --focus-color:#9fc1e4; color-scheme:dark; } }
+body, main, .workspace-panel { background:var(--shell-bg); color:var(--shell-text); }
+.sidebar { --control-text:#e4eadf; --control-border:#83988c; --control-hover:#334c40; --focus-color:#a7c5ae; color:#e4eadf; }
+.workspace-nav button, .manuscript-tree button { color:var(--control-text); transition:none; }
+.workspace-nav button[aria-pressed=true] { color:#203e31; }
+.manuscript-tree .scene-active { background:#3c594d; color:#fffef9; }
+.project-picker select { color-scheme:light; }
+.app .topbar { color:var(--shell-muted); border-color:var(--shell-border); }
+.app .preview-note, .app .preview-note>span { color:var(--shell-muted); }
+.editor-card, .planning-panel { color-scheme:light; color:#283c37; --control-text:#334840; --control-border:#bcc9bd; --control-hover:#e8ece5; --focus-color:#587e6b; }
+.paragraph-settings label { color:#40564a; }
+.app .editor-footer { color:#52664f; }
+.workspace-panel input, .workspace-panel select, .workspace-panel textarea, .command-palette, .history-preview { background:var(--shell-surface); color:var(--shell-text); border-color:var(--shell-border); }
+.workspace-panel textarea { font:inherit; border:1px solid var(--shell-border); border-radius:7px; padding:9px; }
+.project-tools, .chapter-actions, .revision-list>div { border-color:var(--shell-border); }
+.workspace-notice { color-scheme:light; color:#203e31; --control-text:#203e31; --control-border:#7b9785; --control-hover:#d1e2d2; --focus-color:#365f48; }
+.workspace-notice button:disabled { opacity:1; color:#52664f; border-color:#99ad9b; background:transparent; }
+.planning-workspace, .writing-systems-workspace, .assistance { color:var(--shell-text); }
+.planning-save, .ws-heading>span { color:var(--shell-muted); }
+.planning-tabs small { color:#334840; }
+.assistance-diff span { color:var(--shell-muted); }
+.assistance-provider { color:#283c37; }
+.save-error, .load-error, .planning-error, .ws-error, .native-error { --control-text:#953c27; --control-border:#ac6b51; --control-hover:#f9dfd3; }
+
+.app .topbar h1 { font:inherit; font-weight:500; margin:0; }
+.tool-section { border-block-start:1px solid var(--shell-border); padding:8px 0; margin:8px 0; }
+summary { cursor:pointer; }
+summary:focus-visible { outline:2px solid var(--focus-color); outline-offset:3px; }
+.tool-section>summary { font-weight:500; }
+
+.app .assistance-tabs button[aria-selected=true] { background:#dce6f1; color:#203448; border-color:var(--shell-border); }
+
+.tool-scene-picker { min-width:0; max-width:45%; padding:6px; background:var(--shell-surface); color:var(--shell-text); border:1px solid var(--shell-border); border-radius:6px; font:inherit; }
+
+/* A draft owns its scroll area; binder and inspector never enlarge the body. */
+.app .draft-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 18px;border-bottom:1px solid var(--shell-border);font-size:12px;flex-shrink:0;min-width:0}
+.draft-controls>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.draft-controls button{padding:5px 9px;font-size:12px}
+.workspace-writing .writing-layout{display:flex;flex:1;min-height:0;min-width:0;overflow:hidden}
+.workspace-writing .writing-layout>.write-slot{flex:1;min-width:0;min-height:0}
+.scene-inspector{flex:0 0 280px;min-width:0;border-inline-start:1px solid var(--shell-border);padding:14px;overflow:auto;background:var(--shell-surface);color:var(--shell-text)}
+.scene-inspector>header{display:flex;align-items:start;gap:8px;justify-content:space-between}
+.scene-inspector h2{font-size:14px;margin:0;overflow-wrap:anywhere}
+.scene-inspector header button{font-size:11px;padding:5px 7px}
+.scene-inspector label{display:grid;gap:5px;font-size:12px;margin-block:12px}
+.scene-inspector input,.scene-inspector select,.scene-inspector textarea{min-width:0;width:100%;font:inherit;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border);border-radius:5px;padding:6px}
+.scene-inspector textarea{resize:vertical}
+.scene-inspector input[type=checkbox]{width:auto}
+.scene-inspector fieldset{border:1px solid var(--shell-border);margin:12px 0;padding:8px}
+.scene-inspector fieldset label{display:flex;align-items:center}
+.scene-inspector .tool-section{margin:12px 0;padding:12px 0}
+.app.compact-workspace main{margin-left:0;width:100%;min-width:0}
+.binder-heading{font-size:12px;letter-spacing:.04em;margin:0 0 10px}
+.manuscript-tree{max-height:none;flex:1;min-height:0;padding-bottom:10px}
+.binder-chapter{margin-block:6px}
+.binder-chapter summary{display:flex;gap:7px;align-items:center;font-size:12px;padding:6px 0}
+.binder-chapter summary:before{content:'▸';font-size:10px}
+.binder-chapter[open]>summary:before{content:'▾'}
+.binder-chapter small{margin-inline-start:auto;color:#b8cabc}
+.binder-chapter button{font-size:12px;padding:7px 10px;margin:2px 0!important;border:0;border-radius:4px}
+.binder-context-menu{position:fixed;z-index:120;display:grid;min-width:210px;padding:6px;gap:4px;background:var(--shell-surface);color:var(--shell-text);border:1px solid var(--shell-border);border-radius:6px;box-shadow:0 6px 24px #0003}
+.manuscript-tree .binder-context-menu button{color:var(--shell-text);white-space:nowrap;margin:0}
+@media(max-width:1100px){.scene-inspector{flex-basis:240px}.workspace-writing:has(.scene-inspector) .editor-card{width:calc(100% - 24px);margin-inline:12px}.workspace-writing:has(.scene-inspector) .page{padding-inline:20px}}
+@media(max-width:700px){.workspace-writing .writing-layout{position:relative}.scene-inspector{position:absolute;inset:0 0 0 auto;width:min(300px,85%);z-index:40;box-shadow:-8px 0 28px #0003}}
+.compact-loading{margin-left:0;width:100%}
+.workspace-split .writing-layout{position:relative}
+.workspace-split .scene-inspector{position:absolute;inset:0 0 0 auto;width:min(280px,85%);z-index:40;box-shadow:-8px 0 28px #0003}
+/* The host measures each split pane without creating a popup containing block. */
+.workspace-split > [role=tabpanel][data-draft-pane=primary][data-compact-binder=true] .sidebar{display:none}
+.workspace-split > [role=tabpanel][data-draft-pane=primary][data-compact-binder=true] main,
+.workspace-split > [role=tabpanel][data-draft-pane=primary] .app.focus-mode main{margin-left:0;width:100%}
+
+.reference-sidebar{padding:0;background:#fffef9;color:#283c37;color-scheme:light;--control-text:#334840;--control-border:#bcc9bd;--control-hover:#e8ece5;--focus-color:#587e6b}
+.reference-sidebar>p,.reference-sidebar>div[role=alert]{margin:8px 14px;font-size:12px}
+.reference-sidebar>button{margin:0 14px 14px;font-size:12px;padding:5px 8px}
+.reference-sidebar .scene-reference-pane{background:transparent;color:inherit}
+.reference-sidebar .planning-field>span,.reference-sidebar .planning-muted{color:#52664f}
+.reference-sidebar select,.reference-sidebar input{background:#fffef9;color:#283c37;border:1px solid #bcc9bd}

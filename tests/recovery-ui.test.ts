@@ -1,0 +1,15 @@
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {describe,expect,it} from 'vitest';
+import {recoverySummary,RevisionPayloadPreview} from '../apps/writer/src/ProjectRecovery';
+import {initialScene} from '../apps/writer/src/document';
+import type {ProjectBundle,Revision} from '../apps/writer/src/workspace';
+const bundle:ProjectBundle={chapterNumberStart:1,chapterNumberingRevisionId:null,chapterNumberingConflicted:false,project:{id:'project',title:'Synthetic',createdAt:''},chapters:[{id:'chapter-a',projectId:'project',title:'First chapter',position:0},{id:'chapter-b',projectId:'project',title:'Second chapter',position:1}],scenes:[{id:'scene-a',chapterId:'chapter-a',position:0,revisionId:'head',scene:{...initialScene,title:'ميرا 中文'}}]};
+function revision(entityType:string,payload:unknown):Revision{return {id:'revision',projectId:'project',entityId:'entity',entityType,payload,parents:[],operation:'synthetic',schemaVersion:1,checksum:'a'.repeat(64),createdAt:'synthetic',sequence:1,originEpoch:'synthetic-epoch',originDevice:'synthetic-device'};}
+const preview=(value:Revision)=>renderToStaticMarkup(React.createElement(RevisionPayloadPreview,{revision:value}));
+describe('recovery comparison',()=>{
+ it('displays native metadata order in its saved order and retains unknown identifiers',()=>{expect(recoverySummary(revision('project',{title:'Book',order:['chapter-b','chapter-a']}),bundle)).toBe('Book · Second chapter → First chapter');expect(recoverySummary(revision('chapter',{order:['scene-a','missing-scene']}),bundle)).toBe('ميرا 中文 → missing-scene');});
+ it('handles partial generic documents while showing exact author data for comparison',()=>{const saved={records:[{id:'record',name:'مِ 中文',notes:'<script>unsafe()</script>'}],facts:[{value:'green'}]};expect(recoverySummary(revision('projectData',saved),bundle)).toBe('1 story records · 0 events · 1 facts');const html=preview(revision('projectData',saved));expect(html).toContain('Saved data');expect(html).toContain('مِ 中文');expect(html).toContain('&lt;script&gt;unsafe()&lt;/script&gt;');expect(html).not.toContain('<script>');expect(html).toContain('dir="auto"');expect(html).toContain('white-space:pre-wrap');expect(saved.records[0].notes).toBe('<script>unsafe()</script>');});
+ it('previews a deletion without treating its payload as a rich document',()=>{const deletion=revision('tombstone',{deleted:true});const html=preview(deletion);expect(html).toContain('Scene deleted');expect(html).toContain('text and history are retained');expect(html).toContain('&quot;deleted&quot;: true');expect(html).not.toContain('<h4');expect(recoverySummary(deletion,bundle)).toContain('Scene deletion');});
+ it('shows valid live text and safely falls back to exact payload for malformed versions',()=>{expect(preview(revision('scene',{...initialScene,title:'Live scene'}))).toContain('Live scene');expect(()=>preview(revision('scene',{deleted:true}))).not.toThrow();expect(preview(revision('scene',{deleted:true}))).toContain('&quot;deleted&quot;: true');});
+});

@@ -1,0 +1,39 @@
+# Local/personal material: adjust deliberately when a real application is created.
+environment-report*.txt
+*.env
+.env*
+!.env.example
+secrets/
+credentials/
+manuscripts/
+models/
+local-data/
+backups/
+*.gguf
+*.safetensors
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.keystore
+*.jks
+*.pem
+*.key
+# Build outputs
+node_modules/
+target/
+dist/
+.DS_Store
+playwright-report/
+test-results/
+*.tsbuildinfo
+# Regenerated Tauri permission schemas
+apps/writer/src-tauri/gen/schemas/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+/runtime/
+/work/

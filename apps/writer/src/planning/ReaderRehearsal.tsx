@@ -1,0 +1,25 @@
+import React,{useMemo,useState} from 'react';
+import type {PlanningDocument,ReaderReveal} from './model';
+import {Field,PagedPlanningList,type SceneReference} from './controls';
+import {readerRehearsal} from './rehearsal';
+import {referencePreview} from './scene-reference';
+export interface ReaderRehearsalProps {document:PlanningDocument;scenes:SceneReference[];sceneId?:string|null;onOpenScene?:(id:string)=>void}
+export function ReaderRehearsal({document,scenes,sceneId,onOpenScene}:ReaderRehearsalProps){
+ const [chosen,setChosen]=useState<string|null>(sceneId??scenes[0]?.id??null),[pinned,setPinned]=useState(false),[position,setPosition]=useState<number|null>(null),[section,setSection]=useState<'facts'|'events'|'threads'|'notes'>('facts');
+ const selected=!pinned&&sceneId!==undefined?sceneId:chosen;const view=useMemo(()=>readerRehearsal(document,scenes,selected,position),[document,scenes,selected,position]);
+ const jump=(id:string|null)=>{setChosen(id);setPinned(true);setPosition(null);};
+ return <section className="planning-rehearsal" aria-label="Reader rehearsal"><p className="planning-muted">Authored reveals and plot links through this scene. Future information stays hidden.</p><div className="planning-toolbar"><button disabled={view.progress===null||view.progress===0} onClick={()=>jump(scenes[view.progress!-1]?.id??null)}>Previous scene</button><button disabled={view.progress===null||view.progress+1>=scenes.length} onClick={()=>jump(scenes[view.progress!+1]?.id??null)}>Next scene</button><button aria-pressed={pinned} onClick={()=>{if(!pinned)setChosen(selected);setPinned(!pinned);setPosition(null);}}>{pinned?'Follow scene':'Pin progress'}</button>{onOpenScene&&view.scene&&<button onClick={()=>onOpenScene(view.scene!.id)}>Open scene</button>}</div>
+ <Field label="Progress scene"><select value={selected??''} onChange={event=>jump(event.target.value||null)}><option value="">Choose…</option>{selected&&!scenes.some(scene=>scene.id===selected)&&<option value={selected}>Missing scene</option>}{scenes.map((scene,i)=><option key={scene.id} value={scene.id}>{i+1}. {scene.title}</option>)}</select></Field><Field label="Through reveal position (blank = whole scene)"><input type="number" min="1" step="1" value={position===null?'':position+1} onChange={event=>{const value=Number(event.target.value);if(!event.target.value)setPosition(null);else if(Number.isSafeInteger(value)&&value>=1)setPosition(value-1);}}/></Field>
+ {!view.scene?<p role="status">This progress scene is missing. No rehearsal information is shown.</p>:<><p role="status">{view.progress!+1} / {scenes.length} · <bdi>{view.scene.title}</bdi></p>{(view.missingScenes>0||view.missingTargets>0)&&<p role="status">Some authored links are missing and cannot be placed.</p>}{view.limited&&<p role="status">Rehearsal limit reached. Some authored links are omitted.</p>}<nav className="planning-tabs" aria-label="Rehearsal sections">{(['facts','events','threads','notes'] as const).map(tab=><button key={tab} aria-pressed={section===tab} onClick={()=>setSection(tab)}>{tab[0].toUpperCase()+tab.slice(1)}</button>)}</nav>
+ {section==='facts'&&<PagedPlanningList key={selected+':facts:'+position} items={view.facts} empty="No authored fact reveals yet.">{row=><><strong dir="auto">{row.fact.property}</strong><p dir="auto">{referencePreview(row.fact.value)}</p><small>{row.fact.confirmed?'Approved fact':row.fact.status}{view.differentValueFactIds.has(row.fact.id)?' · Different revealed values; applicability unresolved':''}</small><RevealNotes reveals={row.reveals}/></>}</PagedPlanningList>}
+ {section==='events'&&<PagedPlanningList key={selected+':events:'+position} items={view.events} empty="No authored event reveals yet.">{row=><><strong dir="auto">{row.event.title}</strong><small>{row.event.time.kind==='unknown'?'Story time unknown':'Authored story time; reveal order is separate'}</small><RevealNotes reveals={row.reveals}/></>}</PagedPlanningList>}
+ {section==='threads'&&<PagedPlanningList key={selected+':threads:'+position} items={view.threads} empty="No unresolved authored setup/payoff threads here.">{row=><><strong dir="auto">{row.point.title}</strong><p dir="auto">{referencePreview(row.point.notes)}</p><small>{row.status==='closed-without-visible-payoff'?'Closed scope; no payoff revealed here':row.status==='payoff-unresolved'?'Payoff not yet placed in visible scope':'Open setup'}</small></>}</PagedPlanningList>}
+ {section==='notes'&&<PagedPlanningList key={selected+':notes:'+position} items={view.notes} empty="No plot notes linked to this progress.">{point=><><strong dir="auto">{point.title}</strong><p dir="auto">{referencePreview(point.notes)}</p></>}</PagedPlanningList>}
+ </>}
+ </section>;
+}
+
+function RevealNotes({reveals}:{reveals:ReaderReveal[]}){
+ const [open,setOpen]=useState(false);
+ return <details onToggle={event=>setOpen(event.currentTarget.open)}><summary>Reveal notes</summary>{open&&<PagedPlanningList items={reveals} empty="No reveal notes.">{reveal=><p dir="auto">{referencePreview(reveal.notes)||'No reveal note.'}</p>}</PagedPlanningList>}</details>;
+}

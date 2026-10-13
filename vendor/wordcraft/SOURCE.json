@@ -1,0 +1,126 @@
+{
+  "upstream": "https://github.com/storytold/wordcraft",
+  "commit": "d7d9702bda1fe626952024dc37fd2624323dad0f",
+  "scope": [
+    "crates/geom/src/**",
+    "crates/doc/src/**",
+    "crates/docx/src/**"
+  ],
+  "sourceFiles": [
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "fc257de83c44ae49e4aad1cf777b886794be3ac9c8d00c010ef55935d5bbeba5"
+    },
+    {
+      "path": "crates/doc/src/edit.rs",
+      "sha256": "34014d23f0dc8f8d9f8604ae0ca74506399e9a55038c58375e84e9a49eb48315"
+    },
+    {
+      "path": "crates/doc/src/lib.rs",
+      "sha256": "482e67a95634dbd4a904c92a60072599ccce10618d32b577b450d2a8113ddd0a"
+    },
+    {
+      "path": "crates/doc/src/numbering.rs",
+      "sha256": "1d12775f209b0d91028976a7dd3a9ac16d26df495d58bdd2a64a2b6e9a1a5cc2"
+    },
+    {
+      "path": "crates/doc/src/para.rs",
+      "sha256": "6e60dd29d1104f14172bd744994e153166acb0fcd00d8a60418a5cbbfbd3511c"
+    },
+    {
+      "path": "crates/doc/src/props.rs",
+      "sha256": "a360e794b377d162bc3bfda50635ac3413741a50158ce798ff36dfb10fd96c80"
+    },
+    {
+      "path": "crates/doc/src/resolve.rs",
+      "sha256": "790bc1157e538f21a03a8929f75708e9fab3ffdfae9dc94487ebb877cae1eeae"
+    },
+    {
+      "path": "crates/doc/src/section.rs",
+      "sha256": "f466ca21ca6cd57b1df6c4ac9df9d47f9bc5e5f0ae246a965a4b3d0327594470"
+    },
+    {
+      "path": "crates/doc/src/styles.rs",
+      "sha256": "80ca50f257ab495f20b3c7d06a156f8bfad98e5085adc4a520a1416c30f36b84"
+    },
+    {
+      "path": "crates/doc/src/table.rs",
+      "sha256": "1c8a34d8475a5bb67330891ac988b55b6528b169ad9a55c5f78925bb29a3db25"
+    },
+    {
+      "path": "crates/doc/src/tests.rs",
+      "sha256": "348d6c882dc17c30774201b2f249a42f0ae1cf219d00b21c5bb9888d5a50d05f"
+    },
+    {
+      "path": "crates/docx/src/lib.rs",
+      "sha256": "4055a9c00f8587bd7d79e51e57513a982dc9d4bdd09f753f7c6f26e2fdade700"
+    },
+    {
+      "path": "crates/docx/src/package.rs",
+      "sha256": "d5ba133113f2785e7970b4476dea6447015beef434c7fa4a858b35daeac65751"
+    },
+    {
+      "path": "crates/docx/src/read/mod.rs",
+      "sha256": "470b82408fa3c719bd87a6d26c46f3336b7fb21a560291b6d92ecdfe25bcf9a0"
+    },
+    {
+      "path": "crates/docx/src/read/props.rs",
+      "sha256": "c6eb4060bf1ca12f250ba83e9f36c7044668d95baf4b417d28de5f36f4d9a2bd"
+    },
+    {
+      "path": "crates/docx/src/read/story.rs",
+      "sha256": "68a7cce2ea29cc4fa8d9b173c42b4570d519574ed83ce0df299740e43c3073fb"
+    },
+    {
+      "path": "crates/docx/src/units.rs",
+      "sha256": "b47f228eb9331be73e31fddf8a73f185a67872e383c0c8679f2c270a17d070bf"
+    },
+    {
+      "path": "crates/docx/src/write/mod.rs",
+      "sha256": "66dae8f54445dcd74cb0e86845cf41cbc190de76ba3c5413f458f0204d208354"
+    },
+    {
+      "path": "crates/docx/src/write/props.rs",
+      "sha256": "710b6528a1404493164a26dc2a8bf6714234122d63d8818c7cfdb3f7186608d3"
+    },
+    {
+      "path": "crates/docx/src/write/story.rs",
+      "sha256": "ba94e1e8b542b6109310a27df1b7deda7748cabfd5ed7fe2852bc4f851816bae"
+    },
+    {
+      "path": "crates/docx/src/xml.rs",
+      "sha256": "09db7ecc18d9d13fe861dd7bda3147fd1b21b4c8a9ec8a738fb77f52b2db6c17"
+    },
+    {
+      "path": "crates/geom/src/lib.rs",
+      "sha256": "50f294518455797e7eca969ea73ec7615ef9ae131af40314ccc025f1cc43a32d"
+    }
+  ],
+  "manifestAdaptations": {
+    "crates/geom/Cargo.toml": "Removed workspace lints reference; retained package metadata/dependency declaration and declared rust-version.",
+    "crates/doc/Cargo.toml": "Removed workspace lints reference; retained package metadata/dependencies and declared rust-version.",
+    "crates/docx/Cargo.toml": "Removed workspace lints reference; omitted unused integration-test-only proptest/image/zip dev-dependencies; retained runtime dependencies and declared rust-version.",
+    "Cargo.toml": "Minimal nested workspace limited to geom/doc/docx dependencies; external versions are exact pins. quick-xml is pinned to the upstream lockfile version 0.38.4 because the copied writer APIs are incompatible with 0.42.0; the main application may independently resolve 0.42.0."
+  },
+  "omitted": [
+    "integration-test folders and fixtures",
+    "fonts",
+    "UI",
+    "rendering",
+    "dictionaries and word lists",
+    "brand assets",
+    "all other upstream crates"
+  ],
+  "patches": [
+    {
+      "path": "crates/docx/src/write/props.rs",
+      "upstreamSha256": "710b6528a1404493164a26dc2a8bf6714234122d63d8818c7cfdb3f7186608d3",
+      "currentSha256": "4d7dce1c88518a6ddbaad3bbfd58e517f591027d56c28ac6c044c8f0ab74e54e",
+      "description": "Reviewed local compatibility patch: emit w:bCs and w:iCs in schema order from the corresponding bold/italic properties; add w:eastAsia to run fonts; emit w:lang val plus bidi=ar for ar and eastAsia for zh-Hans/zh-Hant."
+    }
+  ]
+}

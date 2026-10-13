@@ -1,0 +1,10 @@
+.export-styles>p{max-width:72ch;color:var(--shell-muted,#777)}
+.export-page-style,.export-style-list{display:grid;gap:10px;margin:12px 0}
+.export-page-style{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.export-styles label{display:flex;flex-direction:column;gap:4px;margin:6px 0}
+.export-format-note{max-width:72ch;font-size:.9em;color:var(--shell-muted,#777)}
+.export-style-list fieldset{display:grid;grid-template-columns:minmax(140px,2fr) minmax(90px,1fr) auto auto;align-items:end;gap:8px;border:1px solid var(--shell-border);border-radius:6px;padding:8px}
+.export-style-list legend{font-weight:600;padding-inline:4px}
+.export-style-list label:has(input[type=checkbox]){flex-direction:row;align-items:center;white-space:nowrap}
+.export-style-list input,.export-page-style input,.export-page-style select,.export-styles select{min-width:0}
+@media(max-width:560px){.export-style-list fieldset{grid-template-columns:1fr 1fr}.export-style-list fieldset label:first-of-type{grid-column:1/-1}}

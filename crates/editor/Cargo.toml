@@ -1,0 +1,19 @@
+[package]
+license = "Apache-2.0"
+name = "novel-editor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+sha2 = "=0.10.9"
+unicode-segmentation = "=1.13.3"
+regex = "=1.13.1"
+base64 = "=0.22.1"
+glib = "=0.18.5"
+pango = { version = "=0.18.3", features = ["v1_50"] }
+cairo-rs = { version = "=0.18.5", features = ["png"] }
+gtk = "=0.18.2"
+
+[dev-dependencies]
+tempfile = "3"

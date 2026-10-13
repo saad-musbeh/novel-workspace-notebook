@@ -1,0 +1,36 @@
+{
+  "name": "offline-novel-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite apps/writer --host 127.0.0.1",
+    "build": "python3 tools/generate-workspace-contract.py --check && tsc --noEmit && vite build apps/writer",
+    "test": "vitest run",
+    "tauri": "cd apps/writer && tauri",
+    "desktop:prepare": "tools/run-desktop.sh --prepare",
+    "desktop:prepare:release": "tools/run-desktop.sh --prepare-release",
+    "desktop:build": "tools/run-desktop.sh --build",
+    "desktop:package": "tools/run-desktop.sh --package",
+    "desktop:run": "tools/run-desktop.sh",
+    "desktop:prepare:build": "tools/run-desktop.sh --prepare-build",
+    "contract:check": "python3 tools/generate-workspace-contract.py --check"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.1",
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "fake-indexeddb": "6.2.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  },
+  "license": "Apache-2.0"
+}

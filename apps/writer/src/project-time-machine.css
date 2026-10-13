@@ -1,0 +1,15 @@
+.project-time-machine{border-block-start:1px solid var(--shell-border);margin-block:8px;padding-block:8px;min-width:0}
+.time-machine-controls{display:flex;align-items:end;flex-wrap:wrap;gap:8px;min-width:0}
+.project-time-machine label{display:grid;gap:6px;min-width:0;margin-block:8px}
+.project-time-machine select{width:100%;max-width:100%;min-width:0;font:inherit;color:var(--shell-text);background:var(--shell-surface);border:1px solid var(--shell-border);padding:6px;border-radius:5px}
+.time-machine-controls label{flex:1;min-width:220px}
+.time-machine-pieces{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.time-machine-pieces>section{min-width:0;border:1px solid var(--shell-border);border-radius:4px;padding:8px;overflow:auto;max-height:70vh}
+.time-machine-pieces pre,.time-machine-pieces p{white-space:pre-wrap;overflow-wrap:anywhere}
+.time-machine-manuscript{color-scheme:light;background:#fffef9;color:#283c37;padding:12px;font-family:Georgia,var(--arabic-font),serif;line-height:1.6}
+.time-machine-manuscript h4{margin-block-start:0}
+.time-machine-explanation{color:var(--shell-muted);font-size:13px}
+.time-machine-bible dl{display:block}
+.time-machine-bible dt{font-weight:600}
+.time-machine-bible dd{margin-inline:12px}
+@media(max-width:850px){.time-machine-pieces{grid-template-columns:minmax(0,1fr)}}

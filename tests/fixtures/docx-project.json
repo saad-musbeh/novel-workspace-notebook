@@ -1,0 +1,24 @@
+{
+  "chapterNumberStart": 0,
+  "project": {"id": "fixture-project", "title": "Synthetic 世界 — رواية 👩🏽‍🚀", "createdAt": "2026-10-01T00:00:00Z"},
+  "chapters": [
+    {"id": "chapter-next", "projectId": "fixture-project", "title": "Second / الفصل الثاني", "position": 20},
+    {"id": "chapter-first", "projectId": "fixture-project", "title": "First / الفصل الأول", "position": 10}
+  ],
+  "scenes": [
+    {"id": "scene-late", "chapterId": "chapter-first", "position": 8, "revisionId": "revision-late", "scene": {"schemaVersion": 1, "title": "Late-position scene", "document": {"type": "doc", "content": [{"type": "paragraph", "attrs": {"lang": "en", "dir": "ltr", "lineSpacing": 1}, "content": [{"type": "text", "text": "Scene ordering uses (position,id)."}]}]}}},
+    {"id": "scene-first-b", "chapterId": "chapter-first", "position": 3, "revisionId": "revision-first-b", "scene": {"schemaVersion": 1, "title": "A multilingual scene — قصة 中文", "document": {"type": "doc", "content": [
+      {"type": "paragraph", "attrs": {"lang": "ar", "dir": "rtl", "lineSpacing": 1.15}, "content": [{"type": "text", "text": "سلامٌ مِمِمِ"}, {"type": "text", "text": "مُنسَّق", "marks": [{"type": "bold"}, {"type": "italic"}]}]},
+      {"type": "paragraph", "attrs": {"lang": "zh-Hans", "dir": "auto", "lineSpacing": 1.5}, "content": [{"type": "text", "text": "简体中文故事"}]},
+      {"type": "paragraph", "attrs": {"lang": "zh-Hant", "dir": "auto", "lineSpacing": 2}, "content": [{"type": "text", "text": "繁體中文故事"}]},
+      {"type": "paragraph", "attrs": {"lang": "en", "dir": "auto"}, "content": [{"type": "text", "text": "Emoji grapheme: 👩🏽‍🚀; combining: é; private-use: "}]},
+      {"type": "paragraph", "attrs": {"lang": "en", "dir": "auto"}, "content": [{"type": "text", "text": "Bold passage", "marks": [{"type": "bold"}]}, {"type": "text", "text": " + "}, {"type": "text", "text": "italic passage", "marks": [{"type": "italic"}]}, {"type": "text", "text": " + "}, {"type": "text", "text": "underlined passage", "marks": [{"type": "underline"}]}]},
+      {"type": "paragraph", "attrs": {"lang": "en", "dir": "ltr"}, "content": [{"type": "text", "text": "Arabic text with explicit LTR: العربية"}]},
+      {"type": "paragraph", "attrs": {"lang": "en", "dir": "auto"}, "content": []},
+      {"type": "paragraph", "attrs": {"lang": "en", "dir": "auto"}, "content": [{"type": "text", "text": "Before"}, {"type": "hardBreak"}, {"type": "text", "text": "after hard break"}]},
+      {"type": "heading", "attrs": {"lang": "en", "dir": "ltr", "level": 3, "lineSpacing": 1.15}, "content": [{"type": "text", "text": "Nested heading level three"}]}
+    ]}}},
+    {"id": "scene-first-a", "chapterId": "chapter-first", "position": 3, "revisionId": "revision-first-a", "scene": {"schemaVersion": 1, "title": "Same position, earlier ID", "document": {"type": "doc", "content": [{"type": "paragraph", "attrs": {"lang": "und", "dir": "auto"}, "content": [{"type": "text", "text": "Tie-breaker by scene id."}]}]}}},
+    {"id": "scene-zero", "chapterId": "chapter-next", "position": 1, "revisionId": "revision-zero", "scene": {"schemaVersion": 1, "title": "Final scene", "document": {"type": "doc", "content": [{"type": "paragraph", "attrs": {"lang": "en", "dir": "auto"}, "content": [{"type": "text", "text": "Chapter numbering continues at one."}]}]}}}
+  ]
+}

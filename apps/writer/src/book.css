@@ -1,0 +1,30 @@
+.workspace-book>main{display:flex;flex-direction:column;min-height:0;height:100dvh;overflow:hidden;padding-bottom:0}
+.book-workspace{display:flex;flex-direction:column;flex:1;min-height:0;color:var(--shell-text)}
+.book-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 0;color:var(--shell-text)}
+.book-controls label{display:flex;align-items:center;gap:8px}
+.book-controls select{max-width:280px}
+.book-scroll{flex:1;min-height:0;overflow:auto;overflow-anchor:none;position:relative}
+.book-pages{position:relative;min-width:0}
+.book-position{position:absolute;left:0;right:0}
+.book-scene{background:#fffef9;color:#283c37;min-height:200px;border-bottom:1px solid #c8d5cc}
+.book-chapter{font-size:12px;color:#52664f;padding:4px 0}
+.book-scene-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px;padding:3px 5px}
+.book-scene-heading .book-chapter{min-width:0;display:flex;flex-direction:column;gap:3px}
+.book-scene-heading .book-chapter>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.book-scene-heading strong{font-size:14px;font-weight:500;color:#283c37;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.book-scene-heading button{flex:none;padding:5px 10px;color:#334840;border-color:#bcc9bd}
+.book-folded{height:64px;min-height:64px;overflow:hidden}
+.book-folded .book-scene-heading{height:63px}
+.book-placeholder{display:flex;flex-direction:column;gap:8px;background:#fffef9;color:#283c37}
+.book-scene .writer,.book-scene .editor-card,.book-scene .page,.book-scene .native-editor{height:auto;flex:none;min-height:0;overflow:visible}
+.book-scene .native-scroll{height:auto;max-height:none;min-height:0;overflow:visible;flex:none}
+.book-scene .native-surface{min-height:0}
+.book-scene .under-editor{display:none}
+.book-scene .editor-footer{position:static}
+.book-scene .toolbar{position:static}
+.book-scene .scene-title{max-width:100%}
+
+.book-scene .editor-card{max-width:none;margin:0;border-radius:0;box-shadow:none}
+.book-scene .page{padding:0;min-height:0}
+
+.window-workspace .workspace-book>main{height:calc(100dvh - var(--tab-height))}

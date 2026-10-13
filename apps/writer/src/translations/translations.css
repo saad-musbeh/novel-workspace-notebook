@@ -1,0 +1,22 @@
+.writer:has(>.translations-overlay){position:relative}
+.translations-overlay{position:absolute;inset:var(--editor-toolbar-height,60px) 0 0;z-index:5;background:var(--shell-surface,#fffef9);overflow:auto;padding:1rem;box-sizing:border-box}
+.translations-panel{max-width:1100px;margin:auto;color:var(--shell-text,#283c37);padding:.25rem}
+.translations-panel header{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.translations-panel h2{margin:0;font-size:1.1rem}
+.translations-panel p{font-size:.9rem;line-height:1.5}
+.translations-panel button{margin:.25rem .5rem .25rem 0}
+.translation-tabs{display:flex;gap:.4rem;border-bottom:1px solid var(--shell-border,#c8d5cc);margin:1rem 0;flex-wrap:wrap}
+.translation-tabs [aria-selected=true]{font-weight:700;border-bottom:3px solid var(--accent,#566c53)}
+.translations-panel label{display:flex;flex-direction:column;gap:.35rem}
+.translation-options,.translation-add{display:flex;flex-wrap:wrap;align-items:end;gap:.8rem;margin:1rem 0}
+.translation-options .translation-compare{flex-direction:row;align-items:center;align-self:center}
+.translation-editors{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem}
+.translation-editors.compare{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.translation-editors textarea{width:100%;min-height:300px;resize:vertical;box-sizing:border-box;font:inherit;line-height:1.7;padding:.8rem;background:var(--shell-surface,#fffef9);color:var(--shell-text,#283c37);border:1px solid var(--shell-border,#c8d5cc);border-radius:6px}
+.translation-original{white-space:pre-wrap;max-height:50vh;overflow:auto;padding:.8rem;border:1px solid var(--shell-border,#c8d5cc);border-radius:6px}
+.translation-stale{border-inline-start:3px solid var(--accent,#566c53);padding:.6rem .8rem;background:var(--shell-bg,#f4f2eb)}
+.translations-panel [role=alert]{color:var(--danger,#9b3434)}
+@media(max-width:700px){.translation-editors.compare{grid-template-columns:minmax(0,1fr)}.translation-editors textarea{min-height:220px}.translations-overlay{padding:.7rem}}
+
+.translations-panel select{background:var(--shell-bg,#f3f4f6);color:var(--shell-text,#283c37);border:1px solid var(--shell-border,#bcc5cf);padding:.4rem;max-width:100%}
+.translations-panel textarea:focus-visible{outline:2px solid var(--focus-color,#315781);outline-offset:2px}

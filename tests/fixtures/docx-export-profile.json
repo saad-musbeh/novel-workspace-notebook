@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "pageSize": "a4",
+  "marginMm": 20,
+  "lineSpacing": "2",
+  "title": {"font": "Aptos Display", "size": 24, "bold": false, "italic": false},
+  "chapter": {"font": "Georgia", "size": 18, "bold": true, "italic": false},
+  "scene": {"font": "Aptos", "size": 14, "bold": false, "italic": true},
+  "body": {"font": "Times New Roman", "size": 12, "bold": false, "italic": false}
+}

@@ -1,0 +1,11 @@
+import {describe,it,expect} from 'vitest';
+import {exportManuscript} from '../apps/writer/src/manuscript-export';
+import type {Scene} from '../apps/writer/src/document';
+const scene:Scene={schemaVersion:1,title:'<script>bad</script>',document:{type:'doc',content:[{type:'paragraph',attrs:{dir:'rtl',lang:'ar'},content:[{type:'text',text:'مِمِ 中文 👩🏽‍🚀 \ue000 <img src="https://x">',marks:[{type:'bold'},{type:'italic'}]}]}]}};
+describe('portable manuscript exports',()=>{
+ it('preserves exact codepoints and separates format losses',()=>{const x=exportManuscript([scene],'text','Title');expect(x.content).toContain('مِمِ 中文 👩🏽‍🚀 \ue000');expect(x.losses).toContain('formatting');});
+ it('escapes untrusted HTML and retains RTL metadata with no fetches',()=>{const x=exportManuscript([scene],'html','<script>');expect(x.content).not.toContain('<script>');expect(x.content).toContain('&lt;img src=&quot;https://x&quot;&gt;');expect(x.content).toContain('dir="rtl" lang="ar"');expect(x.content).toContain('<em><strong>');expect(x.content).toContain("default-src 'none'");});
+ it('retains validated explicit line spacing in HTML and declares Markdown loss',()=>{const spaced=structuredClone(scene);spaced.document.content![0].attrs!.lineSpacing=1.15;expect(exportManuscript([spaced],'html','x').content).toContain('lang="ar" style="line-height:1.15"');expect(exportManuscript([spaced],'markdown','x').losses).toContain('line spacing');spaced.document.content![0].attrs!.lineSpacing='1; background:url(https://x)';expect(()=>exportManuscript([spaced],'html','x')).toThrow('line spacing');});
+ it('retains underline in HTML and omits it explicitly in Markdown',()=>{const underlined=structuredClone(scene);underlined.document.content![0].content![0].marks=[{type:'underline'}];expect(exportManuscript([underlined],'html','x').content).toContain('<u>');expect(exportManuscript([underlined],'markdown','x').content).not.toContain('*مِمِ');expect(exportManuscript([underlined],'markdown','x').losses).toContain('underline');});
+ it('rejects unsupported source schemas instead of flattening',()=>{expect(()=>exportManuscript([{...scene,schemaVersion:2} as unknown as Scene],'text','x')).toThrow('version');});
+});

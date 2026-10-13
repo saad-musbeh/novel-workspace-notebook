@@ -1,0 +1,14 @@
+Novel Workspace Notebook
+Copyright 2026 Saad and Novel Workspace Notebook contributors.
+
+The original application source is licensed under the Apache License, Version 2.0.
+See LICENSE. Third-party components retain their own licenses and notices.
+
+The vendored WordCraft geom, doc, and docx libraries are copyright 2026 ArtCraft
+Team and the WordCraft contributors, licensed under MIT OR Apache-2.0. Their
+notices, licenses, upstream source pin, and documented local changes are in
+vendor/wordcraft/. No upstream fonts, word lists, UI, or brand assets are included.
+
+Dependency attributions and license texts are in docs/third-party/NOTICES.txt,
+with versions and source references in docs/third-party/inventory.json.
+System libraries, fonts, model weights, and language packs are not redistributed.

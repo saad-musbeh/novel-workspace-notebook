@@ -1,0 +1,80 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Novel Workspace",
+  "version": "0.1.0",
+  "identifier": "local.novel.workspace.spike",
+  "build": {
+    "beforeDevCommand": "npm run desktop:prepare --prefix ../.. && npm run dev --prefix ../..",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run desktop:prepare:build --prefix ../.. && npm run build --prefix ../..",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Novel Workspace",
+        "width": 1200,
+        "height": 860,
+        "minWidth": 360,
+        "minHeight": 580,
+        "label": "main",
+        "dragDropEnabled": false,
+        "create": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'",
+      "capabilities": [
+        {
+          "identifier": "main-close-events",
+          "windows": [
+            "main",
+            "workspace-*"
+          ],
+          "permissions": [
+            "core:event:allow-listen",
+            "core:event:allow-unlisten"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "rpm"
+    ],
+    "category": "Productivity",
+    "shortDescription": "A local-first novel-writing workspace",
+    "longDescription": "Write, organize story records and plot boards, review chronology, and preserve local manuscript revisions offline. Optional assistance uses local desktop services.",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "externalBin": [
+      "../../../target/desktop-runtime/novel-companion",
+      "../../../target/desktop-runtime/novel-editor"
+    ],
+    "resources": {
+      "../../../docs/third-party/NOTICES.txt": "third-party/NOTICES.txt",
+      "../../../docs/third-party/inventory.json": "third-party/inventory.json"
+    },
+    "linux": {
+      "rpm": {
+        "depends": [
+          "gtk3",
+          "webkit2gtk4.1",
+          "fontconfig",
+          "pango",
+          "cairo"
+        ],
+        "compression": {
+          "type": "gzip",
+          "level": 6
+        },
+        "recommends": [
+          "libsecret"
+        ]
+      }
+    }
+  }
+}

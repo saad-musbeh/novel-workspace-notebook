@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["crates/geom", "crates/doc", "crates/docx"]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/storytold/wordcraft"
+
+[workspace.dependencies]
+wordcraft-geom = { path = "crates/geom" }
+wordcraft-doc = { path = "crates/doc" }
+serde = { version = "=1.0.229", features = ["derive", "rc"] }
+serde_json = { version = "=1.0.151", features = ["float_roundtrip"] }
+thiserror = "=2.0.21"
+unicode-segmentation = "=1.13.3"
+quick-xml = "=0.38.4"
+zip = { version = "=3.0.0", default-features = false, features = ["deflate"] }
+log = "=0.4.34"
+proptest = "=1.11.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

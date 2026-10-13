@@ -1,0 +1,24 @@
+[package]
+license = "Apache-2.0"
+name = "novel-workspace"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "novel_workspace_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+novel-storage = { path = "../../../crates/storage" }
+novel-docx = { path = "../../../crates/docx" }
+serde_json = "1"
+
+tokio = { version = "=1.53.1", features = ["sync", "time"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

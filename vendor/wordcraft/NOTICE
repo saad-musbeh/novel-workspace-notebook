@@ -1,0 +1,6 @@
+WordCraft minimal DOCX export libraries
+Copyright (c) 2026 ArtCraft Team and the WordCraft contributors.
+
+These vendored files are licensed under the MIT License or Apache License, Version 2.0, at your option. See LICENSE-MIT and LICENSE-APACHE.
+
+Only the WordCraft geom, doc, and docx Rust library crates are included. Fonts, UI, rendering, dictionaries, word lists, brand assets, and other upstream product material are omitted. The ArtCraft name, wordmark, and logos are trademarks and are not included.

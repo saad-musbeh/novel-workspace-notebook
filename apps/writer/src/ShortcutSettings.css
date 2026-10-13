@@ -1,0 +1,16 @@
+.shortcut-settings { width:min(760px,calc(100vw - 32px)); max-height:calc(100dvh - 64px); overflow:auto; padding:20px; color:var(--shell-text,#283c37); background:var(--shell-surface,#fffef9); border:1px solid var(--shell-border,#c8d5cc); border-radius:9px; font-size:14px; }
+.shortcut-settings header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.shortcut-settings h2 { margin:0; font-size:18px; }
+.shortcut-settings p { line-height:1.5; }
+.shortcut-settings label { display:grid; gap:6px; }
+.shortcut-settings select { width:100%; padding:8px; color:inherit; background:var(--shell-surface,#fffef9); }
+.shortcut-buttons { display:flex; flex-wrap:wrap; gap:8px; }
+.shortcut-settings button { color:inherit; padding:7px 10px; }
+.shortcut-settings [aria-pressed=true] { outline:2px solid currentColor; outline-offset:2px; }
+.shortcut-message { overflow-wrap:anywhere; padding:10px; border:1px solid var(--shell-border,#c8d5cc); }
+.shortcut-list { display:grid; gap:5px; margin-block:10px; }
+.shortcut-list>div { display:grid; grid-template-columns:minmax(0,1fr) minmax(110px,auto); align-items:center; gap:10px; }
+.shortcut-list button { text-align:start; }
+.shortcut-list span { font-size:12px; }
+.shortcut-settings fieldset { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-block:16px; border:1px solid var(--shell-border,#c8d5cc); }
+@media(max-width:520px) { .shortcut-settings fieldset { grid-template-columns:1fr; } .shortcut-list>div { grid-template-columns:1fr; } }

@@ -1,0 +1,10 @@
+import { afterEach,describe,expect,it,vi } from 'vitest';
+const mocked=vi.hoisted(()=>({ invoke:vi.fn() }));
+vi.mock('@tauri-apps/api/core',()=>mocked);
+import { exportLocalJson } from '../apps/writer/src/assistance/export';
+afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();vi.useRealTimers();mocked.invoke.mockReset();});
+describe('chosen local file export',()=>{
+ it('uses the native chooser without passing a file path or browser Blob',async()=>{vi.stubGlobal('window',{ __TAURI_INTERNALS__:{} });mocked.invoke.mockResolvedValue({ cancelled:false,name:'chosen.json' });const payload={ term:'مِ 中文 😀' };await expect(exportLocalJson('pack.json',payload)).resolves.toEqual({ cancelled:false,name:'chosen.json' });expect(mocked.invoke).toHaveBeenCalledWith('export_document',{ format:'dictionary',content:JSON.stringify(payload,null,2),suggestedName:'pack.json' });});
+ it('preserves explicit native cancellation and export failures',async()=>{vi.stubGlobal('window',{ __TAURI_INTERNALS__:{} });mocked.invoke.mockResolvedValueOnce({ cancelled:true }).mockRejectedValueOnce(new Error('Disk full'));await expect(exportLocalJson('planning.json',{},'project')).resolves.toEqual({ cancelled:true });await expect(exportLocalJson('alphabet.json',{},'alphabet')).rejects.toThrow('Disk full');});
+ it('retains browser preview download behavior and revokes its temporary local URL',async()=>{vi.useFakeTimers();vi.stubGlobal('window',{});const anchor={ href:'',download:'',click:vi.fn() };vi.stubGlobal('document',{ createElement:vi.fn(()=>anchor) });vi.spyOn(URL,'createObjectURL').mockReturnValue('blob:synthetic');const revoke=vi.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{});await exportLocalJson('synthetic.json',{ text:'中文' });expect(anchor.download).toBe('synthetic.json');expect(anchor.href).toBe('blob:synthetic');expect(anchor.click).toHaveBeenCalledOnce();expect(mocked.invoke).not.toHaveBeenCalled();await vi.advanceTimersByTimeAsync(1000);expect(revoke).toHaveBeenCalledWith('blob:synthetic');});
+});

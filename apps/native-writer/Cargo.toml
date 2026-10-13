@@ -1,0 +1,23 @@
+[package]
+license = "Apache-2.0"
+name = "novel-native-writer"
+version = "0.4.0"
+edition = "2021"
+
+[[bin]]
+name = "novel-workspace-rust"
+path = "src/main.rs"
+
+[dependencies]
+novel-editor = { path = "../../crates/editor" }
+novel-storage = { path = "../../crates/storage" }
+novel-docx = { path = "../../crates/docx" }
+serde_json = "1"
+gtk = "=0.18.2"
+glib = "=0.18.5"
+cairo-rs = { version = "=0.18.5", features = ["png"] }
+base64 = "=0.22.1"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"

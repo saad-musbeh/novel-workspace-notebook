@@ -1,0 +1,154 @@
+.writing-desk {--outline-width:240px;position:relative;min-width:0;background:var(--shell-bg)}
+.writing-desk>.sidebar {width:var(--outline-width);inset-inline-start:0;inset-inline-end:auto;padding:10px;gap:10px;background:var(--shell-surface);color:var(--shell-text);border-inline-end:1px solid var(--shell-border);--control-text:var(--shell-text);--control-border:var(--shell-border);--control-hover:var(--shell-bg);--focus-color:var(--shell-text)}
+.writing-desk>main {margin-inline-start:var(--outline-width);margin-inline-end:0;width:calc(100% - var(--outline-width));min-width:0;padding-bottom:0}
+.writing-desk[dir=rtl]>main {margin-left:0}
+.writing-desk .project-picker {display:flex;align-items:center;gap:5px;margin:0;font-size:13px}
+.writing-desk .project-picker select {flex:1;min-width:0;padding:6px;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border);border-radius:4px;color-scheme:normal}
+.writing-desk .project-picker button {padding:4px 7px;color:inherit;font-size:17px;line-height:1}
+.binder-create {display:flex;gap:5px;flex-shrink:0}
+.writing-desk .binder-create button {font-size:12px;padding:6px;flex:1;border-radius:4px}
+.writing-desk .binder-create button:first-child {background:#315781;color:#fff;border-color:#315781}
+.writing-desk .workspace-nav {display:grid;grid-template-columns:1fr;gap:2px;margin:0;border-block-start:1px solid var(--shell-border);padding-block-start:8px;flex-shrink:0}
+.writing-desk .workspace-nav button {border:0;border-radius:4px;font-size:12px;padding:6px 8px;text-align:start;color:var(--shell-text)}
+.writing-desk .workspace-nav button[aria-pressed=true],.writing-desk .manuscript-tree .scene-active {background:#dce6f1;color:#203448}
+.writing-desk .binder-tools {display:grid;gap:2px;flex-shrink:0}
+.writing-desk .binder-tools summary {font-size:12px;padding:6px 8px;color:var(--shell-text)}
+.writing-desk .manuscript-tree {display:flex;flex-direction:column;overflow:hidden;flex:1;min-height:80px;padding:0}
+.writing-desk .binder-heading {font-size:12px;letter-spacing:0;margin:0 0 7px;flex-shrink:0}
+.manuscript-search {display:flex;gap:3px;align-items:center;margin-bottom:7px;flex-shrink:0}
+.manuscript-search input {width:100%;min-width:0;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border);border-radius:4px;padding:7px;font-size:12px}
+.manuscript-search button {padding:4px 6px;font-size:12px}
+.manuscript-tree-scroll {flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+.writing-desk .binder-chapter {margin-block:2px}
+.writing-desk .binder-chapter summary {padding:7px 3px;font-size:12px;color:var(--shell-text)}
+.writing-desk .binder-chapter small {color:var(--shell-muted)}
+.writing-desk .binder-chapter button {margin:1px 0!important;padding:7px 9px;font-size:13px;border-radius:4px;color:var(--shell-text)}
+.writing-desk .binder-chapter button:hover {background:var(--control-hover)}
+.writing-desk .binder-chapter button.scene-active:hover {background:#dce6f1}
+.writing-desk .topbar {height:38px;min-height:38px;padding:0 8px;gap:8px}
+.desk-navigation,.desk-actions,.editor-navigation,.editor-everyday {display:flex;align-items:center;gap:3px;flex-shrink:0}
+.writing-desk .topbar button {padding:4px 7px;font-size:12px}
+.writing-desk .topbar h1 {margin-inline-end:auto;font-size:12px}
+.window-workspace [role=tabpanel] .writing-desk.workspace-writing .editor-card,.writing-desk .editor-card {max-width:var(--writing-width);width:100%;margin:0 auto;border-radius:0;box-shadow:none;overflow:visible}
+.writing-desk .page {padding:0}
+.writing-desk .toolbar {min-height:38px;padding:3px 5px;gap:5px;justify-content:flex-start;overflow:visible;position:relative;z-index:48;flex-wrap:wrap;background:#fafbf8}
+.writing-desk .toolbar button {font-size:12px;padding:5px 7px;border-radius:4px}
+.writing-desk .format-tools {gap:1px}
+.writing-desk .format-tools button {width:25px;height:28px;padding:3px;font-size:14px}
+.writing-desk .format-tools .divider {margin:0 3px}
+.writing-desk .paragraph-tools {gap:3px}
+.writing-desk .paragraph-tools button {padding:5px;font-size:11px}
+.writing-desk:is(.workspace-writing,.workspace-book) .scene-title {font:600 16px system-ui,sans-serif;letter-spacing:normal;text-rendering:auto;margin:0;padding:6px 5px;line-height:1.5;color:#283c37;border-bottom:1px solid #e6e9e2}
+.writing-desk .title-rule {display:none}
+.writing-desk .paragraph-options {position:relative;border:0;margin:0;flex-shrink:0}
+.writing-desk .paragraph-options summary,.writer-menu>summary,.split-chooser>summary {list-style:none;cursor:pointer;padding:5px 7px;font-size:12px;color:#334840;border:1px solid #c8d5cc;border-radius:4px}
+.writing-desk .paragraph-options summary::-webkit-details-marker,.writer-menu>summary::-webkit-details-marker,.split-chooser>summary::-webkit-details-marker {display:none}
+.writing-desk .paragraph-settings {position:absolute;inset-block-start:100%;inset-inline-start:0;z-index:120;display:grid;grid-template-columns:1fr 1fr;gap:8px;width:310px;max-width:calc(100vw - 16px);padding:10px;background:#fffef9;color:#334840;border:1px solid #c8d5cc;box-shadow:0 4px 12px #0002}
+.writing-desk .paragraph-settings label {min-width:0;font-size:12px}
+.writing-desk .paragraph-settings select {width:100%;min-width:0;font-size:12px}
+.writing-desk .writer-status {border:0;padding:0 4px;background:transparent;font-size:11px;flex-shrink:0;margin-inline-start:auto}
+.writing-desk .writer-status>[data-character-count] {display:none}
+.writing-desk .save-status.saved {font-size:11px}
+.writing-desk .writer-menu {position:relative;flex-shrink:0;margin:0}
+.writer-menu>summary:focus-visible,.split-chooser>summary:focus-visible {outline:2px solid #587e6b}
+.writer-menu-panel,.split-chooser>div {position:absolute;inset-block-start:100%;inset-inline-end:0;z-index:120;display:grid;min-width:210px;max-height:70dvh;overflow:auto;padding:4px;background:#fffef9;color:#283c37;border:1px solid #c8d5cc;box-shadow:0 4px 12px #0002}
+.writing-desk .writer-menu-panel button {text-align:start;border:0;border-radius:0;padding:7px 10px;color:inherit}
+.writer-menu-panel small {padding:6px 10px;color:#52664f}
+.split-chooser {position:relative}
+.split-chooser>div {min-width:230px;padding:8px}
+.split-chooser select {width:100%;max-width:260px;min-width:0;font-size:12px;padding:6px;background:#fffef9;color:#334840;border:1px solid #c8d5cc}
+.writing-desk .under-editor {margin:0}
+.writing-desk .writing-layout {position:relative}
+.writing-desk .writing-layout>.write-slot {width:auto;flex:1;min-width:0}
+.writing-desk .scene-inspector {position:relative;inset:auto;flex:0 0 300px;width:300px;z-index:45;border-inline-start:1px solid var(--shell-border);box-shadow:none;padding:10px}
+.writing-desk .reference-sidebar {padding:0}
+.writing-desk .desk-peek {position:absolute;inset-block:38px 0;inset-inline-end:0;pointer-events:none;z-index:46;box-shadow:0 4px 18px #0003}
+.writing-desk.outline-hidden>.sidebar,.writing-desk.focus-mode>.sidebar {display:none}
+.writing-desk.outline-hidden>main,.writing-desk.focus-mode>main {margin-inline-start:0;width:100%}
+.writing-desk .native-surface {max-width:4096px;margin:0}
+.window-workspace.single-tab-workspace {--tab-height:0px}
+.single-tab-workspace>.window-tabs {display:none}
+.desk-settings {display:flex;align-items:end;flex-wrap:wrap;gap:8px;padding:8px;border-block-end:1px solid var(--shell-border);font-size:12px;flex-shrink:0;background:var(--shell-surface);color:var(--shell-text)}
+.desk-settings label {display:grid;gap:3px}
+.desk-settings select {font:inherit;max-width:100%;padding:4px;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border)}
+.desk-settings button {padding:4px 7px}
+.desk-outline-peek {position:absolute;inset-block:38px 0;inset-inline-start:0;width:min(280px,85%);padding:10px;z-index:46;background:var(--shell-surface);color:var(--shell-text);--control-text:var(--shell-text);box-shadow:0 4px 18px #0003;pointer-events:none}
+.writing-desk .command-palette {z-index:125;max-width:560px;width:calc(100% - 24px);left:50%;transform:translateX(-50%);padding:10px;border-radius:6px}
+.command-palette>input {width:100%;padding:8px;font:inherit;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border)}
+.revision-changes {position:absolute;inset-block:38px 0;inset-inline-end:0;width:min(480px,95%);z-index:47;overflow:auto;padding:10px;background:var(--shell-surface);color:var(--shell-text);border-inline-start:1px solid var(--shell-border);box-shadow:0 4px 18px #0003;font-size:12px}
+.revision-changes-held {pointer-events:none}
+.revision-changes header {display:flex;align-items:center;justify-content:space-between}
+.revision-changes label {display:grid;gap:4px;margin-block:8px}
+.revision-changes select {max-width:100%;font:inherit;background:var(--shell-bg);color:var(--shell-text)}
+.revision-changes pre {white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6;margin-block:4px}
+.revision-changes section {border-block-start:1px solid var(--shell-border);padding-block:8px}
+.revision-changes mark {background:#e2ebc6;color:#283c37}
+.revision-changes small {color:var(--shell-muted)}
+.command-sequence-banner {position:fixed;inset-inline:8px;bottom:8px;z-index:145;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--shell-border);background:var(--shell-surface);color:var(--shell-text);font-size:12px;box-shadow:0 3px 12px #0003}
+.command-sequence-banner button {padding:4px 7px}
+.command-sequences {border-block-start:1px solid var(--shell-border);padding-block:8px;margin-block:8px}
+.command-sequences input {max-width:100%;font:inherit;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border);padding:6px}
+.alternatives-overlay {position:fixed;inset-block:40px 0;inset-inline-end:0;width:min(480px,95vw);overflow:auto;background:#fffef9;color:#283c37;border-inline-start:1px solid #c8d5cc;z-index:120}
+.window-workspace.workspace-split>[data-draft-pane=primary] .writing-desk>main {margin:0;margin-inline-start:var(--outline-width);width:calc(100% - var(--outline-width))}
+.window-workspace.workspace-split>[role=tabpanel] .writing-desk>.sidebar {position:absolute;inset-block:0;inset-inline-start:0;inset-inline-end:auto;width:var(--outline-width)}
+.window-workspace.workspace-split>[data-draft-pane=secondary] .writing-desk>main,
+.window-workspace.workspace-split>[data-draft-pane=primary][data-compact-binder=true] .writing-desk>main,
+.window-workspace.workspace-split>[data-draft-pane=primary] .writing-desk.outline-hidden>main,
+.window-workspace.workspace-split>[data-draft-pane=primary] .writing-desk.focus-mode>main {margin:0;width:100%}
+@media(max-width:1100px){.writing-desk .scene-inspector{position:absolute;inset-block:38px 0;inset-inline-end:0;width:min(300px,85%);box-shadow:0 4px 18px #0003}.writing-desk .paragraph-tools{display:none}.window-workspace.workspace-split>[data-draft-pane=primary] .writing-desk>main{margin:0;width:100%}}
+@media(max-width:800px){.writing-desk>main{margin-inline-start:0;width:100%}.writing-desk:not(.outline-hidden):not(.focus-mode)>.sidebar{display:flex;position:absolute;inset-block:0;z-index:85}.writing-desk .topbar kbd{display:none}.writing-desk .tool-scene-picker{max-width:35%}}
+@media(max-width:540px){.writing-desk .writer-status{margin-inline-start:0}.writing-desk .toolbar{gap:3px}.writing-desk .editor-navigation{flex-wrap:wrap}.writing-desk .format-tools{margin-inline-start:auto}.writing-desk .paragraph-settings{inset-inline-start:auto;inset-inline-end:0}}
+.manuscript-search label {display:grid;gap:4px;min-width:0;flex:1;font-size:11px;color:var(--shell-muted)}
+.writing-desk .binder-tools>div {display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.writing-desk .binder-tools>div+div {border-block-start:1px solid var(--shell-border);padding-block-start:4px;margin-block-start:3px}
+.split-chooser>label,.split-chooser>p {position:absolute;inset-block-start:100%;inset-inline-end:0;z-index:120;display:grid;gap:6px;min-width:230px;margin:0;padding:10px;font-size:12px;background:#fffef9;color:#283c37;border:1px solid #c8d5cc;box-shadow:0 4px 12px #0002}
+.writing-desk .desk-peek,.revision-changes {inset-block-start:var(--editor-toolbar-height,38px)}
+@media(max-width:1100px){.writing-desk .scene-inspector{inset-block-start:var(--editor-toolbar-height,38px)}}
+
+.writing-desk .project-picker select {appearance:none;padding-inline-end:22px;background-image:linear-gradient(45deg,transparent 50%,var(--shell-text) 50%),linear-gradient(135deg,var(--shell-text) 50%,transparent 50%);background-position:calc(100% - 12px) 50%,calc(100% - 8px) 50%;background-size:4px 4px;background-repeat:no-repeat}
+
+.writing-desk .page-actions {display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0;margin-inline-start:auto;font-size:12px;flex-shrink:0}
+.writing-desk .page-actions button,.writing-desk .page-actions summary {font:inherit;padding:5px 7px;margin:0;border-radius:4px}
+.writing-desk .page-actions .tool-scene-picker {max-width:220px;width:auto;margin:0;font:inherit}
+.page-menu {position:relative}
+.page-menu>summary {list-style:none;cursor:pointer;border:1px solid var(--shell-border);color:var(--shell-text)}
+.page-menu>summary::-webkit-details-marker {display:none}
+.page-menu-panel {position:absolute;inset-block-start:100%;inset-inline-end:0;z-index:120;display:grid;min-width:180px;padding:4px;background:var(--shell-surface);color:var(--shell-text);border:1px solid var(--shell-border);box-shadow:0 4px 12px #0002}
+.writing-desk .page-menu-panel button {text-align:start;padding:7px 10px;border:0}
+.writing-desk .assistance-toolbar {display:flex;align-items:center;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--shell-border);margin-bottom:8px}
+.writing-desk .assistance-toolbar>.assistance-tabs {border:0;padding:0;margin:0}
+.project-tools {display:flow-root}
+.project-tools>.page-actions {float:inline-end}
+@media(max-width:850px){.writing-desk .page-actions .tool-scene-picker{max-width:160px}}
+
+@media(min-width:540px) and (max-width:800px){.writing-desk:not(.workspace-writing):not(.outline-hidden):not(.compact-workspace):not(.focus-mode)>main{margin-inline-start:var(--outline-width);width:calc(100% - var(--outline-width))}}
+
+.writing-desk .page-actions button[aria-pressed=true]{background:#dce6f1;color:#203448}
+
+.writing-desk .binder-chapter .chapter-title {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.writing-desk .binder-chapter .chapter-number {font-variant-numeric:tabular-nums;color:var(--shell-muted);flex-shrink:0}
+.writing-desk .binder-chapter .chapter-edit {width:auto;flex-shrink:0;padding:2px 4px;font-size:11px;border:1px solid var(--shell-border)}
+.manuscript-dialog {width:min(420px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box;padding:12px;border:1px solid var(--shell-border);border-radius:4px;background:var(--shell-surface);color:var(--shell-text);color-scheme:normal;--control-text:var(--shell-text);--control-border:var(--shell-border);--control-hover:var(--shell-bg)}
+.manuscript-dialog::backdrop {background:#0006}
+.manuscript-dialog h2 {font-size:16px;margin:0 0 12px}
+.manuscript-dialog label {display:grid;gap:4px;margin-block:8px;font-size:13px}
+.manuscript-dialog input {min-width:0;width:100%;box-sizing:border-box;background:var(--shell-bg);color:var(--shell-text);border:1px solid var(--shell-border);padding:7px;font:inherit}
+.manuscript-dialog .dialog-hint {font-size:12px;color:var(--shell-muted);margin-block:8px}
+.manuscript-dialog [role=alert] {font-size:13px;overflow-wrap:anywhere}
+.manuscript-dialog .dialog-actions {display:flex;justify-content:flex-end;gap:6px;margin-top:12px}
+.manuscript-dialog button {padding:6px 10px;font:inherit;font-size:13px}
+.novel-library {width:min(560px,calc(100vw - 24px))}
+.novel-library header,.novel-library nav,.library-universe {display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.novel-library header h2 {margin:0;margin-inline-end:auto}
+.novel-library nav {margin-block:8px}
+.novel-library nav button[aria-pressed=true] {background:#dce6f1;color:#203448}
+.novel-library select {width:100%;min-width:0;padding:7px;border:1px solid var(--shell-border);background:var(--shell-bg);color:var(--shell-text);font:inherit}
+.novel-library-list section {padding-block:8px;border-bottom:1px solid var(--shell-border)}
+.library-universe strong {margin-inline-end:auto}
+.novel-library-list h3 {margin:8px 0 4px;font-size:13px}
+.novel-library-list p {font-size:12px;color:var(--shell-muted);margin-block:4px}
+.library-series {padding-inline-start:12px}
+.novel-library-list .library-series>button,.novel-library-list section>button {display:block;width:100%;text-align:start;margin-block:3px}
+.writing-desk .universe-access {padding:4px 0;border:0;background:transparent;color:var(--shell-muted);font-size:12px;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.universe-notes {padding:6px;border-bottom:1px solid #bcc9bd}
+.universe-notes p {font-size:12px;overflow-wrap:anywhere}

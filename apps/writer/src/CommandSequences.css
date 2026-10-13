@@ -1,0 +1,6 @@
+.command-sequences{margin-block:12px;border-top:1px solid var(--shell-border,#c8d5cc);padding-top:8px}
+.command-sequences label{display:flex;gap:8px;align-items:center;margin-block:8px}
+.command-sequences input{min-width:0;max-width:260px}
+.command-sequences button{margin-right:8px}
+.command-sequence-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:var(--shell-bg,#f5f4ef);color:var(--shell-text,#283c37);border-bottom:1px solid var(--shell-border,#c8d5cc)}
+.command-sequence-banner [role=alert]{flex-basis:100%}

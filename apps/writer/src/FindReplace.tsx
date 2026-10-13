@@ -1,0 +1,10 @@
+import React,{useMemo,useState,useEffect} from 'react';
+import {anchorFor,type SceneSnapshot,type ScenePatch,type EvidenceAnchor} from './assistance/model';
+export function FindReplace({scene,onApply}:{scene:SceneSnapshot|null;onApply:(patch:ScenePatch)=>Promise<unknown>}){
+ const [find,setFind]=useState(''),[replacement,setReplacement]=useState(''),[index,setIndex]=useState(0),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const matches=useMemo(()=>{const result:number[]=[];if(!scene||!find)return result;let at=scene.text.indexOf(find);while(at>=0&&result.length<100){result.push(at);at=scene.text.indexOf(find,at+find.length);}return result;},[scene,find]);
+ useEffect(()=>{setIndex(0);},[scene?.sceneId,scene?.revisionId,find]);
+ let anchor:EvidenceAnchor|undefined;try{if(scene&&matches[index]!==undefined)anchor=anchorFor(scene,matches[index],matches[index]+find.length);}catch{}
+ async function replace(){if(!scene||!anchor)return;setBusy(true);setError('');try{await onApply({suggestionId:crypto.randomUUID(),source:{sceneId:scene.sceneId,revisionId:scene.revisionId,hash:scene.hash},anchor,replacement});}catch(e){setError(String(e));}finally{setBusy(false);}}
+ return <details className="tool-section"><summary>Find and replace</summary><label>Find<input maxLength={1000} value={find} onChange={e=>{setFind(e.target.value);setIndex(0);}}/></label><label>Replace with<input maxLength={10000} value={replacement} onChange={e=>setReplacement(e.target.value)}/></label><label>Occurrence<select value={index} onChange={e=>setIndex(Number(e.target.value))}>{matches.map((_,i)=><option key={i} value={i}>{i+1} of {matches.length}</option>)}</select></label>{anchor&&<p dir="auto"><span>{anchor.prefix}</span><del>{anchor.quote}</del><ins>{replacement}</ins><span>{anchor.suffix}</span></p>}{find&&matches.length>0&&!anchor&&<p>This match splits a letter or combining sequence. Select the complete character instead.</p>}{error&&<p role="alert">{error}</p>}<button disabled={!anchor||busy} onClick={()=>void replace()}>Replace this occurrence</button></details>;
+}

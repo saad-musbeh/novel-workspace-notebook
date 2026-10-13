@@ -1,0 +1,14 @@
+.project-branches{border-block-start:1px solid var(--shell-border);margin-block:8px;padding-block:8px;min-width:0}
+.project-branches form,.branch-controls{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.project-branches label{display:grid;gap:6px;margin-block:8px;min-width:0}
+.project-branches input,.project-branches select{font:inherit;min-width:0;max-width:100%;color:var(--shell-text);background:var(--shell-surface);border:1px solid var(--shell-border);border-radius:5px;padding:6px}
+.branch-controls label{flex:1;min-width:180px}
+.branch-piece-list{list-style:none;margin:12px 0;padding:0;display:grid;gap:4px}
+.branch-piece-list button{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;width:100%;text-align:start}
+.branch-piece-list button span:last-child,.branch-note{color:var(--shell-muted);font-size:13px}
+.branch-piece-list button[aria-pressed=true]{outline:2px solid var(--accent)}
+.branch-previews{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-block:8px}
+.branch-previews>section{min-width:0;max-height:65vh;overflow:auto;border:1px solid var(--shell-border);padding:8px;border-radius:4px}
+.branch-previews p,.branch-previews pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.branch-manuscript{color-scheme:light;background:#fffef9;color:#283c37;font-family:Georgia,var(--arabic-font),serif;line-height:1.6;padding:12px}
+@media(max-width:850px){.branch-previews{grid-template-columns:minmax(0,1fr)}}
