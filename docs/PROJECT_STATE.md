@@ -1,3 +1,13 @@
+# Unreleased recorded formatting sequences — October 14, 2026
+
+Command sequences provides eight named slots, at most 32 allowlisted formatting/spacing/paragraph-language/direction steps, checked settings saves and optional explicitly mapped shortcuts. Recording collects only accepted editor acknowledgements and never saves manuscript edits. Explicit Play and save each step uses normal manual draft decisions, then awaits each command and scene Save before advancing; failure retains earlier saved steps, the current draft and Undo. Logical input gates cover original queued clipboard/IME/tool permits, toolbar/navigation/close/transfer, and ordinary Save/Discard callbacks while allowing only exact author-choice drain and executor Save capabilities.
+
+Cached recordings retain their registered owner for settings and Save/Discard/Cancel decisions. Cancel preserves recording/drafts through close, project switch and new-novel creation; refused clear stops teardown. Recovery refresh preserves a live recording/new draft instead of stopping its worker. Detached panes keep their runtime and Undo. Added shortcut slots default disabled and preserve prior remaps/explicit clears.
+
+Observed: locked offline workspace excluding retained Tauri passed **431 tests, 0 failures, 4 ignored** (native **163**, storage **172**). Complete real GTK passed **1 test / 59.54 s**; the final sequence section including creation/recovery guards passed **1 test / 6.11 s**. Headless actual companion settings/CAS bridge passed **1 test / 0.09 s**. Sequence settings/storage bounds, rich Undo, failed per-step Save, original queued clipboard/IM/pointer signals, cached tool source guards, manual lifecycle and transfer are exercised. Synthetic input events qualify installed callbacks, not physical IME. Inspected captures: `work/notebook-command-sequences` and `work/notebook-sequence-recording`. No dependency, migration, model/resource download, system change or listener was introduced. Published packages remain separate from this source slice.
+
+---
+
 # Unreleased alphabet, private font and licensed pack controls — October 14, 2026
 
 Alphabets now provides immutable saved mapping versions, explicit scene assignment, literal symbol insertion, glossary/notes and manual draft choices. Ordinary committed typing alone uses the saved scalar mapping; paste, drop, palette insertion, replacement, stored writing and Undo remain literal. New writing sessions capture checked alphabet history and saved scene identity, then reread the manuscript before opening. Cached sessions retain their profile and Undo until explicit close/reopen after manual Save or Discard. Conflicting/unavailable resources retain literal/default-font writing capability with a visible notice.

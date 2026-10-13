@@ -564,21 +564,23 @@ impl AlternativesPage {
         if rebind && self.group().is_none() {
             return;
         }
+        let Some(action)=sequence_host::tool_action_permit(owner,&self.scene_id)else{self.failed("Finish the scene operation before capturing a paragraph.");return;};
         self.saving.set(true);
         self.sensitivity();
         let p = self.clone();
         let a = owner.clone();
         owner.ensure_pane(&self.scene_id,move|reply|{
             let pane=match reply{Ok(p)=>p,Err(e)=>{p.failed(&e);return;}};
+            let Some(permit)=sequence_host::tool_input_after_ensure(&pane,&action)else{p.failed("Paragraph capture authorization changed; existing groups retained.");return;};let permit=Rc::new(permit);
             if pane.dirty.get() || pane.composing.get() || pane.saving.get() || pane.pending.get()!=0{p.failed("Open the scene and save its writing before capturing a paragraph.");return;}
             let out=p.clone();let a_=a.clone();a.client.rpc("load_project_scene",json!({"projectId":p.project_id,"sceneId":p.scene_id}),move|reply|{
                 let saved=match reply{Ok(v) if v["revisionId"]==*pane.parent.borrow()=>v,Ok(_)=>{out.failed("The saved scene changed. Reopen a current scene before capturing.");return;},Err(e)=>{out.failed(&e);return;}};
-                if pane.dirty.get() || pane.composing.get() || pane.saving.get() || pane.pending.get()!=0 || pane.frame.borrow()["document"]!=saved["scene"]["document"]{out.failed("The scene draft changed while capturing. Save its current writing first.");return;}
+                if !sequence_host::tool_input_allowed(&pane,&permit) || pane.dirty.get() || pane.composing.get() || pane.saving.get() || pane.pending.get()!=0 || pane.frame.borrow()["document"]!=saved["scene"]["document"]{out.failed("The scene draft changed while capturing. Save its current writing first.");return;}
                 let number=match out.paragraph.text().parse::<usize>(){Ok(n) if n>0 && n<=saved["scene"]["document"]["content"].as_array().map_or(0,Vec::len)=>n,_=>{out.failed("Enter a whole paragraph number within this scene.");return;}};
                 let index=number-1;let p=out.clone();let parent=saved["revisionId"].clone();let captured_pane=pane.clone();let saved_document=saved["scene"]["document"].clone();
                 pane.request(json!({"type":"command","command":"captureParagraph","blockIndex":index}),false,move|reply|{
                     let capture=match reply{Ok(v)=>v["paragraphCapture"].clone(),Err(e)=>{p.failed(&e);return;}};
-                    if captured_pane.dirty.get() || captured_pane.composing.get() || captured_pane.saving.get() || captured_pane.pending.get()!=0 || *captured_pane.parent.borrow()!=parent || captured_pane.frame.borrow()["document"]!=saved_document{p.failed("The scene changed before capture finished. Save its current writing first.");return;}
+                    if !sequence_host::tool_input_allowed(&captured_pane,&permit) || captured_pane.dirty.get() || captured_pane.composing.get() || captured_pane.saving.get() || captured_pane.pending.get()!=0 || *captured_pane.parent.borrow()!=parent || captured_pane.frame.borrow()["document"]!=saved_document{p.failed("The scene changed before capture finished. Save its current writing first.");return;}
                     let mut value=p.value.borrow().clone();
                     if rebind{if let Ok(group)=group_mut(&mut value,&p.scene_id,&p.group_id.borrow()){group["anchor"]=capture;group["sceneRevisionId"]=parent.clone();}else{p.failed("Choose a saved paragraph group.");return;}}
                     else{let scenes=value["scenes"].as_array_mut().unwrap();let position=scenes.iter().position(|s|s["sceneId"]==p.scene_id).unwrap_or_else(||{scenes.push(json!({"sceneId":p.scene_id,"groups":[]}));scenes.len()-1});let groups=scenes[position]["groups"].as_array_mut().unwrap();if groups.len()>=100{p.failed("This scene already has one hundred captured groups.");return;}
@@ -596,16 +598,18 @@ impl AlternativesPage {
         let Some((group, version)) = self.selected() else {
             return;
         };
+        let Some(action)=sequence_host::tool_action_permit(owner,&self.scene_id)else{self.failed("Finish the scene operation before applying a version.");return;};
         self.saving.set(true);
         self.sensitivity();
         let p = self.clone();
         let a = owner.clone();
         owner.ensure_pane(&self.scene_id,move|reply|{
             let pane=match reply{Ok(p)=>p,Err(e)=>{p.failed(&e);return;}};
+            let Some(permit)=sequence_host::tool_input_after_ensure(&pane,&action)else{p.failed("Version application authorization changed; draft and alternatives retained.");return;};let permit=Rc::new(permit);
             if pane.composing.get() || pane.saving.get() || pane.pending.get()!=0{p.failed("Finish the current scene operation before applying a version.");return;}
             let out=p.clone();let a_=a.clone();a.client.rpc("load_project_scene",json!({"projectId":p.project_id,"sceneId":p.scene_id}),move|reply|{
                 match reply{Ok(saved) if saved["revisionId"]==group["sceneRevisionId"] && saved["revisionId"]==*pane.parent.borrow()=>{},Ok(_)=>{out.failed("This scene changed since capture. Save the current writing and explicitly rebind the group before applying.");return;},Err(e)=>{out.failed(&e);return;}}
-                if pane.composing.get() || pane.saving.get() || pane.pending.get()!=0{out.failed("The scene became busy before applying the version.");return;}
+                if !sequence_host::tool_input_allowed(&pane,&permit) || pane.composing.get() || pane.saving.get() || pane.pending.get()!=0{out.failed("The scene became busy or its authorization changed before applying the version.");return;}
                 let p=out.clone();pane.request(json!({"type":"command","command":"swapParagraph","anchor":group["anchor"],"replacement":version["block"]}),true,move|reply|{
                     let capture=match reply{Ok(v)=>v["paragraphCapture"].clone(),Err(e)=>{p.failed(&e);return;}};let mut value=p.value.borrow().clone();
                     if let Ok(target)=group_mut(&mut value,&p.scene_id,&p.group_id.borrow()){target["anchor"]=capture;target["activeId"]=version["id"].clone();}

@@ -1,6 +1,9 @@
 //! Saved native shortcuts. Window and editor handlers share one validated map.
 use super::*;
 use novel_storage::native_shortcuts::{NativeShortcutBinding,NativeShortcutSettings,NATIVE_SHORTCUT_ACTIONS,parse_native_shortcut_list};
+#[cfg(test)] thread_local!{static BEFORE_PASTE_DELIVERY:RefCell<Option<Box<dyn FnOnce()>>>=const{RefCell::new(None)};}
+#[cfg(test)] pub(crate) fn before_paste_delivery_once(action:impl FnOnce()+'static){BEFORE_PASTE_DELIVERY.with(|hook|*hook.borrow_mut()=Some(Box::new(action)));}
+#[cfg(test)] fn paste_delivery_hook(){let action=BEFORE_PASTE_DELIVERY.with(|hook|hook.borrow_mut().take());if let Some(action)=action{action();}}
 
 pub(super) struct ShortcutRuntime {
     settings:RefCell<NativeShortcutSettings>,
@@ -110,6 +113,7 @@ impl Workspace {
     }
     pub(super) fn keyboard_shortcuts(self:&Rc<Self>){let a=desk::effective(self);let out=a.clone();a.navigate(move||{let p=ShortcutsPage::new(out.pid.borrow().clone());out.shortcut_pages.borrow_mut().push(p.clone());out.install(&p.widget,"Keyboard shortcuts",true);p.load(&out);});}
     pub(super) fn workspace_shortcut(self:&Rc<Self>,event:&gdk::EventKey)->glib::Propagation{
+        if self.sequence_window_blocked(){return glib::Propagation::Stop;}
         let Some(binding)=event_binding(event)else{return glib::Propagation::Proceed;};let Some(action)=self.shortcuts.action(&self.pid.borrow(),"workspace.",&binding)else{return glib::Propagation::Proceed;};
         if self.shortcut_composing(){return glib::Propagation::Stop;}
         match action.as_str(){
@@ -118,7 +122,15 @@ impl Workspace {
         }glib::Propagation::Stop
     }
 }
+fn sequence_slot(action:&str)->Option<u8>{
+    let suffix=action.strip_prefix("editor.sequence")?;
+    if suffix.len()!=1{return None;}let slot=suffix.parse::<u8>().ok()?;(1..=8).contains(&slot).then_some(slot)
+}
 #[cfg(test)]mod tests{use super::*;
+    #[test]fn sequence_dispatch_accepts_only_the_eight_editor_actions(){
+        for slot in 1..=8{assert_eq!(sequence_slot(&format!("editor.sequence{slot}")),Some(slot));}
+        for invalid in ["editor.sequence0","editor.sequence9","editor.sequence01","workspace.sequence1","editor.sequence+1","editor.paste"]{assert_eq!(sequence_slot(invalid),None);}
+    }
     #[test]fn built_in_shortcuts_work_without_a_project_and_during_preference_loading(){
         let runtime=ShortcutRuntime::default();let save=NativeShortcutSettings::default().bindings["workspace.save"][0].clone();let new=NativeShortcutSettings::default().bindings["workspace.newTab"][0].clone();
         assert_eq!(runtime.action("","workspace.",&new),Some("workspace.newTab".into()));assert_eq!(runtime.action("project","workspace.",&save),Some("workspace.save".into()));
@@ -133,11 +145,23 @@ impl Workspace {
 /// Navigation, IME, ordinary text and key-release processing keep their existing path.
 pub(crate) fn editor_shortcut(pane:&Rc<EditorPane>,event:&gdk::EventKey)->Option<glib::Propagation>{
     let owner=desk::workspace_for_widget(pane.widget.upcast_ref())?;let binding=event_binding(event)?;
+    if owner.sequence_window_blocked(){return Some(glib::Propagation::Stop);}
     let editor=owner.shortcuts.action(&owner.pid.borrow(),"editor.",&binding);
     // A workspace chord bypasses editor navigation/IME and bubbles once to the window.
     if owner.shortcuts.action(&owner.pid.borrow(),"workspace.",&binding).is_some(){return Some(glib::Propagation::Proceed);}
     if editor.is_none()&&binding.alt&&matches!(binding.code.as_str(),"ArrowLeft"|"ArrowRight"){return Some(glib::Propagation::Proceed);}
     let action=editor?;if pane.composing.get()||pane.saving.get(){return Some(glib::Propagation::Stop);}
+    if let Some(slot)=sequence_slot(&action){
+        // Editor-only dispatch: never route a sequence as a worker command or
+        // record the shortcut's text/navigation. The host captures its own copy
+        // of this original permit BEFORE asynchronous saved-settings loading.
+        let Some(permit)=sequence_host::input_permit(pane)else{return Some(glib::Propagation::Stop);};
+        if owner.current_widget()!=Some(pane.widget.clone().upcast())||!sequence_host::input_allowed(pane,&permit){return Some(glib::Propagation::Stop);}
+        if let Err(error)=owner.sequence_play_saved(slot,pane,Box::new(|_|{})){owner.error(&error);}
+        return Some(glib::Propagation::Stop);
+    }
+    let Some(permit)=sequence_host::input_permit(pane)else{return Some(glib::Propagation::Stop);};
+    if !sequence_host::input_allowed(pane,&permit){return Some(glib::Propagation::Stop);}
     match action.as_str(){
         "editor.copy"|"editor.cut"=>{
             // The confirmed frame's selectedText must describe the selection that
@@ -145,7 +169,7 @@ pub(crate) fn editor_shortcut(pane:&Rc<EditorPane>,event:&gdk::EventKey)->Option
             if pane.pending.get()!=0{pane.error.set_text("Wait for the current selection to finish before copying or cutting.");return Some(glib::Propagation::Stop);}
             let text=pane.frame.borrow()["selectedText"].as_str().unwrap_or("").to_owned();if !text.is_empty(){gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).set_text(&text);if action=="editor.cut"{pane.operation(json!({"type":"text","text":""}),true);}}
         },
-        "editor.paste"=>{let weak=Rc::downgrade(pane);gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).request_text(move|_,text|if let(Some(p),Some(text))=(weak.upgrade(),text){if !p.composing.get()&&!p.saving.get()&&desk::workspace_for_widget(p.widget.upcast_ref()).is_some(){p.operation(json!({"type":"text","text":text}),true);}});},
+        "editor.paste"=>{let weak=Rc::downgrade(pane);gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).request_text(move|_,text|if let(Some(p),Some(text))=(weak.upgrade(),text){#[cfg(test)] paste_delivery_hook();if !p.composing.get()&&sequence_host::input_allowed(&p,&permit){p.operation(json!({"type":"text","text":text}),true);}});},
         _=>{let command=action.strip_prefix("editor.").unwrap();pane.operation(json!({"type":"command","command":command}),command!="selectAll");}
     }Some(glib::Propagation::Stop)
 }

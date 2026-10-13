@@ -1,3 +1,13 @@
+# Native command sequence integration — October 14, 2026
+
+Locked offline workspace excluding retained Tauri passed **431 tests, 0 failures, 4 ignored**: 71 companion, 13 DOCX, 12 editor, 163 native and 172 storage. Complete opt-in GTK passed **1 test / 59.54 s**; after final creation/recovery guards, the six host workflows plus control fixture passed **1 test / 6.11 s** with fatal criticals. Additional headless real settings/CAS RPC passed **1 test / 0.09 s**. Non-test native build is warning-free. Tests use actual rebuilt workers and disposable synthetic stores.
+
+Recording checks successful acknowledgements only, 32/33 bound, settings-only Save, stale metadata retention and no manuscript autosave. Playback uses actual manual choices, exact rich commands, per-step Save/Undo and a deterministic storage-CAS failure after earlier successful steps. Original queued input remains refused after playback restores sensitivity. Actual installed synthetic key/IM/pointer signals and asynchronous clipboard delivery exercise stale input, literal manual paste/Undo and ordinary composition during draft drain. Cached/unmounted tool actions and creation/source callbacks carry original permits. Cached recording departure covers Cancel/Save/Discard, no scene write on Discard, failed/partial manual departures and detached current ownership. Final regressions assert recovery refresh retains recording/worker/draft, and Cancel after naming a novel creates no revision. Early Record tests wait for acknowledged allocation; synthetic events carry a ref-counted real GDK window rather than triggering GDK criticals before input checks.
+
+Captures `work/notebook-command-sequences` and `work/notebook-sequence-recording` were inspected. Logs: `/tmp/novel-sequence-workspace.log`, `/tmp/novel-sequence-complete-gtk.log`, `/tmp/novel-sequence-gtk.log`, `/tmp/novel-sequence-headless.log`, `/tmp/novel-sequence-final-build.log`. Physical IME, installed/published packages, private transport and local-provider accuracy remain separate qualification. No installation/system/network changes occurred.
+
+---
+
 # Native alphabets and licensed local resources — October 14, 2026
 
 Locked offline workspace excluding retained Tauri passed **394 tests, 0 failures, 3 ignored**: 71 companion, 13 DOCX, 12 editor, 132 native and 166 storage. Complete opt-in GTK passed **1 test / 52.63 s** with fatal criticals and actual rebuilt workers. Targeted palette passed **1 test / 1.51 s**, editor profile/private-font/default fallback **1 test / 1.47 s**, licensed imports **1 test / 1.18 s**. An additional ignored headless bridge passed **1 test / 0.56 s** using real companion/editor processes. Non-test offline build is warning-free; contract drift and whitespace checks pass.

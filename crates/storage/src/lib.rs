@@ -45,6 +45,7 @@ pub fn validate(scene: &Scene) -> Result<(), String> {
 }
 mod recovery;
 pub mod native_pack_versions;
+pub mod native_sequences;
 #[cfg(test)] mod release_tests;
 mod workspace;
 mod scene_conflict_snapshot;

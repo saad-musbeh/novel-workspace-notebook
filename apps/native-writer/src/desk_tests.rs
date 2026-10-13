@@ -212,6 +212,15 @@ fn review_translation_workflows(binaries:&Path){
     // draft. Accepted release cancels its token before settings/provider launch.
     find_button(&moved.widget,"Generate translation").unwrap().clicked();assert!(!moved.saving.get());assert!(!child.draft(moved.widget.upcast_ref()).unwrap().busy());child.close_tab(moved.widget.upcast_ref());wait(||child.pages.page_num(&moved.widget).is_none());assert!(moved.status.text().contains("generation cancelled"));assert!(!child.translation_preview_pages.borrow().iter().any(|v|Rc::ptr_eq(v,&moved)));child.close();wait(||windows()==0);
 }
+fn sequence_workflows(binaries:&Path){
+    super::super::sequence_host::tests::run(binaries);
+    super::super::sequence_host::tests::failed_cas_keeps_earlier_saved_steps(binaries);
+    super::super::sequence_host::tests::mutation_composition_and_saved_shortcut_guards(binaries);
+    super::super::sequence_host::tests::cached_tool_input_guards(binaries);
+    super::super::sequence_host::tests::cached_recording_lifecycle(binaries);
+    super::super::sequence_host::tests::installed_input_signal_guards(binaries);
+    super::super::command_sequences::tests::gtk_sequence_controls();
+}
 #[test]
 #[ignore="Requires a graphical desktop; creates only synthetic temporary stores and does not take focus."]
 fn notebook_navigation_manual_save_and_multi_window() {
@@ -237,6 +246,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "alphabets"=>super::super::alphabet_host::tests::run(&binaries),
             "alphabet-editor"=>alphabet_editor_forms::run(&binaries),
             "licensed-imports"=>super::super::licensed_imports::tests::run(&binaries),
+            "sequences"=>sequence_workflows(&binaries),
             _=>panic!("Unknown native test section: {section}"),
         }
         assert_eq!(windows(),0); return;
@@ -264,6 +274,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
     super::super::alphabet_host::tests::run(&binaries);
     alphabet_editor_forms::run(&binaries);
     super::super::licensed_imports::tests::run(&binaries);
+    sequence_workflows(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));
     let first=rpc(&client,"create_scene",json!({"chapterId":chapter["id"],"scene":{"schemaVersion":1,"title":"The first morning","document":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The room was quiet. مِ 中文 👩🏽‍🚀"}]}]}}}));

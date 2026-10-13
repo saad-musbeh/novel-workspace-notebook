@@ -1,4 +1,5 @@
 use crate::app::alphabet_host::{EditorProfile,EditorOptions,stage_editor_options};
+use crate::app::sequence_host::{self,InputPermit};
 use crate::process::{
     Process,Reply
 };
@@ -19,6 +20,7 @@ use std::{
     },rc::Rc
 };
 pub struct EditorPane {
+    #[cfg(test)] pub(crate) test_input_method:RefCell<Option<gtk::IMMulticontext>>,
     pub surface:Rc<crate::app::desktop_preferences::WritingSurface>,
     pub(crate) alphabet_profile:Option<crate::alphabets::SessionProfile>,
     pub(crate) editor_options:RefCell<EditorOptions>,
@@ -66,6 +68,7 @@ impl EditorPane {
         widget.pack_start(&surface.widget,true,true,0);
         widget.pack_start(&error,false,false,2);
         let pane=Rc::new(Self {
+            #[cfg(test)] test_input_method:RefCell::new(None),
             alphabet_profile:loaded.profile,editor_options:RefCell::new(options),surface,widget,return_note,area,process,frame:RefCell::new(Value::Null),scene_id:record["id"].as_str().ok_or("Missing scene identity.")?.into(),title:RefCell::new(record["scene"]["title"].as_str().unwrap_or("Scene").into()),parent:RefCell::new(record["revisionId"].as_str().ok_or("Missing scene revision.")?.into()),dirty:Cell::new(false),pending:Cell::new(0),saving:Cell::new(false),open:Cell::new(false),composing:Cell::new(false),image:RefCell::new(None),adjustment,adjusting:Cell::new(false),directory,saved_document:RefCell::new(record["scene"]["document"].clone()),saved_title:RefCell::new(record["scene"]["title"].as_str().unwrap_or("Scene").into()),error,on_change:RefCell::new(None)
         });
         Self::connect(&pane);
@@ -153,13 +156,15 @@ impl EditorPane {
     }
     pub fn request(self:&Rc<Self>,mut value:Value,editing:bool,callback:impl FnOnce(Reply)+'static){
         if !self.open.get(){callback(Err("The scene is still opening.".into()));return;}
+        if !sequence_host::request_allowed(self,&value){callback(Err("Command sequence playback has paused editor input; draft and Undo retained.".into()));return;}
+        let recording=sequence_host::record_before(self,&value,editing);
         value["preview"]=json!(!editing);
         if value.get("followCursor").is_none(){value["followCursor"]=json!(editing);}
         value["viewportHeight"]=json!(self.area.allocated_height().clamp(120,2160));
         self.pending.set(self.pending.get()+1);
         let weak=Rc::downgrade(self);
         self.process.request(value,move|reply|{
-            if let Some(pane)=weak.upgrade(){pane.pending.set(pane.pending.get().saturating_sub(1));pane.accept(reply.clone(),editing);}
+            if let Some(pane)=weak.upgrade(){pane.pending.set(pane.pending.get().saturating_sub(1));pane.accept(reply.clone(),editing);sequence_host::record_after(&pane,recording,&reply);}
             callback(reply);
         });
     }
@@ -179,12 +184,18 @@ impl EditorPane {
         });
     }
     pub fn discard(self:&Rc<Self>,callback:impl FnOnce(Result<(),String>)+'static){
+        let permit=match sequence_host::authorize_draft_mutation(self,sequence_host::DraftMutation::Discard){Ok(permit)=>permit,Err(error)=>{callback(Err(error));return;}};
         let pane=self.clone();let scene=json!({"schemaVersion":1,"title":self.saved_title.borrow().clone(),"document":self.saved_document.borrow().clone()});
+        if !sequence_host::draft_mutation_allowed(self,&permit,sequence_host::DraftMutation::Discard){callback(Err("Discard authorization changed; draft and Undo retained.".into()));return;}
         self.open_reset(scene,self.area.allocated_width().max(240) as u32,true,Box::new(move|reply|{
             if reply.is_ok(){*pane.title.borrow_mut()=pane.saved_title.borrow().clone();pane.dirty.set(false);}callback(reply);
         }));
     }
     fn connect(pane:&Rc<Self>){
+        // Capture at physical event scheduling, never freshly inside a late callback.
+        let im_permit=Rc::new(RefCell::new(None::<InputPermit>));
+        let pointer_permit=Rc::new(RefCell::new(None::<InputPermit>));
+        let drop_permit=Rc::new(RefCell::new(None::<InputPermit>));
         let weak=Rc::downgrade(pane);
         pane.area.connect_draw(move|area,context|{
             if let Some(pane)=weak.upgrade(){
@@ -211,10 +222,16 @@ impl EditorPane {
             }glib::Propagation::Proceed
         });
         pane.area.drag_dest_set(gtk::DestDefaults::ALL,&[gtk::TargetEntry::new("UTF8_STRING",gtk::TargetFlags::empty(),0),gtk::TargetEntry::new("text/plain;charset=utf-8",gtk::TargetFlags::empty(),1)],gdk::DragAction::COPY);
-        let weak=Rc::downgrade(pane);
+        let weak=Rc::downgrade(pane);let permit=drop_permit.clone();
+        pane.area.connect_drag_drop(move|_,_,_,_,_|{
+            *permit.borrow_mut()=weak.upgrade().and_then(|p|sequence_host::input_permit(&p));
+            false // Gtk's default handler requests the negotiated data.
+        });
+        let weak=Rc::downgrade(pane);let permit=drop_permit;
         pane.area.connect_drag_data_received(move|_,context,x,y,data,_,time|{
             let accepted=if let (Some(p),Some(text))=(weak.upgrade(),data.text()){
-                if !p.open.get() || p.composing.get() || p.saving.get(){false}else{
+                let captured=permit.borrow_mut().take();
+                if !captured.as_ref().is_some_and(|permit|sequence_host::input_allowed(&p,permit)) || p.composing.get(){false}else{
                     p.operation(json!({"type":"mouse","phase":"down","x":x.max(0)*15,"y":((y as f64+p.adjustment.value()).max(0.)*15.).round() as u64,"count":1,"shift":false}),false);
                     p.operation(json!({"type":"mouse","phase":"up","x":x.max(0)*15,"y":((y as f64+p.adjustment.value()).max(0.)*15.).round() as u64}),false);
                     p.operation(json!({"type":"text","text":text.as_str()}),true);true
@@ -222,11 +239,12 @@ impl EditorPane {
             }else{false};context.drag_finish(accepted,false,time);
         });
         let im=gtk::IMMulticontext::new();
+        #[cfg(test)] {*pane.test_input_method.borrow_mut()=Some(im.clone());}
         let im_realize=im.clone();
         pane.area.connect_realize(move|area|im_realize.set_client_window(area.window().as_ref()));
-        let im_focus=im.clone();
+        let im_focus=im.clone();let weak=Rc::downgrade(pane);
         pane.area.connect_focus_in_event(move|area,_|{
-            im_focus.focus_in();
+            if weak.upgrade().is_some_and(|p|sequence_host::input_ready(&p)){im_focus.focus_in();}
             area.queue_draw();
             glib::Propagation::Proceed
         });
@@ -238,25 +256,29 @@ impl EditorPane {
             area.queue_draw();
             glib::Propagation::Proceed
         });
-        let weak=Rc::downgrade(pane);
-        im.connect_preedit_start(move|_|if let Some(p)=weak.upgrade(){
+        let weak=Rc::downgrade(pane);let permit=im_permit.clone();
+        im.connect_preedit_start(move|im|if let Some(p)=weak.upgrade(){
             crate::app::peek::cancel_for_pane(&p,None);
-            p.composing.set(true);
+            let allowed=permit.borrow().as_ref().is_some_and(|permit|sequence_host::input_allowed(&p,permit));
+            if allowed{p.composing.set(true);}else{im.reset();}
         });
         let weak=Rc::downgrade(pane);
         im.connect_preedit_end(move|_|if let Some(p)=weak.upgrade(){
             p.composing.set(false);
         });
-        let weak=Rc::downgrade(pane);
-        im.connect_commit(move|_,text|if let Some(p)=weak.upgrade(){
+        let weak=Rc::downgrade(pane);let permit=im_permit.clone();
+        im.connect_commit(move|im,text|if let Some(p)=weak.upgrade(){
+            let allowed=permit.borrow().as_ref().is_some_and(|permit|sequence_host::composition_allowed(&p,permit));
+            if !allowed{im.reset();return;}
             if let Err(error)=p.commit_ordinary(text){p.error.set_text(&error);}
         });
         let weak=Rc::downgrade(pane);
-        let im_keys=im.clone();
+        let im_keys=im.clone();let permit=im_permit;
         pane.area.connect_key_press_event(move|_,event|{
             let Some(p)=weak.upgrade()else{
                 return glib::Propagation::Proceed;
             };
+            let Some(captured)=sequence_host::input_permit(&p)else{return glib::Propagation::Stop;};
             let key=event.keyval();
             let ctrl=event.state().contains(gdk::ModifierType::CONTROL_MASK);
             let shift=event.state().contains(gdk::ModifierType::SHIFT_MASK);
@@ -274,6 +296,7 @@ impl EditorPane {
                     return glib::Propagation::Stop;
                 }
             }
+            if !p.composing.get(){*permit.borrow_mut()=Some(captured);}
             if im_keys.filter_keypress(event){
                 glib::Propagation::Stop
             }else{
@@ -283,17 +306,18 @@ impl EditorPane {
         let im_release=im.clone();
         let weak=Rc::downgrade(pane);
         pane.area.connect_key_release_event(move|_,event|{
-            if let Some(p)=weak.upgrade(){if let Some(result)=crate::app::peek::key_release(&p,event){return result;}}
+            if let Some(p)=weak.upgrade(){if let Some(result)=crate::app::peek::key_release(&p,event){return result;}if !sequence_host::input_ready(&p){return glib::Propagation::Stop;}}
             if im_release.filter_keypress(event){glib::Propagation::Stop}else{glib::Propagation::Proceed}
         });
         let weak=Rc::downgrade(pane);
         pane.widget.connect_unmap(move|_|if let Some(p)=weak.upgrade(){crate::app::peek::cancel_for_pane(&p,None);});
         let weak=Rc::downgrade(pane);
         pane.area.connect_unmap(move|_|if let Some(p)=weak.upgrade(){crate::app::peek::cancel_for_pane(&p,None);});
-        let weak=Rc::downgrade(pane);
+        let weak=Rc::downgrade(pane);let permit=pointer_permit.clone();
         pane.area.connect_button_press_event(move|area,event|{
-            area.grab_focus();
             if let Some(p)=weak.upgrade(){
+                let Some(captured)=sequence_host::input_permit(&p)else{*permit.borrow_mut()=None;return glib::Propagation::Stop;};
+                *permit.borrow_mut()=Some(captured);area.grab_focus();
                 let(x,y)=event.position();
                 let count=match event.event_type(){
                     gdk::EventType::DoubleButtonPress=>2,gdk::EventType::TripleButtonPress=>3,_=>1
@@ -303,10 +327,11 @@ impl EditorPane {
                 }),false);
             }glib::Propagation::Stop
         });
-        let weak=Rc::downgrade(pane);
+        let weak=Rc::downgrade(pane);let permit=pointer_permit.clone();
         pane.area.connect_motion_notify_event(move|_,event|{
             if event.state().contains(gdk::ModifierType::BUTTON1_MASK){
                 if let Some(p)=weak.upgrade(){
+                    if !permit.borrow().as_ref().is_some_and(|permit|sequence_host::input_allowed(&p,permit)){return glib::Propagation::Stop;}
                     let(x,y)=event.position();
                     p.operation(json!({
                         "type":"mouse","phase":"move","buttons":true,"x":(x.max(0.)*15.).round() as u64,"y":((y+p.adjustment.value()).max(0.)*15.).round() as u64
@@ -314,9 +339,11 @@ impl EditorPane {
                 }
             }glib::Propagation::Stop
         });
-        let weak=Rc::downgrade(pane);
+        let weak=Rc::downgrade(pane);let permit=pointer_permit;
         pane.area.connect_button_release_event(move|_,event|{
+            let captured=permit.borrow_mut().take();
             if let Some(p)=weak.upgrade(){
+                if !captured.as_ref().is_some_and(|permit|sequence_host::input_allowed(&p,permit)){return glib::Propagation::Stop;}
                 let(x,y)=event.position();
                 p.operation(json!({
                     "type":"mouse","phase":"up","x":(x.max(0.)*15.).round() as u64,"y":((y+p.adjustment.value()).max(0.)*15.).round() as u64
@@ -326,6 +353,7 @@ impl EditorPane {
         let weak=Rc::downgrade(pane);
         pane.adjustment.connect_value_changed(move|adjustment|if let Some(p)=weak.upgrade(){
             if !p.adjusting.get(){
+                if !sequence_host::input_ready(&p){let top=p.frame.borrow()["top"].as_f64().unwrap_or(0.);p.adjusting.set(true);adjustment.set_value(top);p.adjusting.set(false);return;}
                 p.operation(json!({
                     "type":"refresh","top":adjustment.value().round() as u64
                 }),false);
@@ -334,6 +362,7 @@ impl EditorPane {
         let weak=Rc::downgrade(pane);
         pane.area.connect_scroll_event(move|_,event|{
             if let Some(p)=weak.upgrade(){
+                if !sequence_host::input_ready(&p){return glib::Propagation::Stop;}
                 let delta=match event.direction(){
                     gdk::ScrollDirection::Up=>-60.,gdk::ScrollDirection::Down=>60.,_=>event.scroll_deltas().map(|(_,y)|y*60.).unwrap_or(0.)
                 };

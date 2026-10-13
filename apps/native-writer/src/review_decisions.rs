@@ -655,11 +655,15 @@ impl ReviewDecisionsPage {
             self.status.set_text(&e);
             return;
         }
+        let sid=s["evidence"][0]["sceneId"].as_str().unwrap_or("");
+        let target=self.scene_pane.borrow().upgrade().filter(|pane|pane.scene_id==sid).or_else(||a.panes.borrow().get(sid).cloned());
+        let Some(target)=target else{self.fail("Open the reviewed scene in this window before Apply.");return;};
+        let Some(permit)=sequence_host::tool_input_permit(a,&target)else{self.fail("Finish the current scene operation before Apply.");return;};let input=Rc::new((target,permit));
         self.saving.set(true);
         self.render_details();
         self.status
             .set_text("Checking every saved source before Apply…");
-        self.verify_sources(a.clone(), s, 0, Vec::new(), None);
+        self.verify_sources(a.clone(), s, 0, Vec::new(), None, input);
     }
     fn verify_sources(
         self: &Rc<Self>,
@@ -668,7 +672,9 @@ impl ReviewDecisionsPage {
         index: usize,
         dependencies: Vec<Value>,
         target: Option<(Value, Value)>,
+        input: Rc<(Rc<EditorPane>,sequence_host::InputPermit)>,
     ) {
+        if !sequence_host::tool_input_allowed(&input.0,&input.1){self.fail("Apply authorization changed; proposal and writing retained.");return;}
         if self.owner().is_none() {
             self.fail("Review page closed before Apply.");
             return;
@@ -676,7 +682,7 @@ impl ReviewDecisionsPage {
         let sources = s["sources"].as_array().unwrap();
         if index == sources.len() {
             if let Some((saved, hash)) = target {
-                self.apply_checked(a, s, dependencies, saved, hash);
+                self.apply_checked(a, s, dependencies, saved, hash, input);
             } else {
                 self.fail("No manuscript source is available for this replacement.");
             }
@@ -692,7 +698,7 @@ impl ReviewDecisionsPage {
                 match r{Ok(v)if v["revisionIds"]==json!([source["revisionId"]])=>(),Ok(_)=>{out.fail("A reviewed scene has competing or changed heads. Resolve it before Apply.");return;},Err(e)=>{out.fail(&e);return;}}
                 let p=out.clone();let client=a.client.clone();client.rpc("text_hash",json!({"text":novel_storage::plain_text(&saved["scene"]["document"])}),move|r|{
                     let hash=match r{Ok(v)if v==source["hash"]=>v,Ok(_)=>{p.fail("A reviewed scene hash changed.");return;},Err(e)=>{p.fail(&e);return;}};
-                    let mut deps=dependencies;deps.push(json!({"entityId":sid,"entityType":"scene","revisionId":source["revisionId"]}));let captured=if s["evidence"][0]["sceneId"]==source["sceneId"]{Some((saved,hash))}else{target};p.verify_sources(a,s,index+1,deps,captured);
+                    let mut deps=dependencies;deps.push(json!({"entityId":sid,"entityType":"scene","revisionId":source["revisionId"]}));let captured=if s["evidence"][0]["sceneId"]==source["sceneId"]{Some((saved,hash))}else{target};p.verify_sources(a,s,index+1,deps,captured,input);
                 });
             });
         });
@@ -704,7 +710,9 @@ impl ReviewDecisionsPage {
         dependencies: Vec<Value>,
         saved: Value,
         hash: Value,
+        input: Rc<(Rc<EditorPane>,sequence_host::InputPermit)>,
     ) {
+        if !sequence_host::tool_input_allowed(&input.0,&input.1){self.fail("Apply authorization changed; proposal and writing retained.");return;}
         let (index, replacement) = match checked_replacement(&s, &saved, &hash) {
             Ok(v) => v,
             Err(e) => {
@@ -736,7 +744,7 @@ impl ReviewDecisionsPage {
                     return;
                 }
             };
-            if p.owner().is_none() || !pane_matches(&pane, &saved) {
+            if !Rc::ptr_eq(&pane,&input.0) || !sequence_host::tool_input_allowed(&pane,&input.1) || p.owner().is_none() || !pane_matches(&pane, &saved) {
                 p.fail("Open and save the current scene; finish pending input before Apply.");
                 return;
             }
@@ -744,7 +752,7 @@ impl ReviewDecisionsPage {
             let captured = pane.clone();
             pane.request(json!({"type":"command","command":"captureParagraph","blockIndex":index}),false,move|r:Reply|{
                 let anchor=match r{Ok(v)=>v["paragraphCapture"].clone(),Err(e)=>{out.fail(&e);return;}};
-                if out.owner().is_none()||!pane_matches(&captured,&saved)||anchor["block"]!=saved["scene"]["document"]["content"][index]{out.fail("The scene draft changed before Apply. Run a fresh review.");return;}
+                if !sequence_host::tool_input_allowed(&captured,&input.1)||out.owner().is_none()||!pane_matches(&captured,&saved)||anchor["block"]!=saved["scene"]["document"]["content"][index]{out.fail("The scene draft changed before Apply. Run a fresh review.");return;}
                 // These read-only captures do not authorize mutation: every
                 // source must pass the root's one-transaction check together.
                 let sources=match apply_sources(&s){Ok(v)=>v,Err(e)=>{out.fail(&e);return;}};
@@ -753,7 +761,7 @@ impl ReviewDecisionsPage {
                 out.status.set_text("Checking all saved sources atomically before Apply…");
                 client.rpc("review_sources_check",json!({"projectId":out.project_id,"sources":sources}),move|reply|{
                     let command=match checked_swap(&sources,reply,&anchor,&replacement){Ok(v)=>v,Err(e)=>{p.fail(&e);return;}};
-                    if p.owner().is_none() || !pane_matches(&writing,&saved) {
+                    if !sequence_host::tool_input_allowed(&writing,&input.1) || p.owner().is_none() || !pane_matches(&writing,&saved) {
                         p.fail("The scene became busy or changed before Apply; no edit applied.");return;
                     }
                     // The complete editor document is checked again by swap.

@@ -111,14 +111,15 @@ impl Workspace {
         });
     }
     fn append_scrap(self:&Rc<Self>,id:String,text:String){
-        let a=self.clone();self.navigate(move||{let next=a.clone();let generation=a.desk.generation.get();a.ensure_pane(&id,move|r|{
-            if next.desk.is_closed() || next.desk.generation.get()!=generation{return;}
-            match r{Ok(p)=>{next.show_pane(p.clone(),false);next.append_when_ready(p,text,std::time::Instant::now());},Err(e)=>next.error(&e)}
+        let a=self.clone();self.navigate(move||{let next=a.clone();let generation=a.desk.generation.get();let Some(permit)=sequence_host::window_input_permit(&a)else{a.error("Scene input changed; the scrap remains retained.");return;};let permit=Rc::new(permit);a.ensure_pane(&id,move|r|{
+            if next.desk.is_closed() || next.desk.generation.get()!=generation || !sequence_host::window_input_allowed(&next,&permit){next.error("Scene input authorization changed; the scrap remains retained.");return;}
+            match r{Ok(p)=>{next.show_pane(p.clone(),false);next.append_when_ready(p,text,std::time::Instant::now(),permit);},Err(e)=>next.error(&e)}
         });});
     }
-    fn append_when_ready(self:&Rc<Self>,p:Rc<EditorPane>,text:String,start:std::time::Instant){
+    fn append_when_ready(self:&Rc<Self>,p:Rc<EditorPane>,text:String,start:std::time::Instant,permit:Rc<sequence_host::WindowInputPermit>){
         if self.desk.is_closed() || self.current_widget()!=Some(p.widget.clone().upcast()){return;}
-        if !p.open.get() || p.pending.get()!=0{if start.elapsed()>Duration::from_secs(15){self.error("Scene is still busy. The scrap is safely retained.");return;}let a=self.clone();glib::timeout_add_local_once(Duration::from_millis(30),move||a.append_when_ready(p,text,start));return;}
+        if !sequence_host::window_input_allowed(self,&permit)||!self.panes.borrow().get(&p.scene_id).is_some_and(|registered|Rc::ptr_eq(registered,&p)){self.error("Scene input authorization changed; the saved note remains retained.");return;}
+        if !p.open.get() || p.pending.get()!=0{if start.elapsed()>Duration::from_secs(15){self.error("Scene is still busy. The scrap is safely retained.");return;}let a=self.clone();glib::timeout_add_local_once(Duration::from_millis(30),move||a.append_when_ready(p,text,start,permit));return;}
         if p.composing.get() || p.saving.get(){self.error("Finish the active edit before inserting a scrap.");return;}
         let separator=if novel_storage::plain_text(&p.frame.borrow()["document"]).is_empty(){""}else{"\n\n"};
         p.operation(json!({"type":"key","key":"End","ctrl":true,"shift":false}),false);p.operation(json!({"type":"text","text":format!("{separator}{text}")}),true);
@@ -145,35 +146,38 @@ impl Workspace {
         }});
     }
     pub(super) fn return_to_bookmark(self:&Rc<Self>){
-        let a=desk::effective(self);let pid=a.pid.borrow().clone();let generation=a.desk.generation.get();let out=a.clone();a.load_notebook_tools(move|r|{
-            if !valid(&out,&pid,generation){return;}
+        let a=desk::effective(self);let pid=a.pid.borrow().clone();let generation=a.desk.generation.get();let Some(initial)=sequence_host::window_input_permit(&a)else{return;};let out=a.clone();a.load_notebook_tools(move|r|{
+            if !valid(&out,&pid,generation)||!sequence_host::window_input_allowed(&out,&initial){return;}
             match r{Ok(v)=>if let Some(bookmark)=v["bookmarks"].as_array().and_then(|v|v.last()){
-                let bookmark=bookmark.clone();let id=bookmark["sceneId"].as_str().unwrap_or("").to_owned();let a=out.clone();out.navigate(move||{let next=a.clone();let generation=a.desk.generation.get();a.ensure_pane(&id,move|r|{
-                    if next.desk.is_closed() || next.desk.generation.get()!=generation{return;}
-                    match r{Ok(p)=>{next.show_pane(p.clone(),false);next.restore_when_ready(p,bookmark["location"].clone(),std::time::Instant::now());},Err(e)=>next.error(&e)}
+                let bookmark=bookmark.clone();let id=bookmark["sceneId"].as_str().unwrap_or("").to_owned();let a=out.clone();out.navigate(move||{let next=a.clone();let generation=a.desk.generation.get();let Some(permit)=sequence_host::window_input_permit(&a)else{return;};let permit=Rc::new(permit);a.ensure_pane(&id,move|r|{
+                    if next.desk.is_closed() || next.desk.generation.get()!=generation || !sequence_host::window_input_allowed(&next,&permit){return;}
+                    match r{Ok(p)=>{next.show_pane(p.clone(),false);next.restore_when_ready(p,bookmark["location"].clone(),std::time::Instant::now(),permit);},Err(e)=>next.error(&e)}
                 });});
             }else{out.error("No return bookmark yet. Use Write → Keep & return → Leave return bookmark.");},Err(e)=>out.error(&e)}
         });
     }
-    fn restore_when_ready(self:&Rc<Self>,p:Rc<EditorPane>,location:Value,start:std::time::Instant){
+    fn restore_when_ready(self:&Rc<Self>,p:Rc<EditorPane>,location:Value,start:std::time::Instant,permit:Rc<sequence_host::WindowInputPermit>){
         if self.desk.is_closed() || self.current_widget()!=Some(p.widget.clone().upcast()){return;}
-        if !p.open.get() || p.pending.get()!=0{if start.elapsed()>Duration::from_secs(15){self.error("The scene is still opening. Your reminder is retained.");return;}let a=self.clone();glib::timeout_add_local_once(Duration::from_millis(30),move||a.restore_when_ready(p,location,start));return;}
+        if !sequence_host::window_input_allowed(self,&permit)||!self.panes.borrow().get(&p.scene_id).is_some_and(|registered|Rc::ptr_eq(registered,&p)){self.error("Scene input authorization changed; the saved note remains retained.");return;}
+        if !p.open.get() || p.pending.get()!=0{if start.elapsed()>Duration::from_secs(15){self.error("The scene is still opening. Your reminder is retained.");return;}let a=self.clone();glib::timeout_add_local_once(Duration::from_millis(30),move||a.restore_when_ready(p,location,start,permit));return;}
+        if p.composing.get()||p.saving.get(){self.error("Finish the current scene operation before restoring its bookmark.");return;}
         let a=self.clone();p.request(json!({"type":"command","command":"restoreNavigation","bookmark":location,"followCursor":true}),false,move|r|if let Err(e)=r{a.error(&format!("Reminder kept; the old location was not applied. {e}"));});
     }
     pub(super) fn jump_to_passage(self:&Rc<Self>,scene_id:String,revision_id:String,quote:String,start:usize){
-        let a=desk::effective(self);let out=a.clone();a.navigate(move||{let next=out.clone();let generation=out.desk.generation.get();out.ensure_pane(&scene_id,move|r|{
-            if next.desk.is_closed() || next.desk.generation.get()!=generation{return;}
-            match r{Ok(p)=>{next.show_pane(p.clone(),false);next.locate_passage(p,revision_id,quote,start,std::time::Instant::now());},Err(e)=>next.error(&e)}
+        let a=desk::effective(self);let out=a.clone();a.navigate(move||{let next=out.clone();let generation=out.desk.generation.get();let Some(permit)=sequence_host::window_input_permit(&out)else{return;};let permit=Rc::new(permit);out.ensure_pane(&scene_id,move|r|{
+            if next.desk.is_closed() || next.desk.generation.get()!=generation || !sequence_host::window_input_allowed(&next,&permit){return;}
+            match r{Ok(p)=>{next.show_pane(p.clone(),false);next.locate_passage(p,revision_id,quote,start,std::time::Instant::now(),permit);},Err(e)=>next.error(&e)}
         });});
     }
-    fn locate_passage(self:&Rc<Self>,p:Rc<EditorPane>,revision_id:String,quote:String,start:usize,started:std::time::Instant){
+    fn locate_passage(self:&Rc<Self>,p:Rc<EditorPane>,revision_id:String,quote:String,start:usize,started:std::time::Instant,permit:Rc<sequence_host::WindowInputPermit>){
         if self.desk.is_closed() || self.current_widget()!=Some(p.widget.clone().upcast()){return;}
-        if !p.open.get() || p.pending.get()!=0{if started.elapsed()>Duration::from_secs(15){self.error("Scene is busy. Reopen the passage when ready.");return;}let a=self.clone();glib::timeout_add_local_once(Duration::from_millis(30),move||a.locate_passage(p,revision_id,quote,start,started));return;}
+        if !sequence_host::window_input_allowed(self,&permit)||!self.panes.borrow().get(&p.scene_id).is_some_and(|registered|Rc::ptr_eq(registered,&p)){self.error("Scene input authorization changed; the saved note remains retained.");return;}
+        if !p.open.get() || p.pending.get()!=0{if started.elapsed()>Duration::from_secs(15){self.error("Scene is busy. Reopen the passage when ready.");return;}let a=self.clone();glib::timeout_add_local_once(Duration::from_millis(30),move||a.locate_passage(p,revision_id,quote,start,started,permit));return;}
         let document=p.frame.borrow()["document"].clone();let plain=novel_storage::plain_text(&document);
         if p.dirty.get() || *p.parent.borrow()!=revision_id || plain.chars().skip(start).take(quote.chars().count()).collect::<String>()!=quote{self.error("This passage has changed since it was marked. The scene is open; the old selection was not applied.");return;}
         let (Some(anchor),Some(cursor))=(position(&document,start),position(&document,start+quote.chars().count()))else{self.error("The marked selection includes a paragraph boundary. Its scene is open.");return;};
         let a=self.clone();let pane=p.clone();p.request(json!({"type":"command","command":"captureNavigation"}),false,move|r|match r{Ok(v)=>{
-            let mut location=v["navigationCapture"].clone();location["anchor"]=json!(anchor);location["cursor"]=json!(cursor);a.restore_when_ready(pane,location,std::time::Instant::now());
+            let mut location=v["navigationCapture"].clone();location["anchor"]=json!(anchor);location["cursor"]=json!(cursor);a.restore_when_ready(pane,location,std::time::Instant::now(),permit);
         },Err(e)=>a.error(&e)});
     }
 }

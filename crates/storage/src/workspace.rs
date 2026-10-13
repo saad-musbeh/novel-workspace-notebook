@@ -1329,6 +1329,7 @@ String>{
         },
         "settings"=>{
             crate::native_shortcuts::NativeShortcutSettings::from_project_settings(payload)?;
+            crate::native_sequences::NativeSequenceSettings::from_project_settings(payload)?;
             crate::native_desk::NativeDeskPreferences::from_project_settings(payload)?;
             if let Some(assistance)=payload.get("assistance"){
                 if assistance.get("schemaVersion").and_then(Value::as_u64)!=Some(1){

@@ -35,7 +35,7 @@ fn navigation_chords_protect_editing_and_fullscreen_key_is_action_scoped(){
 async fn shortcut_settings_preserve_other_configuration_and_refuse_stale_concurrent_forms(){
     let d=tempfile::tempdir().unwrap();let path=d.path().join("shortcuts.sqlite");let s=Storage::open(&path).await.unwrap();let p=s.create_project("Shortcut fixture مِ 中文").await.unwrap();
     let prior=json!({"schemaVersion":1,"otherPreference":{"text":"مِ 中文 𠀀 👩🏽‍🚀"}});let saved=s.save_project_data(&p.id,"settings",prior.clone(),None).await.unwrap();
-    let mut changed=NativeShortcutSettings::default();changed.bindings.insert("editor.bold".into(),parse_native_shortcut_list("Ctrl+Shift+B").unwrap());let mut payload=prior.clone();payload["nativeShortcuts"]=serde_json::to_value(&changed).unwrap();
+    let mut changed=NativeShortcutSettings::default();changed.bindings.insert("editor.bold".into(),parse_native_shortcut_list("Ctrl+Shift+B").unwrap());changed.bindings.insert("editor.sequence3".into(),parse_native_shortcut_list("Ctrl+Shift+M").unwrap());let mut payload=prior.clone();payload["nativeShortcuts"]=serde_json::to_value(&changed).unwrap();
     let committed=s.save_project_data_checked(&p.id,"settings",payload.clone(),Some(saved.revision_id.clone()),&[]).await.unwrap();assert_eq!(committed.payload["otherPreference"],prior["otherPreference"]);assert_eq!(NativeShortcutSettings::from_project_settings(&committed.payload).unwrap(),changed);
     let marker=s.sync_cursor().await.unwrap();assert!(s.save_project_data_checked(&p.id,"settings",prior,Some(saved.revision_id),&[]).await.unwrap_err().contains("Conflict"));assert_eq!(s.sync_cursor().await.unwrap(),marker);
     s.close().await;let reopened=Storage::open(&path).await.unwrap();assert_eq!(reopened.load_project_data(&p.id,"settings").await.unwrap().unwrap().payload,payload);
@@ -44,4 +44,32 @@ async fn shortcut_settings_preserve_other_configuration_and_refuse_stale_concurr
 async fn invalid_shortcut_payload_cannot_commit_or_advance_history(){
     let d=tempfile::tempdir().unwrap();let s=Storage::open(&d.path().join("invalid.sqlite")).await.unwrap();let p=s.create_project("Shortcuts").await.unwrap();let marker=s.sync_cursor().await.unwrap();let mut shortcuts=NativeShortcutSettings::default();shortcuts.bindings.get_mut("editor.bold").unwrap()[0].alt=true;
     assert!(s.save_project_data(&p.id,"settings",json!({"schemaVersion":1,"nativeShortcuts":shortcuts}),None).await.unwrap_err().contains("AltGr"));assert_eq!(s.sync_cursor().await.unwrap(),marker);assert!(s.load_project_data(&p.id,"settings").await.unwrap().is_none());
+}
+
+#[test]
+fn sequence_slots_are_optional_disabled_and_preserve_explicit_profile_choices(){
+    let defaults=NativeShortcutSettings::default();
+    for slot in 1..=8{assert!(defaults.bindings[&format!("editor.sequence{slot}")].is_empty());}
+    let mut legacy=defaults.clone();for slot in 1..=8{legacy.bindings.remove(&format!("editor.sequence{slot}"));}
+    legacy.bindings.insert("editor.bold".into(),vec![]);let captured=serde_json::to_value(&legacy).unwrap();
+    let normalized=NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":captured})).unwrap();
+    assert!(normalized.bindings["editor.bold"].is_empty());
+    for slot in 1..=8{assert!(normalized.bindings[&format!("editor.sequence{slot}")].is_empty());}
+    assert_eq!(serde_json::to_value(&legacy).unwrap(),captured,"Normalization must not rewrite stored profiles");
+    legacy.bindings.insert("editor.sequence1".into(),vec![]);
+    legacy.bindings.insert("editor.sequence3".into(),parse_native_shortcut_list("Ctrl+Shift+M").unwrap());
+    let normalized=NativeShortcutSettings::from_project_settings(&json!({"nativeShortcuts":legacy})).unwrap();
+    assert!(normalized.bindings["editor.sequence1"].is_empty());
+    assert_eq!(normalized.action("editor.",&parse_native_shortcut_list("Ctrl+Shift+M").unwrap()[0]),Some("editor.sequence3"));
+    assert!(normalized.action("workspace.",&parse_native_shortcut_list("Ctrl+Shift+M").unwrap()[0]).is_none());
+    let mut invalid=normalized.clone();invalid.bindings.remove("editor.paste");assert!(invalid.validate().is_err());
+    for action in ["editor.sequence0","editor.sequence9","editor.sequence01","workspace.sequence1"]{let mut invalid=normalized.clone();invalid.bindings.insert(action.into(),vec![]);assert!(invalid.validate().is_err(),"{action}");}
+}
+#[test]
+fn sequence_chords_keep_duplicate_and_reserved_input_protections(){
+    let mut profile=NativeShortcutSettings::default();profile.bindings.insert("editor.sequence1".into(),parse_native_shortcut_list("F8").unwrap());profile.validate().unwrap();
+    let mut duplicate=profile.clone();duplicate.bindings.insert("editor.sequence2".into(),parse_native_shortcut_list("F8").unwrap());assert!(duplicate.validate().unwrap_err().contains("more than once"));
+    let mut duplicate=profile.clone();duplicate.bindings.insert("editor.sequence2".into(),profile.bindings["workspace.save"].clone());assert!(duplicate.validate().unwrap_err().contains("more than once"));
+    for key in ["F6","F7","Ctrl+Alt+M","M","Shift+M","ArrowLeft","Ctrl+ArrowRight"]{assert!(parse_native_shortcut_list(key).is_err(),"{key}");}
+    profile.bindings.insert("editor.sequence1".into(),parse_native_shortcut_list("F11").unwrap());assert!(profile.validate().unwrap_err().contains("reserved for the fullscreen"));
 }

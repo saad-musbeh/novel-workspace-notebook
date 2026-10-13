@@ -44,9 +44,10 @@ The editor protocol retains scalar-value positions, rich block JSON, layout fram
 | Recovery | Saved history preview, snapshots, consistent backups, deleted-scene restore and common-point scene/whole-bible recovery with captured-head checks |
 | What-if branches | Separate copies, comparison previews and explicit selected scene/whole-bible bring-back |
 | Conflicts | Preview saved/current/local versions and choose a resolution. A stale unsaved local draft can be saved explicitly over the captured current head as a new revision; changing heads refuse the action |
-| Translation | Manual drafts with immutable source language/revision/text; originals remain the exported manuscript |
-| Local review | Explicit configured loopback provider, frozen saved source/hash, read-only result display; author edits remain manual |
+| Translation (source after 0.4.0) | Historical-source editable previews, optional cancellable local generation and checked author Save; originals remain the exported manuscript |
+| Local review (source after 0.4.0) | Explicit configured loopback provider, frozen all-source manifest, reviewed Apply/Reject and unsaved exact one-step replacement/Undo |
 | Word / portable exports | Saved snapshot, per-novel export-profile forms, original Unicode/rich marks/language/direction/spacing in DOCX; full project archives |
+| Recorded sequences (source after 0.4.0) | Eight named formatting slots, acknowledged recording, explicit per-step Save playback, queued-input guards and retained manual draft/Undo recovery |
 | Private sync (source after 0.4.0) | Session listener/status, scoped challenges/pairing, approval/revocation, strict private endpoint controls, manual sync/forget and credential repair; external transport qualification remains separate |
 
 ## Writing-aid boundaries

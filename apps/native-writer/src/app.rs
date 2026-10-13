@@ -38,6 +38,11 @@ mod navigation;
 #[path="ripple.rs"]
 mod ripple;
 use ripple::RipplePage;
+#[path="command_sequences.rs"]
+pub(crate) mod command_sequences;
+#[path="sequence_host.rs"]
+pub(crate) mod sequence_host;
+use sequence_host::{SequenceHost,SequencePage};
 #[path="alphabet_host.rs"]
 pub(crate) mod alphabet_host;
 #[path="licensed_imports.rs"]
@@ -104,6 +109,7 @@ pub struct Workspace {
     desktop_preference_pages:RefCell<Vec<Rc<DesktopPreferencesPage>>>,
     ripple_pages:RefCell<Vec<Rc<RipplePage>>>,
     knowledge_pages:RefCell<Vec<Rc<KnowledgePage>>>,
+    sequence_host:SequenceHost,
     alphabet_pages:RefCell<Vec<Rc<AlphabetPage>>>,
     licensed_import_pages:RefCell<Vec<Rc<LicensedImportsPage>>>,
     review_decision_pages:RefCell<Vec<Rc<ReviewDecisionsPage>>>,
@@ -252,7 +258,7 @@ impl Workspace {
             window,client,editor_executable:binaries.join(if binaries.join("novel-editor-rust").is_file(){"novel-editor-rust"}else{"novel-editor"}),
             cache:cache.into(),projects,outline,tree,search,pages,binder,status,
             pid:RefCell::new(String::new()),index:RefCell::new(Value::Null),panes:RefCell::new(HashMap::new()),active:RefCell::new(None),
-            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),alphabet_pages:RefCell::new(Vec::new()),licensed_import_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
+            data:RefCell::new(Vec::new()),extra_data:RefCell::new(Vec::new()),chapter_pages:RefCell::new(Vec::new()),alternative_pages:RefCell::new(Vec::new()),scene_arrangement_pages:RefCell::new(Vec::new()),shortcuts:ShortcutRuntime::default(),shortcut_pages:RefCell::new(Vec::new()),desktop_preferences:DesktopRuntime::default(),desktop_preference_pages:RefCell::new(Vec::new()),ripple_pages:RefCell::new(Vec::new()),knowledge_pages:RefCell::new(Vec::new()),sequence_host:SequenceHost::default(),alphabet_pages:RefCell::new(Vec::new()),licensed_import_pages:RefCell::new(Vec::new()),review_decision_pages:RefCell::new(Vec::new()),translation_preview_pages:RefCell::new(Vec::new()),peek:peek::PeekRuntime::default(),changing:Cell::new(false),closing:Cell::new(false),loading:Cell::new(false),notebook_pending:Cell::new(0),notebook_failures:Cell::new(0),book,
             trail:RefCell::new(Vec::new()),trail_index:Cell::new(0),desk:Desk::new(sidebar,menus,area,binaries.to_path_buf(),focus)
         });
         desk::register(&app);
@@ -323,16 +329,20 @@ impl Workspace {
     }
     fn switch_project(self:&Rc<Self>,pid:String){
         let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.switch_project(pid);return;}
+        if self.sequence_window_blocked(){self.changing.set(true);self.projects.set_active_id(Some(&self.pid.borrow()));self.changing.set(false);return;}
         if pid==*self.pid.borrow() || self.loading.get(){return;}
         self.loading.set(true);
         let a=self.clone();let previous=self.pid.borrow().clone();
-        self.confirm_all(move|accepted|{
+        let owner=self.clone();self.sequence_confirm_leave(None,move|sequence_accepted|{
+            if !sequence_accepted{a.loading.set(false);a.changing.set(true);a.projects.set_active_id(Some(&previous));a.changing.set(false);return;}
+            owner.confirm_all(move|accepted|{
             a.loading.set(false);
             if !accepted{
                 a.changing.set(true);a.projects.set_active_id(Some(&previous));a.changing.set(false);return;
             }
+            if let Err(error)=a.sequence_clear(){a.error(&error);a.changing.set(true);a.projects.set_active_id(Some(&previous));a.changing.set(false);return;}
             a.cancel_review_generations();
-            a.clear_tabs();
+            if !a.clear_tabs(){a.changing.set(true);a.projects.set_active_id(Some(&previous));a.changing.set(false);return;}
             for pane in a.panes.borrow().values(){pane.process.stop();}
             a.panes.borrow_mut().clear();a.data.borrow_mut().clear();a.extra_data.borrow_mut().clear();a.chapter_pages.borrow_mut().clear();a.alternative_pages.borrow_mut().clear();a.scene_arrangement_pages.borrow_mut().clear();a.shortcut_pages.borrow_mut().clear();a.desktop_preference_pages.borrow_mut().clear();a.ripple_pages.borrow_mut().clear();a.knowledge_pages.borrow_mut().clear();a.alphabet_pages.borrow_mut().clear();a.licensed_import_pages.borrow_mut().clear();a.review_decision_pages.borrow_mut().clear();a.translation_preview_pages.borrow_mut().clear();
             *a.active.borrow_mut()=None;*a.pid.borrow_mut()=pid;
@@ -341,6 +351,7 @@ impl Workspace {
             a.cancel_peek();
             a.trail.borrow_mut().clear();a.trail_index.set(0);a.desk.generation.set(a.desk.generation.get()+1);
             a.reload_shortcuts();a.reload_desktop_preferences();a.load_index();
+            });
         });
     }
     fn load_index(self:&Rc<Self>){
@@ -466,6 +477,7 @@ impl Workspace {
         });
     }
     pub fn open_scene(self:&Rc<Self>,id:&str,new_window:bool){
+        if self.sequence_window_blocked(){return;}
         if !new_window{
             // GTK can synchronously emit focus-in and update active here.
             // Release the RefCell borrow before calling back into GTK.
@@ -486,7 +498,7 @@ impl Workspace {
     }
     fn ensure_pane(self:&Rc<Self>,id:&str,callback:impl FnOnce(Result<Rc<EditorPane>,String>)+'static){
         if let Some(pane)=self.panes.borrow().get(id).cloned(){callback(Ok(pane));return;}
-        if self.panes.borrow().len()>=16{
+        if self.panes.borrow().len()>=16&&!self.sequence_host.panes.borrow().iter().any(|b|b.runtime.busy()){
             let evict=self.panes.borrow().iter().find(|(_,p)|p.widget.parent().is_none()&&!p.dirty.get()&&p.pending.get()==0&&!p.saving.get()).map(|(id,_)|id.clone());
             if let Some(id)=evict{if let Some(p)=self.panes.borrow_mut().remove(&id){p.process.stop();}}
         }
@@ -523,14 +535,17 @@ impl Workspace {
         });
     }
     fn show_pane(self:&Rc<Self>,pane:Rc<EditorPane>,_beside:bool){
+        if self.sequence_window_blocked(){return;}
         pane.widget.set_size_request(-1,-1);
         let title=pane.title.borrow().clone();
         self.install(&pane.widget,&title,true);
         self.show_return_note(&pane);
         self.remember_scene(&pane.scene_id);*self.active.borrow_mut()=Some(pane.clone());pane.area.grab_focus();
         self.record_navigation(&pane.scene_id);
+        self.sequence_bind_pane(&pane);
     }
     pub fn save_pane(self:&Rc<Self>,pane:Rc<EditorPane>,callback:impl FnOnce(Result<(),String>)+'static){
+        let permit=match sequence_host::authorize_draft_mutation(&pane,sequence_host::DraftMutation::Save){Ok(permit)=>permit,Err(error)=>{callback(Err(error));return;}};
         if pane.composing.get(){
             callback(Err("Finish the current input composition before leaving.".into()));
             return;
@@ -553,6 +568,7 @@ impl Workspace {
             };
             let saved_document=document.clone();
             let saved_title=p.title.borrow().clone();
+            if !sequence_host::draft_mutation_allowed(&p,&permit,sequence_host::DraftMutation::Save){p.saving.set(false);callback(Err("Save authorization changed before storage dispatch; draft and Undo retained.".into()));return;}
             let client=a.client.clone();
             client.rpc("save_scene",json!({
                 "sceneId":p.scene_id,"scene":{
@@ -589,19 +605,21 @@ impl Workspace {
         self.confirm_project(move|accepted|if accepted{callback(Ok(()));}else{callback(Err("Cancelled. Your page stays open.".into()));});
     }
     fn save_now(self:&Rc<Self>){
+        if self.sequence_window_blocked(){return;}
         let a=self.clone();
         self.save_current(move|result|match result{Ok(())=>a.normal_status("Saved locally"),Err(e)=>a.error(&e)});
     }
     fn close(self:&Rc<Self>){
-        self.cancel_peek();
+        if self.sequence_window_blocked(){return;}self.cancel_peek();
         if self.closing.replace(true){return;}
-        let a=self.clone();
-        self.confirm_all(move|accepted|{
-            a.closing.set(false);
-            if accepted{a.finish_close();}
+        let a=self.clone();let owner=self.clone();
+        self.sequence_confirm_leave(None,move|accepted|{
+            if !accepted{a.closing.set(false);return;}
+            owner.confirm_all(move|accepted|{a.closing.set(false);if accepted{a.finish_close();}});
         });
     }
     fn new_project(self:&Rc<Self>){
+        if self.sequence_window_blocked(){return;}
         let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.new_project();return;}
         if self.desk.is_closed() || self.loading.replace(true){return;}
         let Some(title)=prompt_with_action(&self.window,"New novel","","Create")else{
@@ -612,7 +630,9 @@ impl Workspace {
             self.loading.set(false);self.error("Enter a name for the new novel.");
             return;
         }
-        let a=self.clone();self.confirm_all(move|accepted|{
+        let a=self.clone();let owner=self.clone();self.sequence_confirm_leave(None,move|accepted|{
+            if !accepted || a.desk.is_closed(){a.loading.set(false);return;}
+            owner.confirm_all(move|accepted|{
             if !accepted || a.desk.is_closed(){a.loading.set(false);return;}
             // Keep the confirmed drafts unchanged until creation and selection finish.
             a.window.set_sensitive(false);let app=a.clone();
@@ -626,6 +646,7 @@ impl Workspace {
                         }
                     },Err(error)=>app.error(&error)
                 }
+            });
             });
         });
     }
@@ -788,6 +809,9 @@ impl Workspace {
     }
     fn reload_scene(self:&Rc<Self>,id:&str){
         let target=desk::effective(self);if !Rc::ptr_eq(&target,self){target.reload_scene(id);return;}
+        let protected=self.panes.borrow().get(id).is_some_and(|p|p.dirty.get()||p.pending.get()!=0||p.saving.get()||p.composing.get())
+            ||self.sequence_host.panes.borrow().iter().any(|b|b.runtime.busy());
+        if protected{self.error("Saved writing changed. Your draft, recording and Undo are retained against their original version. Finish recording and choose Save or Discard before reopening this scene.");return;}
         if let Some(p)=self.panes.borrow_mut().remove(id){
             if let Some(parent)=p.widget.parent(){
                 if let Ok(c)=parent.downcast::<gtk::Container>(){

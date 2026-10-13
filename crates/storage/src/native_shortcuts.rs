@@ -24,8 +24,12 @@ pub const NATIVE_SHORTCUT_ACTIONS:&[(&str,&str)]=&[
     ("workspace.back","Back to previous place"),("workspace.forward","Forward to next place"),("workspace.fullscreen","Toggle fullscreen"),
     ("editor.bold","Bold"),("editor.italic","Italic"),("editor.underline","Underline"),("editor.selectAll","Select all"),
     ("editor.undo","Undo"),("editor.redo","Redo"),("editor.copy","Copy"),("editor.cut","Cut"),("editor.paste","Paste"),("editor.unicodeToggle","Convert Unicode code / character"),
+    ("editor.sequence1","Run command sequence 1"),("editor.sequence2","Run command sequence 2"),
+    ("editor.sequence3","Run command sequence 3"),("editor.sequence4","Run command sequence 4"),
+    ("editor.sequence5","Run command sequence 5"),("editor.sequence6","Run command sequence 6"),
+    ("editor.sequence7","Run command sequence 7"),("editor.sequence8","Run command sequence 8"),
 ];
-const ADDITIVE_ACTIONS:&[&str]=&["workspace.back","workspace.forward","workspace.fullscreen"];
+const ADDITIVE_ACTIONS:&[&str]=&["workspace.back","workspace.forward","workspace.fullscreen","editor.sequence1","editor.sequence2","editor.sequence3","editor.sequence4","editor.sequence5","editor.sequence6","editor.sequence7","editor.sequence8"];
 fn binding(code:&str,ctrl:bool,shift:bool,alt:bool)->NativeShortcutBinding{NativeShortcutBinding{code:code.into(),ctrl,alt,shift,meta:false}}
 impl Default for NativeShortcutSettings {
     fn default()->Self{
@@ -34,6 +38,7 @@ impl Default for NativeShortcutSettings {
         bindings.insert("workspace.back".into(),vec![binding("ArrowLeft",false,false,true)]);
         bindings.insert("workspace.forward".into(),vec![binding("ArrowRight",false,false,true)]);
         bindings.insert("workspace.fullscreen".into(),vec![binding("F11",false,false,false)]);
+        for slot in 1..=8{bindings.insert(format!("editor.sequence{slot}"),vec![]);}
         bindings.get_mut("editor.redo").unwrap().push(binding("KeyZ",true,true,false));Self{schema_version:1,bindings}
     }
 }
