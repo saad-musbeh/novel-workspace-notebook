@@ -1,3 +1,13 @@
+# Native original/alphabet export — October 14, 2026
+
+Focused storage passed **6 tests** and native pure export checks **4 tests**, offline/locked. Targeted real GTK passed **1 test / 1.08 s** with fatal criticals and rebuilt companion/editor workers. The actual accepted action runs option selection, normal project draft choices, transactional RPC, off-thread parsing/encoding and real private atomic file writes. Only the module-local test destination chooser is substituted with synthetic paths; production retains the native local file chooser.
+
+Coverage includes exact rich originals and historical assignment/version capture, supplementary/private-use/combining Unicode, one-pass nonempty transliteration without reverse/input-map guessing, unchanged unmapped text/titles/marks, font-license descriptors without resource bytes, oversized expansion refusal preserving existing destination/source, stale competing scene/alphabet/translation and hidden tombstone roots, foreign assignment and valid-checksum historical reinterpretation, checksum corruption, deleted-source exclusion and two-store deferred chapter-order refusal. GTK tests Cancel retaining rich draft/parent/Undo and markers, explicit Save capturing the new source head, default original/optional derived delivery, failed destination, computed-result generation change retaining later typing and closed-window no-op; reopening the synthetic store verifies unchanged sources/markers where appropriate.
+
+Logs: `/tmp/novel-alphabet-export-storage.log`, `/tmp/novel-alphabet-export-native.log`, `/tmp/novel-alphabet-export-build.log`, `/tmp/novel-alphabet-export-gtk.log`. Source-derived contract generation/check and whitespace pass. Platform chooser, installed packages and supplied-font shaping remain separate qualification. This copy is not a complete archive/history backup, and DOCX font policy is unchanged.
+
+---
+
 # Native command sequence integration — October 14, 2026
 
 Locked offline workspace excluding retained Tauri passed **431 tests, 0 failures, 4 ignored**: 71 companion, 13 DOCX, 12 editor, 163 native and 172 storage. Complete opt-in GTK passed **1 test / 59.54 s**; after final creation/recovery guards, the six host workflows plus control fixture passed **1 test / 6.11 s** with fatal criticals. Additional headless real settings/CAS RPC passed **1 test / 0.09 s**. Non-test native build is warning-free. Tests use actual rebuilt workers and disposable synthetic stores.

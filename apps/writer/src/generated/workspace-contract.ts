@@ -96,6 +96,11 @@ export interface PlanningReadSnapshot {
   sceneMetadata: (ProjectDataSnapshot | null);
 }
 
+export interface AlphabetExportSnapshot {
+  bundle: ProjectBundle;
+  writingSystems: (ProjectDataSnapshot | null);
+}
+
 export interface MetadataPlacementState {
   sceneId: string;
   chapterId: string;
@@ -668,6 +673,22 @@ export const workspaceWireSchema = {
       {
         "rustName": "scene_metadata",
         "name": "sceneMetadata",
+        "rustType": "Option<ProjectDataSnapshot>"
+      }
+    ]
+  },
+  "AlphabetExportSnapshot": {
+    "source": "crates/storage/src/alphabet_export.rs",
+    "denyUnknownFields": true,
+    "fields": [
+      {
+        "rustName": "bundle",
+        "name": "bundle",
+        "rustType": "ProjectBundle"
+      },
+      {
+        "rustName": "writing_systems",
+        "name": "writingSystems",
         "rustType": "Option<ProjectDataSnapshot>"
       }
     ]
@@ -1666,6 +1687,7 @@ export interface StorageRpcContract<TScene extends Scene = Scene> {
   load_project_data: {args: {projectId: string; kind: string;}; result: (ProjectDataSnapshot | null)};
   review_sources_check: {args: {projectId: string; sources: Array<ReviewSource>;}; result: ReviewSourcesCheck};
   planning_read_snapshot: {args: {projectId: string;}; result: PlanningReadSnapshot};
+  alphabet_export_snapshot: {args: {projectId: string;}; result: AlphabetExportSnapshot};
   load_project_data_unambiguous: {args: {projectId: string; kind: string;}; result: (ProjectDataSnapshot | null)};
   load_entity_revision: {args: {projectId: string; entityId: string; entityType: string; revisionId: string;}; result: Revision};
   project_data_history: {args: {projectId: string; kind: string;}; result: Array<Revision>};
@@ -1725,6 +1747,7 @@ export const storageRpcCoverage = {
     "load_project_data",
     "review_sources_check",
     "planning_read_snapshot",
+    "alphabet_export_snapshot",
     "load_project_data_unambiguous",
     "load_entity_revision",
     "project_data_history",

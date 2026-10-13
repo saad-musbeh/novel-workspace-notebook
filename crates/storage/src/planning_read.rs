@@ -14,7 +14,7 @@ pub struct PlanningReadSnapshot {
     pub scene_metadata: Option<ProjectDataSnapshot>,
 }
 
-async fn checked_data(
+pub(crate) async fn checked_data(
     tx: &mut Transaction<'_, Sqlite>,
     pid: &str,
     kind: &str,
@@ -57,7 +57,7 @@ async fn checked_data(
 
 /// A sole retained chapter head may still await explicit replay after competing
 /// placements settle. Do not build reader cutoffs from that interim projection.
-async fn checked_chapter_orders(tx: &mut Transaction<'_, Sqlite>, pid: &str) -> Result<(), String> {
+pub(crate) async fn checked_chapter_orders(tx: &mut Transaction<'_, Sqlite>, pid: &str) -> Result<(), String> {
     // Include deleted scenes: deletion hides text without changing the retained
     // order or membership used by explicit metadata recovery.
     let rows: Vec<(String, String)> = sqlx::query_as("SELECT s.chapter_id,s.id FROM manuscript_scene s JOIN chapter c ON c.id=s.chapter_id WHERE c.project_id=? ORDER BY c.position,c.id,s.position,s.id")

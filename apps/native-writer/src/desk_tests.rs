@@ -246,6 +246,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
             "alphabets"=>super::super::alphabet_host::tests::run(&binaries),
             "alphabet-editor"=>alphabet_editor_forms::run(&binaries),
             "licensed-imports"=>super::super::licensed_imports::tests::run(&binaries),
+            "alphabet-export"=>super::super::alphabet_export::tests::run(&binaries),
             "sequences"=>sequence_workflows(&binaries),
             _=>panic!("Unknown native test section: {section}"),
         }
@@ -274,6 +275,7 @@ fn notebook_navigation_manual_save_and_multi_window() {
     super::super::alphabet_host::tests::run(&binaries);
     alphabet_editor_forms::run(&binaries);
     super::super::licensed_imports::tests::run(&binaries);
+    super::super::alphabet_export::tests::run(&binaries);
     sequence_workflows(&binaries);
     let companion=if binaries.join("novel-companion-rust").is_file(){"novel-companion-rust"}else{"novel-companion"};let client=Process::start(&binaries.join(companion),&data,true).unwrap();
     let project=rpc(&client,"create_project",json!({"title":"The quiet notebook"}));let chapter=rpc(&client,"create_chapter",json!({"projectId":project["id"],"title":"Chapter one"}));

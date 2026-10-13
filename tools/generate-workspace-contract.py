@@ -30,6 +30,7 @@ STRUCTS = {
     "ReviewSource": "crates/storage/src/review_sources.rs",
     "ReviewSourcesCheck": "crates/storage/src/review_sources.rs",
     "PlanningReadSnapshot": "crates/storage/src/planning_read.rs",
+    "AlphabetExportSnapshot": "crates/storage/src/alphabet_export.rs",
     "MetadataPlacementState": "crates/storage/src/sync.rs",
     "MetadataResolutionSnapshot": "crates/storage/src/sync.rs",
     "SceneConflictRevision": "crates/storage/src/scene_conflict_snapshot.rs",

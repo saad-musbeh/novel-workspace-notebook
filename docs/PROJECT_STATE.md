@@ -1,3 +1,13 @@
+# Unreleased original/alphabet manuscript export — October 14, 2026
+
+Project → Library → Export alphabet manuscript offers the original saved rich manuscript with immutable mapping metadata, optionally accompanied by a derived author-rule transliteration. The separate `.alphabet-manuscript.json` preserves exact source revisions, scene assignments, historical mapping versions, rich marks/paragraph metadata and original titles. Only nonempty stored scalar transliterations apply, once; unmapped text stays literal. Font/dictionary bytes and full revision history remain outside this manuscript copy. Word export remains separate.
+
+A single checked read transaction captures the manuscript and sole alphabet/translation heads. It refuses scene/deletion/hierarchy/order conflicts, invalid source identities/checksums, foreign assignments, unsupported metadata or historical mapping reinterpretation. Complete retained alphabet verification is bounded to 4,096 revisions/64 MiB. Captured bodies, derived expansion and final serialization are bounded before excessive allocation. Parsing/encoding runs off the GTK thread; closed, changed-project or stale-generation results write nothing. Delivery uses the existing private atomic local-file writer.
+
+Observed: **6 storage transaction tests**, **4 native pure tests** and targeted real GTK **1 test / 1.08 s** passed offline/locked. The action fixture runs actual option/draft decisions, RPC, background encoding and local file delivery with synthetic destinations, including failed writes and stale/closed delivery. The platform chooser itself is not automated. No dependency, model/font download, system change, personal store or network listener was used. Source results do not qualify published packages.
+
+---
+
 # Unreleased recorded formatting sequences — October 14, 2026
 
 Command sequences provides eight named slots, at most 32 allowlisted formatting/spacing/paragraph-language/direction steps, checked settings saves and optional explicitly mapped shortcuts. Recording collects only accepted editor acknowledgements and never saves manuscript edits. Explicit Play and save each step uses normal manual draft decisions, then awaits each command and scene Save before advancing; failure retains earlier saved steps, the current draft and Undo. Logical input gates cover original queued clipboard/IME/tool permits, toolbar/navigation/close/transfer, and ordinary Save/Discard callbacks while allowing only exact author-choice drain and executor Save capabilities.

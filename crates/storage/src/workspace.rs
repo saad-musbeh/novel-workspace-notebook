@@ -252,7 +252,7 @@ pub struct ProjectAsset {
 pub(crate) fn hash(bytes:&[u8])->String {
     format!("{:x}",Sha256::digest(bytes))
 }
-fn decode_scene(payload:&str,checksum:&str)->Result<Scene,
+pub(crate) fn decode_scene(payload:&str,checksum:&str)->Result<Scene,
 String>{
     if hash(payload.as_bytes())!=checksum{
         return Err("Scene checksum failed. Stored data was preserved.".into())
