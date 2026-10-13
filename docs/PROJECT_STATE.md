@@ -1,3 +1,11 @@
+# Unreleased authored fictional-time validation — October 13, 2026
+
+New or changed explicit event times now validate supported variants, finite numbers, ordered interval/bounds ranges and distinct retained relative anchors. Negative and fractional fictional dates remain valid. Unchanged historical malformed or absent times remain exact; acknowledged recovery versions retain the existing compatibility policy. This fixes the reproduced Save of a reversed interval that native chronology displayed as Days 10–1. It does not infer chronology or add complete planning core-shape/feasibility enforcement.
+
+Observed: the regression failed before the fix; **all 156 storage tests passed** offline and locked afterward. It checks new/changed refusals without revisions/projection changes, valid numeric dates, unchanged historical times, acknowledged/unacknowledged recovery and retained relative-dependent deletion refusal. No migration, dependency or UI behavior change was needed. Published binaries remain separate.
+
+---
+
 # Unreleased scene writing and deletion recovery — October 13, 2026
 
 Project → History & recovery → Scene writing and deletion recovery lists the entire novel including deleted scenes. Checked previews retain exact rich writing, every writing/deletion leaf and placement dependencies. The author explicitly reviews Keep writing or Keep deleted after all-window draft decisions; stale or incomplete captures refuse the choice. A sole deleted version can be explicitly restored. Concurrent deletions now resolve using actual leaves while retaining projected-head CAS. Every earlier revision remains in history and archives.

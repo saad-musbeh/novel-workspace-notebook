@@ -84,3 +84,65 @@ async fn storage_commit_checks_author_claims_and_preserves_stale_history_archive
     let copied = storage.load_project_data(&imported.project.id, "planning").await.unwrap().unwrap(); assert_eq!(copied.payload["knowledge"][0]["factSnapshot"], approved["knowledge"][0]["factSnapshot"]); assert_eq!(copied.payload["facts"], unrelated["facts"]); assert_ne!(copied.payload["knowledge"][0]["scope"]["sceneIds"][0], scene.id);
     storage.close().await;
 }
+
+#[tokio::test]
+async fn authored_event_time_rejects_invalid_ranges_and_links_without_rewriting_history() {
+    use novel_storage::Storage;
+    let directory = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&directory.path().join("event-time.sqlite")).await.unwrap();
+    let project = storage.create_project("Fictional time مِ 中文").await.unwrap();
+    let fresh_project = storage.create_project("New fictional time").await.unwrap();
+    let original = json!({"schemaVersion":1,"events":[{"id":"anchor","title":"نور 明","time":{"kind":"fixed","day":-1.5,"label":"Authored مِ 中文 𠀀 👩🏽‍🚀 e\u{301}"}},{"id":"event","title":"Occurrence","time":{"kind":"unknown"}}]});
+    let saved = storage.save_project_data(&project.id, "planning", original.clone(), None).await.unwrap();
+    let marker = storage.sync_cursor().await.unwrap();
+    for time in [
+        json!({"kind":"interval","start":10,"end":1}),
+        json!({"kind":"bounds","start":2.5,"end":-3}),
+        json!({"kind":"fixed","day":"tomorrow"}),
+        json!({"kind":"fixed","day":null}),
+        json!({"kind":"fixed","day":1,"label":false}),
+        json!({"kind":"relative","eventId":"event","offsetDays":1}),
+        json!({"kind":"relative","eventId":"missing","offsetDays":1}),
+        json!({"kind":"relative","eventId":"anchor","offsetDays":"one"}),
+        json!({"kind":"inferred","day":1}),
+        json!(null),
+    ] {
+        let mut proposed = original.clone(); proposed["events"][1]["time"] = time.clone();
+        assert!(storage.save_project_data(&project.id, "planning", proposed, Some(saved.revision_id.clone())).await.is_err(), "Rejected time: {time}");
+        assert_eq!(storage.sync_cursor().await.unwrap(), marker);
+        assert_eq!(storage.load_project_data(&project.id, "planning").await.unwrap().unwrap(), saved);
+        let fresh = json!({"schemaVersion":1,"events":[original["events"][0].clone(),{"id":"event","time":time}]});
+        assert!(validate_transition(None, &fresh).is_err());
+        assert!(storage.save_project_data(&fresh_project.id,"planning",fresh,None).await.is_err());
+        assert!(storage.load_project_data(&fresh_project.id,"planning").await.unwrap().is_none());
+        assert_eq!(storage.sync_cursor().await.unwrap(), marker);
+    }
+    for time in [json!({"kind":"unknown"}),json!({"kind":"fixed","day":-0.25}),json!({"kind":"interval","start":-2.5,"end":1.5}),json!({"kind":"bounds","start":1,"end":1}),json!({"kind":"relative","eventId":"anchor","offsetDays":-0.5})] {
+        let mut proposed = original.clone(); proposed["events"][1]["time"] = time;
+        validate_transition(Some(&original), &proposed).unwrap();
+    }
+    // Compatibility imports and exact acknowledged recovery preserve old
+    // unresolved time rather than inventing dates or rewriting frozen data.
+    let mut legacy = original.clone(); legacy["events"][1]["time"] = json!({"kind":"interval","start":10,"end":1});
+    validate_compatibility(&legacy).unwrap();
+    let mut unrelated = legacy.clone(); unrelated["events"][1]["title"] = json!("Unrelated مِ 中文");
+    validate_transition(Some(&legacy), &unrelated).unwrap();
+    assert!(validate_resolution(&[&original], &legacy).is_err());
+    validate_resolution(&[&original,&legacy], &legacy).unwrap();
+    let omitted = json!({"schemaVersion":1,"events":[{"id":"old-event","title":"Preserved missing time"}]});
+    let mut unrelated = omitted.clone(); unrelated["events"][0]["title"] = json!("Unrelated مِ 中文");
+    validate_transition(Some(&omitted), &unrelated).unwrap();
+    assert!(unrelated["events"][0].get("time").is_none());
+    let mut changed = legacy.clone(); changed["events"][1]["time"]["start"] = json!(11);
+    assert!(validate_resolution(&[&original,&legacy], &changed).is_err());
+    let mut repaired = legacy.clone(); repaired["events"][1]["time"] = json!({"kind":"relative","eventId":"anchor","offsetDays":0.5});
+    let latest = storage.save_project_data(&project.id,"planning",repaired.clone(),Some(saved.revision_id.clone())).await.unwrap();
+    assert_eq!(latest.payload["events"][0], original["events"][0]);
+    let mut dangling = repaired; dangling["events"].as_array_mut().unwrap().remove(0);
+    let marker = storage.sync_cursor().await.unwrap();
+    assert!(storage.save_project_data(&project.id,"planning",dangling,Some(latest.revision_id.clone())).await.is_err());
+    assert_eq!(storage.sync_cursor().await.unwrap(), marker);
+    assert_eq!(storage.load_project_data(&project.id,"planning").await.unwrap().unwrap(), latest);
+    assert_eq!(storage.load_entity_revision(&project.id,&format!("{}:planning",project.id),"projectData",&saved.revision_id).await.unwrap().payload, original);
+    storage.close().await;
+}

@@ -1,3 +1,9 @@
+# Authored fictional time transition regression — October 13, 2026
+
+The new transaction regression reproduced storage accepting `{kind:interval,start:10,end:1}` before the fix. After adding only the new/changed-present event-time guard, **156 storage tests passed, 0 failures** offline and locked. Cases refuse reversed interval/bounds, malformed numbers/variants and missing/self relative anchors without creating revisions or changing projections; preserve negative/fractional dates, exact unchanged historical malformed/missing times and immutable revisions; distinguish retained acknowledged recovery from an invalid new recovery claim; and retain the existing deletion guard for relative dependents. Focused planning validation/resolution checks also passed 11 tests. Log: `/tmp/novel-event-time-storage.log`. This source/backend check does not qualify packaged or physical input.
+
+---
+
 # Native scene writing and deletion recovery — October 13, 2026
 
 Locked offline workspace excluding retained Tauri passed **316 tests, 0 failures, 2 ignored**: 70 companion, 13 DOCX, 12 editor, 66 native and 155 storage. The complete opt-in native workflow passed **1 test / 41.03 s** with fatal criticals and actual rebuilt debug workers. Targeted recovery passed **1 test / 2.45 s**. The new five storage regressions and companion RPC check cover actual concurrent deletion leaves, exact rich writing restore, retained archive/history, stale/omitted/duplicate/foreign heads, placement changes, failed-insert rollback, corrupt previews and explicit `scene:null` versus omitted arguments.

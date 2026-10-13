@@ -284,3 +284,8 @@ Freeze the acknowledged editor frame at hold time, label unsaved writing and com
 ## October 13 — Complete scene/deletion author recovery
 
 Capture projected rich writing, actual scene/tombstone leaves and placement in one transaction. A deleted projection may retain an ancestor scene for previews; it is not an extra leaf parent. Require the original complete capture and explicit author review for Keep writing/Keep deleted; preserve all immutable history and recoverable archives. Drain project-wide drafts first. After Save, evict only clean idle caches synchronously; preserve pending/composing/new drafts against their original parent with a changed-version notice. Ordinary detached recovery does not require an open scene editor.
+
+
+## October 13 — Validate newly authored fictional time
+
+Validate only new or changed present event-time values at the author transition, including finite dates, ordered ranges and distinct retained relative anchors. Keep unchanged historical malformed/absent times and acknowledged recovery compatible. Preserve negative/fractional dates and unresolved cycles; validation must not manufacture feasibility or dates. This closes a reproduced backend/native bypass without backfilling legacy rows or broadening core-shape constraints.

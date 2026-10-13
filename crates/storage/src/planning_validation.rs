@@ -67,6 +67,21 @@ pub fn validate_compatibility(document: &Value) -> Result<(), String> {
 }
 
 fn targets<'a>(document: &'a Value, key: &str) -> HashMap<&'a str, &'a Value> { rows(document, key).iter().filter_map(|r| Some((id(r)?, r))).collect() }
+/// Fictional days may be negative or fractional. Match the retained frontend
+/// time variants; never infer a date or enforce feasibility on historical data.
+fn author_event_time(entry: &Value, time: &Value, events: &HashMap<&str, &Value>) -> Result<(), String> {
+    expect(valid_id(&entry["id"]) && time.is_object(), "New event time needs a stable event identity and an explicit time object.")?;
+    present(time, "label", text, "Invalid authored fictional-time label.")?;
+    let finite = |value: &Value| value.as_f64().is_some_and(f64::is_finite);
+    let valid = match time["kind"].as_str() {
+        Some("unknown") => true,
+        Some("fixed") => finite(&time["day"]),
+        Some("interval" | "bounds") => finite(&time["start"]) && finite(&time["end"]) && time["start"].as_f64() <= time["end"].as_f64(),
+        Some("relative") => time["eventId"].as_str().is_some_and(|target| events.contains_key(target) && entry["id"] != target) && finite(&time["offsetDays"]),
+        _ => false,
+    };
+    expect(valid, "New or changed fictional time needs finite dates, an ordered range, or a retained distinct relative event.")
+}
 fn author_reveal(entry: &Value, facts: &HashMap<&str, &Value>, events: &HashMap<&str, &Value>) -> Result<(), String> {
     expect(valid_id(&entry["id"]) && text(&entry["notes"]), "A new reader reveal needs a stable identity and notes.")?;
     expect(entry["scene"]["kind"] == "scene" && valid_id(&entry["scene"]["id"]), "A new reader reveal needs an explicit scene.")?;
@@ -104,6 +119,13 @@ pub fn validate_resolution(previous: &[&Value], next: &Value) -> Result<(), Stri
     // new author claim. It may already contain stale or missing targets.
     if previous.iter().any(|old| *old == next) { return Ok(()); }
     let facts = targets(next, "facts"); let events = targets(next, "events");
+    for entry in rows(next, "events") {
+        // Older native rows may omit time entirely. The guard concerns new or
+        // changed explicit time, not unrelated edits to preserved legacy rows.
+        let Some(time) = entry.get("time") else { continue; };
+        let unchanged = previous.iter().any(|old| rows(old, "events").iter().any(|old_entry| id(old_entry).is_some() && id(old_entry) == id(entry) && old_entry.get("time") == Some(time)));
+        if !unchanged { author_event_time(entry, time, &events)?; }
+    }
     for key in ["readerReveals", "knowledge"] {
         for entry in rows(next, key) {
             let unchanged = previous.iter().any(|old| rows(old, key).iter().any(|old_entry| id(old_entry).is_some() && id(old_entry) == id(entry) && old_entry == entry));
